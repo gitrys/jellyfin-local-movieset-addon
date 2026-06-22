@@ -60,9 +60,9 @@
                         NFO File Naming Convention
                     </label>
                     <select id="NfoNaming" is="emby-select" class="emby-select-withcolor emby-select">
-                        <option value="0">Set Subfolder  — &lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</option>
-                        <option value="1">Flat File      — &lt;SetFolder&gt;/&lt;SetName&gt;.nfo</option>
-                        <option value="2">collection.nfo — &lt;SetFolder&gt;/&lt;SetName&gt;/collection.nfo</option>
+                        <option value="SetSubfolder">Set Subfolder  — &lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</option>
+                        <option value="FlatFile">Flat File      — &lt;SetFolder&gt;/&lt;SetName&gt;.nfo</option>
+                        <option value="CollectionNfo">collection.nfo — &lt;SetFolder&gt;/&lt;SetName&gt;/collection.nfo</option>
                     </select>
                     <div class="fieldDescription">
                         Must match the "NFO file naming" option configured in
@@ -166,7 +166,7 @@
             function loadConfig(page) {
                 ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
                     page.querySelector('#SetDataFolder').value        = config.SetDataFolder || '';
-                    page.querySelector('#NfoNaming').value            = config.NfoNaming ?? 0;
+                    page.querySelector('#NfoNaming').value            = config.NfoNaming || 'SetSubfolder';
                     page.querySelector('#MinimumMovies').value        = config.MinimumMovies ?? 1;
                     page.querySelector('#DeleteOrphanedSets').checked = config.DeleteOrphanedSets === true;
                     page.querySelector('#UpdateExistingArtwork').checked = config.UpdateExistingArtwork === true;
@@ -178,7 +178,7 @@
                 e.preventDefault();
                 ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
                     config.SetDataFolder        = page.querySelector('#SetDataFolder').value.trim();
-                    config.NfoNaming            = parseInt(page.querySelector('#NfoNaming').value, 10);
+                    config.NfoNaming            = page.querySelector('#NfoNaming').value;
                     config.MinimumMovies        = parseInt(page.querySelector('#MinimumMovies').value, 10) || 1;
                     config.DeleteOrphanedSets   = page.querySelector('#DeleteOrphanedSets').checked;
                     config.UpdateExistingArtwork = page.querySelector('#UpdateExistingArtwork').checked;
