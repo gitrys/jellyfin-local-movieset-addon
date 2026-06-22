@@ -5,6 +5,7 @@
     "name": "Local Movie Sets",
     "description": "Creates movie collections (box sets) from local NFO metadata produced by tinyMediaManager.",
     "owner": "gitrys",
+    "imageUrl": "https://raw.githubusercontent.com/gitrys/jellyfin-local-movieset-addon/main/images/local_movie_sets_logo.png",
     "overview": "A Jellyfin plugin that creates and manages movie collections (box sets) from local metadata only \u2014 no TMDB or external API calls. Data is read from movie .nfo files and optionally a tinyMediaManager Movie Set Data Folder.",
     "versions": [
       {

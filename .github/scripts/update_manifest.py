@@ -84,12 +84,14 @@ def main():
             "name": "Local Movie Sets",
             "description": "Creates movie collections (box sets) from local NFO metadata produced by tinyMediaManager.",
             "owner": owner,
+            "imageUrl": f"https://raw.githubusercontent.com/{repo_fullname}/main/images/local_movie_sets_logo.png",
             "overview": "A Jellyfin plugin that creates and manages movie collections (box sets) from local metadata only — no TMDB or external API calls.",
             "versions": []
         }
         manifest.append(plugin_entry)
     else:
         plugin_entry["owner"] = owner
+        plugin_entry["imageUrl"] = f"https://raw.githubusercontent.com/{repo_fullname}/main/images/local_movie_sets_logo.png"
         
     # Check if this version already exists, if so update it, otherwise insert it
     version_exists = False
