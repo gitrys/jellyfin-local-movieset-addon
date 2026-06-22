@@ -374,7 +374,7 @@
                         }
 
                         items.forEach(item => {
-                            const name = item.Name || item.name;
+                            const displayName = item.Name || item.name || item.Path || item.path || 'Unknown';
                             const itemPath = item.Path || item.path;
                             const isDirectory = (item.Type || item.type) === 'Directory' || !path;
 
@@ -389,7 +389,7 @@
                                 border-bottom: 1px solid #222;
                                 color: #fff;
                             `;
-                            el.innerHTML = `<span style="margin-right: 0.8em; font-size: 1.1em;">&#128193;</span> ${name}`;
+                            el.innerHTML = `<span style="margin-right: 0.8em; font-size: 1.1em;">&#128193;</span> ${displayName}`;
                             el.onclick = () => renderPath(itemPath);
                             
                             el.onmouseenter = () => { el.style.background = '#2c2c2e'; };
