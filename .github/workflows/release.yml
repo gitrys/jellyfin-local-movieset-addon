@@ -1,0 +1,70 @@
+name: Release Plugin
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history so we can commit back to the main branch
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Extract Version
+        id: get_version
+        run: |
+          # Strip 'v' prefix if present, e.g., v1.0.0.0 -> 1.0.0.0
+          TAG_NAME="${{ github.ref_name }}"
+          VERSION="${TAG_NAME#v}"
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Build and Publish Plugin
+        run: |
+          dotnet publish Jellyfin.Plugin.LocalMovieSets/Jellyfin.Plugin.LocalMovieSets.csproj -c Release -o publish
+
+      - name: Package Plugin (ZIP)
+        run: |
+          # Compress the DLL directly into the root of the ZIP file
+          cd publish
+          zip -r ../Jellyfin.Plugin.LocalMovieSets_${{ env.VERSION }}.zip Jellyfin.Plugin.LocalMovieSets.dll
+          cd ..
+
+      - name: Update manifest.json
+        run: |
+          python .github/scripts/update_manifest.py "${{ env.VERSION }}" "Jellyfin.Plugin.LocalMovieSets_${{ env.VERSION }}.zip" "${{ github.repository }}" "${{ github.ref_name }}"
+
+      - name: Commit and Push manifest.json
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Checkout main branch to commit manifest updates
+          git checkout main
+          git add manifest.json
+          git commit -m "chore: update manifest.json for version ${{ env.VERSION }} [skip ci]" || echo "No changes to commit"
+          git push origin main
+
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Jellyfin.Plugin.LocalMovieSets_${{ env.VERSION }}.zip
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ env.VERSION }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

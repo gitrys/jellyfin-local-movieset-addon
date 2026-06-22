@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Local Movie Sets</title>
+</head>
+<body>
+<div id="LocalMovieSetsConfigPage"
+     data-role="page"
+     class="page type-interior pluginConfigurationPage"
+     data-require="emby-input,emby-button,emby-select,emby-checkbox">
+
+    <div data-role="content">
+        <div class="content-primary">
+
+            <form id="LocalMovieSetsConfigForm">
+
+                <div class="sectionTitleContainer flex align-items-center">
+                    <h2 class="sectionTitle">Local Movie Sets</h2>
+                </div>
+
+                <p style="color: #aaa; margin-bottom: 1.5em;">
+                    Creates Jellyfin collections from local NFO metadata managed by
+                    <strong>tinyMediaManager</strong>. No internet connection needed.
+                    <br/>
+                    <em>Tip: Disable "Automatically add to collection" in your movie library settings
+                    to avoid conflicts with TMDB-based collections.</em>
+                </p>
+
+                <!-- ── Set Data Folder ───────────────────────────────────────── -->
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="SetDataFolder">
+                        Movie Set Data Folder
+                    </label>
+                    <input id="SetDataFolder"
+                           type="text"
+                           class="emby-input"
+                           placeholder="/mnt/nas/moviesets  (leave empty to skip dedicated set NFOs)"
+                    />
+                    <div class="fieldDescription">
+                        Path to tinyMediaManager's "Movie Set Data Folder" setting.
+                        This folder contains per-set NFO files and artwork.
+                        Leave blank if you only use the &lt;set&gt; tag in individual movie NFOs.
+                    </div>
+                </div>
+
+                <!-- ── NFO Naming Convention ─────────────────────────────────── -->
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="NfoNaming">
+                        NFO File Naming Convention
+                    </label>
+                    <select id="NfoNaming" is="emby-select" class="emby-select-withcolor emby-select">
+                        <option value="0">Set Subfolder  — &lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</option>
+                        <option value="1">Flat File      — &lt;SetFolder&gt;/&lt;SetName&gt;.nfo</option>
+                        <option value="2">collection.nfo — &lt;SetFolder&gt;/&lt;SetName&gt;/collection.nfo</option>
+                    </select>
+                    <div class="fieldDescription">
+                        Must match the "NFO file naming" option configured in
+                        tinyMediaManager → Settings → Movies → Movie Sets.
+                    </div>
+                </div>
+
+                <!-- ── Minimum Movies ────────────────────────────────────────── -->
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="MinimumMovies">
+                        Minimum Movies per Collection
+                    </label>
+                    <input id="MinimumMovies"
+                           type="number"
+                           class="emby-input"
+                           min="1"
+                           max="20"
+                           value="1"
+                    />
+                    <div class="fieldDescription">
+                        A collection is only created if at least this many movies in your
+                        library belong to the set. Default: 1.
+                    </div>
+                </div>
+
+                <!-- ── Delete Orphaned Sets ──────────────────────────────────── -->
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label class="emby-checkbox-label">
+                        <input id="DeleteOrphanedSets"
+                               type="checkbox"
+                               is="emby-checkbox"
+                        />
+                        <span>Delete orphaned collections</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        Remove Jellyfin collections that no longer have any movies
+                        with a matching &lt;set&gt; tag. Only affects collections without
+                        a TMDB or IMDB provider ID (i.e. those created by this plugin).
+                    </div>
+                </div>
+
+                <!-- ── Update Existing Artwork ───────────────────────────────── -->
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label class="emby-checkbox-label">
+                        <input id="UpdateExistingArtwork"
+                               type="checkbox"
+                               is="emby-checkbox"
+                        />
+                        <span>Overwrite existing collection artwork</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        When enabled, artwork from the TMM set folder is re-copied
+                        on every sync, replacing any existing images on the collection.
+                        When disabled, only collections with no artwork are updated.
+                    </div>
+                </div>
+
+                <!-- ── Actions ───────────────────────────────────────────────── -->
+                <div style="display:flex; gap: 1em; margin-top: 1.5em; flex-wrap: wrap;">
+                    <button is="emby-button"
+                            type="submit"
+                            class="raised button-submit block emby-button">
+                        <span>Save</span>
+                    </button>
+                    <button is="emby-button"
+                            id="BtnSyncNow"
+                            type="button"
+                            class="raised block emby-button">
+                        <span>&#9654; Sync Now</span>
+                    </button>
+                </div>
+
+                <!-- Status message -->
+                <div id="StatusMsg"
+                     style="margin-top: 1em; color: #4CAF50; display:none;">
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <script>
+        /*
+         * Jellyfin plugin configuration page script.
+         * Uses the global ApiClient (injected by Jellyfin's dashboard framework).
+         */
+        (function () {
+
+            const PLUGIN_ID   = 'd3e4f5a6-b7c8-9012-def0-123456789abc';
+            const TASK_KEY    = 'LocalMovieSets_Sync';
+
+            function showStatus(msg, isError) {
+                const el = document.getElementById('StatusMsg');
+                el.textContent = msg;
+                el.style.color = isError ? '#F44336' : '#4CAF50';
+                el.style.display = 'block';
+                setTimeout(() => { el.style.display = 'none'; }, 5000);
+            }
+
+            /* ── Load config ── */
+            function loadConfig(page) {
+                ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
+                    page.querySelector('#SetDataFolder').value        = config.SetDataFolder || '';
+                    page.querySelector('#NfoNaming').value            = config.NfoNaming ?? 0;
+                    page.querySelector('#MinimumMovies').value        = config.MinimumMovies ?? 1;
+                    page.querySelector('#DeleteOrphanedSets').checked = config.DeleteOrphanedSets === true;
+                    page.querySelector('#UpdateExistingArtwork').checked = config.UpdateExistingArtwork === true;
+                });
+            }
+
+            /* ── Save config ── */
+            function saveConfig(page, e) {
+                e.preventDefault();
+                ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
+                    config.SetDataFolder        = page.querySelector('#SetDataFolder').value.trim();
+                    config.NfoNaming            = parseInt(page.querySelector('#NfoNaming').value, 10);
+                    config.MinimumMovies        = parseInt(page.querySelector('#MinimumMovies').value, 10) || 1;
+                    config.DeleteOrphanedSets   = page.querySelector('#DeleteOrphanedSets').checked;
+                    config.UpdateExistingArtwork = page.querySelector('#UpdateExistingArtwork').checked;
+
+                    ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function () {
+                        showStatus('Settings saved.', false);
+                    }).catch(function () {
+                        showStatus('Failed to save settings.', true);
+                    });
+                });
+            }
+
+            /* ── Trigger sync task ── */
+            function syncNow() {
+                // Get the task by key, then run it
+                ApiClient.getScheduledTasks(false, false).then(function (tasks) {
+                    const task = tasks.find(t => t.Key === TASK_KEY);
+                    if (!task) {
+                        showStatus('Sync task not found. Please restart Jellyfin.', true);
+                        return;
+                    }
+                    ApiClient.startScheduledTask(task.Id).then(function () {
+                        showStatus('Sync started! Check Scheduled Tasks for progress.', false);
+                    }).catch(function () {
+                        showStatus('Failed to start sync. Is the task already running?', true);
+                    });
+                });
+            }
+
+            /* ── Page lifecycle ── */
+            document.addEventListener('pageshow', function (e) {
+                const page = e.target;
+                if (!page.id || page.id !== 'LocalMovieSetsConfigPage') return;
+
+                loadConfig(page);
+
+                const form = page.querySelector('#LocalMovieSetsConfigForm');
+                form.removeEventListener('submit', form._saveHandler);
+                form._saveHandler = (ev) => saveConfig(page, ev);
+                form.addEventListener('submit', form._saveHandler);
+
+                const btnSync = page.querySelector('#BtnSyncNow');
+                btnSync.removeEventListener('click', syncNow);
+                btnSync.addEventListener('click', syncNow);
+            });
+
+        }());
+    </script>
+</div>
+</body>
+</html>

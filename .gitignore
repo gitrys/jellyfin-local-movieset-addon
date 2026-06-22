@@ -1,0 +1,19 @@
+# Build directories
+[Bb]in/
+[Oo]bj/
+[Dd]ist/
+
+# Local .NET SDK
+.dotnet-sdk/
+
+# IDE/Editor specific
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS specific
+.DS_Store
+Thumbs.db

@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <AssemblyName>Jellyfin.Plugin.LocalMovieSets</AssemblyName>
+    <RootNamespace>Jellyfin.Plugin.LocalMovieSets</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <Version>1.0.0.0</Version>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      These packages are provided at runtime by the Jellyfin host.
+      PrivateAssets=all ensures they are NOT copied into the plugin output dll.
+      ExcludeAssets=runtime prevents the runtime dlls from being included.
+      Update the Version to match your Jellyfin server version.
+    -->
+    <PackageReference Include="Jellyfin.Controller" Version="10.10.3">
+      <PrivateAssets>all</PrivateAssets>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Jellyfin.Model" Version="10.10.3">
+      <PrivateAssets>all</PrivateAssets>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Embed the config page HTML so Jellyfin can serve it from the plugin assembly -->
+    <EmbeddedResource Include="Configuration\configPage.html" />
+  </ItemGroup>
+
+</Project>
