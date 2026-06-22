@@ -113,11 +113,12 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         {
             // ── Step 1: Query all movies ──────────────────────────────────────
             var allMovies = _libraryManager
-                .GetItemList(new InternalItemsQuery
+                .GetItemsResult(new InternalItemsQuery
                 {
                     IncludeItemTypes = [BaseItemKind.Movie],
                     IsVirtualItem = false
                 })
+                .Items
                 .OfType<Movie>()
                 .ToList();
 
@@ -153,10 +154,11 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
             // ── Step 3: Load existing BoxSet collections ───────────────────────
             var existingBoxSets = _libraryManager
-                .GetItemList(new InternalItemsQuery
+                .GetItemsResult(new InternalItemsQuery
                 {
                     IncludeItemTypes = [BaseItemKind.BoxSet]
                 })
+                .Items
                 .OfType<BoxSet>()
                 .ToList();
 
