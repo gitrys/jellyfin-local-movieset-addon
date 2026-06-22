@@ -60,6 +60,14 @@ public class MovieNfoParser
 
                 var setName = setElement.Element("name")?.Value?.Trim();
                 if (string.IsNullOrWhiteSpace(setName))
+                {
+                    if (!setElement.HasElements)
+                    {
+                        setName = setElement.Value?.Trim();
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(setName))
                     return null;
 
                 var setOverview = setElement.Element("overview")?.Value?.Trim();

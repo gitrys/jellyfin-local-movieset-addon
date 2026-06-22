@@ -259,7 +259,9 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         PluginConfiguration config,
         CancellationToken cancellationToken)
     {
-        _logger.LogDebug("Updating existing collection '{SetName}'", setName);
+        _logger.LogInformation(
+            "Updating existing collection '{SetName}' with {Count} movie(s)",
+            setName, movies.Count);
 
         try
         {

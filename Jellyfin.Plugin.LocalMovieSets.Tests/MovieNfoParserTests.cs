@@ -144,6 +144,27 @@ public class MovieNfoParserTests : IDisposable
     }
 
     [Fact]
+    public void ParseNfo_SimpleSetTag_ReturnsSetMembership()
+    {
+        // Arrange
+        var moviePath = Path.Combine(_tempDirectory, "movie.mkv");
+        var nfoPath = Path.Combine(_tempDirectory, "movie.nfo");
+        var nfoContent = @"<movie>
+  <title>Sample Movie</title>
+  <set>Marvel Cinematic Universe</set>
+</movie>";
+        File.WriteAllText(nfoPath, nfoContent);
+
+        // Act
+        var result = _parser.ParseNfo(moviePath);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Marvel Cinematic Universe", result.SetName);
+        Assert.Null(result.SetOverview);
+    }
+
+    [Fact]
     public void ParseNfo_MovieNamedNfoTakesPriority_ReturnsCorrectSet()
     {
         // Arrange
