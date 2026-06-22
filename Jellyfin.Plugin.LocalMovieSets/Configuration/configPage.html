@@ -32,11 +32,21 @@
                     <label class="inputLabel inputLabelUnfocused" for="SetDataFolder">
                         Movie Set Data Folder
                     </label>
-                    <input id="SetDataFolder"
-                           type="text"
-                           class="emby-input"
-                           placeholder="/mnt/nas/moviesets  (leave empty to skip dedicated set NFOs)"
-                    />
+                    <div style="display: flex; gap: 0.5em; align-items: center;">
+                        <input id="SetDataFolder"
+                               type="text"
+                               class="emby-input"
+                               style="flex-grow: 1; margin: 0;"
+                               placeholder="/mnt/nas/moviesets  (leave empty to skip dedicated set NFOs)"
+                        />
+                        <button is="emby-button"
+                                id="BtnBrowseFolder"
+                                type="button"
+                                class="raised block emby-button"
+                                style="margin: 0; padding: 0.5em 1em; font-size: 0.9em; height: 38px;">
+                            <span>Browse...</span>
+                        </button>
+                    </div>
                     <div class="fieldDescription">
                         Path to tinyMediaManager's "Movie Set Data Folder" setting.
                         This folder contains per-set NFO files and artwork.
@@ -198,6 +208,220 @@
                 });
             }
 
+            /* ── Folder Browser Modal Implementation ── */
+            let pathSeparator = '/';
+
+            function getParentDirectory(path) {
+                if (!path) return '';
+                if (path.includes('\\')) {
+                    pathSeparator = '\\';
+                    const parts = path.split('\\');
+                    if (parts.length <= 2 && parts[1] === '') return '';
+                    parts.pop();
+                    if (parts.length === 1 && parts[0].endsWith(':')) return parts[0] + '\\';
+                    return parts.join('\\');
+                } else {
+                    pathSeparator = '/';
+                    if (path === '/') return '';
+                    const parts = path.split('/');
+                    parts.pop();
+                    const newPath = parts.join('/');
+                    return newPath === '' ? '/' : newPath;
+                }
+            }
+
+            function openFolderBrowser(inputEl) {
+                const modal = document.createElement('div');
+                modal.id = 'FolderBrowserModal';
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.6);
+                    backdrop-filter: blur(8px);
+                    -webkit-backdrop-filter: blur(8px);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 99999;
+                    font-family: inherit;
+                `;
+
+                const modalContent = document.createElement('div');
+                modalContent.style.cssText = `
+                    background: #1c1c1e;
+                    border: 1px solid #2c2c2e;
+                    border-radius: 12px;
+                    width: 90%;
+                    max-width: 600px;
+                    height: 70%;
+                    max-height: 500px;
+                    display: flex;
+                    flex-direction: column;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+                    overflow: hidden;
+                `;
+
+                const header = document.createElement('div');
+                header.style.cssText = `
+                    padding: 1em;
+                    border-bottom: 1px solid #2c2c2e;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    background: #252528;
+                `;
+                
+                const title = document.createElement('h3');
+                title.textContent = 'Browse Folder';
+                title.style.cssText = 'margin: 0; font-size: 1.1em; color: #fff;';
+                header.appendChild(title);
+
+                const btnClose = document.createElement('button');
+                btnClose.innerHTML = '&times;';
+                btnClose.style.cssText = `
+                    background: none;
+                    border: none;
+                    color: #aaa;
+                    font-size: 1.5em;
+                    cursor: pointer;
+                    padding: 0;
+                    line-height: 1;
+                `;
+                btnClose.onclick = () => document.body.removeChild(modal);
+                header.appendChild(btnClose);
+                modalContent.appendChild(header);
+
+                const pathBar = document.createElement('div');
+                pathBar.style.cssText = `
+                    padding: 0.8em 1em;
+                    background: #141416;
+                    color: #00a4dc;
+                    font-family: monospace;
+                    font-size: 0.9em;
+                    word-break: break-all;
+                    border-bottom: 1px solid #222;
+                `;
+                modalContent.appendChild(pathBar);
+
+                const listContainer = document.createElement('div');
+                listContainer.style.cssText = `
+                    flex-grow: 1;
+                    overflow-y: auto;
+                    padding: 0.5em 0;
+                `;
+                modalContent.appendChild(listContainer);
+
+                const footer = document.createElement('div');
+                footer.style.cssText = `
+                    padding: 1em;
+                    border-top: 1px solid #2c2c2e;
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 1em;
+                    background: #252528;
+                `;
+
+                const btnSelect = document.createElement('button');
+                btnSelect.className = 'raised button-submit block emby-button';
+                btnSelect.innerHTML = '<span>Select Current Folder</span>';
+                btnSelect.style.cssText = 'margin: 0; padding: 0.6em 1.2em; font-size: 0.9em; cursor: pointer;';
+                
+                footer.appendChild(btnSelect);
+                modalContent.appendChild(footer);
+                modal.appendChild(modalContent);
+                document.body.appendChild(modal);
+
+                let currentPath = inputEl.value.trim();
+
+                function renderPath(path) {
+                    currentPath = path;
+                    pathBar.textContent = path || 'Root / Drives';
+                    listContainer.innerHTML = '';
+
+                    if (path) {
+                        const parentPath = getParentDirectory(path);
+                        const parentItem = document.createElement('div');
+                        parentItem.style.cssText = `
+                            padding: 0.85em 1em;
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            border-bottom: 1px solid #222;
+                            color: #aaa;
+                            font-weight: bold;
+                        `;
+                        parentItem.innerHTML = '<span style="margin-right: 0.8em; font-size: 1.1em;">&#128193;</span> [Parent Directory (..)]';
+                        parentItem.onclick = () => renderPath(parentPath);
+                        parentItem.onmouseenter = () => { parentItem.style.background = '#2c2c2e'; };
+                        parentItem.onmouseleave = () => { parentItem.style.background = 'none'; };
+                        listContainer.appendChild(parentItem);
+                    }
+
+                    const url = path 
+                        ? ApiClient.getUrl('Environment/DirectoryContents', { path: path, includeDirectories: true, includeFiles: false })
+                        : ApiClient.getUrl('Environment/Drives');
+
+                    ApiClient.getJSON(url).then(function (items) {
+                        if (!items || items.length === 0) {
+                            const empty = document.createElement('div');
+                            empty.textContent = 'This folder is empty or inaccessible.';
+                            empty.style.cssText = 'padding: 1.5em; color: #888; text-align: center;';
+                            listContainer.appendChild(empty);
+                            return;
+                        }
+
+                        items.forEach(item => {
+                            const name = item.Name || item.name;
+                            const itemPath = item.Path || item.path;
+                            const isDirectory = (item.Type || item.type) === 'Directory' || !path;
+
+                            if (!isDirectory) return;
+
+                            const el = document.createElement('div');
+                            el.style.cssText = `
+                                padding: 0.85em 1em;
+                                cursor: pointer;
+                                display: flex;
+                                align-items: center;
+                                border-bottom: 1px solid #222;
+                                color: #fff;
+                            `;
+                            el.innerHTML = `<span style="margin-right: 0.8em; font-size: 1.1em;">&#128193;</span> ${name}`;
+                            el.onclick = () => renderPath(itemPath);
+                            
+                            el.onmouseenter = () => { el.style.background = '#2c2c2e'; };
+                            el.onmouseleave = () => { el.style.background = 'none'; };
+                            listContainer.appendChild(el);
+                        });
+                    }).catch(function (err) {
+                        const errorMsg = document.createElement('div');
+                        errorMsg.textContent = 'Error loading folder contents. Verify access permissions.';
+                        errorMsg.style.cssText = 'padding: 1.5em; color: #F44336; text-align: center;';
+                        listContainer.appendChild(errorMsg);
+                    });
+                }
+
+                if (!currentPath) {
+                    ApiClient.getJSON(ApiClient.getUrl('Environment/DefaultDirectoryBrowser')).then(function (res) {
+                        renderPath(res.Path || res.path || '');
+                    }).catch(function () {
+                        renderPath('');
+                    });
+                } else {
+                    renderPath(currentPath);
+                }
+
+                btnSelect.onclick = () => {
+                    inputEl.value = currentPath;
+                    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                    document.body.removeChild(modal);
+                };
+            }
+
             /* ── Page lifecycle ── */
             document.addEventListener('pageshow', function (e) {
                 const page = e.target;
@@ -213,6 +437,11 @@
                 const btnSync = page.querySelector('#BtnSyncNow');
                 btnSync.removeEventListener('click', syncNow);
                 btnSync.addEventListener('click', syncNow);
+
+                const btnBrowse = page.querySelector('#BtnBrowseFolder');
+                btnBrowse.removeEventListener('click', btnBrowse._clickHandler);
+                btnBrowse._clickHandler = () => openFolderBrowser(page.querySelector('#SetDataFolder'));
+                btnBrowse.addEventListener('click', btnBrowse._clickHandler);
             });
 
         }());
