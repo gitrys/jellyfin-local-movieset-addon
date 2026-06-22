@@ -19,13 +19,22 @@
                     <h2 class="sectionTitle">Local Movie Sets</h2>
                 </div>
 
-                <p style="color: #aaa; margin-bottom: 1.5em;">
-                    Creates Jellyfin collections from local NFO metadata managed by
-                    <strong>tinyMediaManager</strong>. No internet connection needed.
-                    <br/>
-                    <em>Tip: Disable "Automatically add to collection" in your movie library settings
-                    to avoid conflicts with TMDB-based collections.</em>
-                </p>
+                <div style="background: rgba(0, 164, 220, 0.1); border: 1px solid #00a4dc; border-radius: 8px; padding: 1.25em; margin-bottom: 2em; font-size: 0.95em; line-height: 1.5;">
+                    <h3 style="margin-top: 0; margin-bottom: 0.5em; color: #00a4dc; display: flex; align-items: center; gap: 0.4em;">
+                        <span>💡</span> Setup Guide &amp; Best Practices
+                    </h3>
+                    <ul style="margin: 0; padding-left: 1.2em; color: #ccc;">
+                        <li style="margin-bottom: 0.6em;">
+                            <strong>Before Sync (Avoid Conflicts):</strong> Make sure the option 
+                            <em>"Automatically add to collection"</em> is <strong>disabled</strong> in your library metadata settings (Dashboard &rarr; Libraries &rarr; click your library) to prevent TMDB from interfering.
+                        </li>
+                        <li style="margin-bottom: 0.6em;">
+                            <strong>After Sync (Group Movies):</strong> To group movies under their collection cards within the main movie library view, you must enable 
+                            <em>"Group movies into collections"</em> under 
+                            <a href="libraryparent.html" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Dashboard &rarr; Libraries &rarr; Display</a>.
+                        </li>
+                    </ul>
+                </div>
 
                 <!-- ── Set Data Folder ───────────────────────────────────────── -->
                 <div class="inputContainer">
