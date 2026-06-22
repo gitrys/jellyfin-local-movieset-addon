@@ -31,7 +31,7 @@
                         <li style="margin-bottom: 0.6em;">
                             <strong>After Sync (Group Movies):</strong> To group movies under their collection cards within the main movie library view, you must enable 
                             <em>"Group movies into collections"</em> under 
-                            <a href="libraryparent.html" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Dashboard &rarr; Libraries &rarr; Display</a>.
+                            <a href="#/dashboard/libraries/display" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Dashboard &rarr; Libraries &rarr; Display</a>.
                         </li>
                     </ul>
                 </div>
@@ -129,6 +129,23 @@
                     </div>
                 </div>
 
+                <!-- ── Default Collection Sort Order ─────────────────────────────────── -->
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="CollectionDisplayOrder">
+                        Default Collection Sort Order
+                    </label>
+                    <select id="CollectionDisplayOrder" is="emby-select" class="emby-select-withcolor emby-select">
+                        <option value="SortName">Sort Name / Alphabetical</option>
+                        <option value="PremiereDate">Release Date / Premiere Date</option>
+                        <option value="DateModified">Date Modified</option>
+                    </select>
+                    <div class="fieldDescription">
+                        Default display/sort order applied to newly created collections.
+                        You can still manually override this for individual collections by clicking 
+                        "Edit Metadata" on the collection's details page in Jellyfin.
+                    </div>
+                </div>
+
                 <!-- ── Actions ───────────────────────────────────────────────── -->
                 <div style="display:flex; gap: 1em; margin-top: 1.5em; flex-wrap: wrap;">
                     <button is="emby-button"
@@ -179,6 +196,7 @@
                     page.querySelector('#MinimumMovies').value        = config.MinimumMovies ?? 1;
                     page.querySelector('#DeleteOrphanedSets').checked = config.DeleteOrphanedSets === true;
                     page.querySelector('#UpdateExistingArtwork').checked = config.UpdateExistingArtwork === true;
+                    page.querySelector('#CollectionDisplayOrder').value = config.CollectionDisplayOrder || 'SortName';
                 });
             }
 
@@ -191,6 +209,7 @@
                     config.MinimumMovies        = parseInt(page.querySelector('#MinimumMovies').value, 10) || 1;
                     config.DeleteOrphanedSets   = page.querySelector('#DeleteOrphanedSets').checked;
                     config.UpdateExistingArtwork = page.querySelector('#UpdateExistingArtwork').checked;
+                    config.CollectionDisplayOrder = page.querySelector('#CollectionDisplayOrder').value;
 
                     ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function () {
                         showStatus('Settings saved.', false);

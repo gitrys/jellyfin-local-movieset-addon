@@ -197,6 +197,9 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     .ConfigureAwait(false);
             }
 
+            // ── Step 6: Cleanup legacy sort titles ──────────────────────────────
+            await CleanupLegacySortTitlesAsync(allMovies, cancellationToken).ConfigureAwait(false);
+
             _logger.LogInformation("Local Movie Sets: sync completed successfully");
         }
         catch (OperationCanceledException)
@@ -234,6 +237,10 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 _logger.LogWarning("CreateCollectionAsync returned null for '{SetName}'", setName);
                 return;
             }
+
+            collection.DisplayOrder = config.CollectionDisplayOrder;
+            await collection.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken)
+                .ConfigureAwait(false);
 
             await ApplySetMetadataAsync(collection, setName, config, cancellationToken)
                 .ConfigureAwait(false);
@@ -395,6 +402,52 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Temporary cleanup of previously plugin-modified movie sort titles.
+    /// </summary>
+    private async Task CleanupLegacySortTitlesAsync(List<Movie> allMovies, CancellationToken cancellationToken)
+    {
+        foreach (var movie in allMovies)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (IsLegacyPluginSortName(movie.SortName, movie.Name))
+            {
+                _logger.LogInformation("Reverting legacy sort title for '{MovieName}'", movie.Name);
+                movie.SortName = string.Empty;
+                try
+                {
+                    await movie.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to revert legacy sort title for '{MovieName}'", movie.Name);
+                }
+            }
+        }
+    }
+
+    private static bool IsLegacyPluginSortName(string sortName, string movieName)
+    {
+        if (string.IsNullOrWhiteSpace(sortName) || string.IsNullOrWhiteSpace(movieName))
+            return false;
+
+        var suffix = " - " + movieName;
+        if (!sortName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var prefix = sortName.Substring(0, sortName.Length - suffix.Length).Trim();
+        if (prefix.Length < 3)
+            return false;
+
+        var lastSpaceIndex = prefix.LastIndexOf(' ');
+        if (lastSpaceIndex <= 0)
+            return false;
+
+        var indexStr = prefix.Substring(lastSpaceIndex + 1);
+        return indexStr.Length == 2 && int.TryParse(indexStr, out _);
     }
 
     /// <inheritdoc />

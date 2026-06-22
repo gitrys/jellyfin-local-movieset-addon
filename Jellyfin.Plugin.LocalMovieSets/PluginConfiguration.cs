@@ -59,4 +59,12 @@ public class PluginConfiguration : BasePluginConfiguration
     /// artwork with images found in the TMM set folder.
     /// </summary>
     public bool UpdateExistingArtwork { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the default display order for newly created collections.
+    /// Valid values: "SortName", "PremiereDate", "DateModified".
+    /// </summary>
+    public string CollectionDisplayOrder { get; set; } = "SortName";
 }
+
+
