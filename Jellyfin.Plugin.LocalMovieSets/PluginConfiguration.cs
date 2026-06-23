@@ -55,6 +55,13 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool DeleteOrphanedSets { get; set; } = false;
 
     /// <summary>
+    /// Gets or sets a value indicating whether orphan deletion should also
+    /// remove collections that have a TMDB or IMDb provider ID.
+    /// When false (default), collections with a provider ID are kept as a safety guard.
+    /// </summary>
+    public bool DeleteSetsWithProviderId { get; set; } = false;
+
+    /// <summary>
     /// Gets or sets a value indicating whether to overwrite existing collection
     /// artwork with images found in the TMM set folder.
     /// </summary>

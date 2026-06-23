@@ -35,6 +35,9 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
     // Debounce timer: fires 30 seconds after the last library change event
     private readonly Timer _debounceTimer;
+
+    // Prevents concurrent syncs (debounce timer vs scheduled task)
+    private readonly SemaphoreSlim _syncLock = new(1, 1);
     private bool _disposed;
 
     /// <summary>
@@ -100,17 +103,24 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     /// <param name="cancellationToken">Cancellation token.</param>
     public async Task ScanAndSyncAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Local Movie Sets: starting sync");
-
-        var config = Plugin.Instance?.Configuration;
-        if (config is null)
+        // Prevent overlapping syncs (debounce timer vs scheduled task)
+        if (!await _syncLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
         {
-            _logger.LogError("Plugin configuration is not available");
+            _logger.LogInformation("Local Movie Sets: sync already in progress, skipping");
             return;
         }
 
         try
         {
+            _logger.LogInformation("Local Movie Sets: starting sync");
+
+            var config = Plugin.Instance?.Configuration;
+            if (config is null)
+            {
+                _logger.LogError("Plugin configuration is not available");
+                return;
+            }
+
             // ── Step 1: Query all movies ──────────────────────────────────────
             var allMovies = _libraryManager
                 .GetItemsResult(new InternalItemsQuery
@@ -170,7 +180,8 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (movies.Count < config.MinimumMovies)
+                var minimumMovies = Math.Max(1, config.MinimumMovies);
+                if (movies.Count < minimumMovies)
                 {
                     _logger.LogDebug(
                         "Skipping set '{SetName}': {Count} movies < minimum {Min}",
@@ -193,7 +204,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             // ── Step 5: Optionally remove orphaned collections ─────────────────
             if (config.DeleteOrphanedSets)
             {
-                await DeleteOrphanedSetsAsync(existingBoxSets, setGroups, cancellationToken)
+                await DeleteOrphanedSetsAsync(existingBoxSets, setGroups, config.DeleteSetsWithProviderId, cancellationToken)
                     .ConfigureAwait(false);
             }
 
@@ -209,6 +220,10 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Local Movie Sets: sync failed with an unexpected error");
+        }
+        finally
+        {
+            _syncLock.Release();
         }
     }
 
@@ -469,12 +484,13 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
     /// <summary>
     /// Deletes BoxSet collections that have no corresponding active set group.
-    /// Only removes collections that appear to have been created by this plugin
-    /// (no embedded provider source ID from another provider like TMDB).
+    /// By default, only removes collections without a TMDB/IMDb provider ID.
+    /// When <paramref name="includeWithProviderId"/> is true, all orphaned collections are deleted.
     /// </summary>
     private Task DeleteOrphanedSetsAsync(
         List<BoxSet> existingBoxSets,
         Dictionary<string, List<Movie>> activeSetGroups,
+        bool includeWithProviderId,
         CancellationToken cancellationToken)
     {
         foreach (var boxSet in existingBoxSets)
@@ -484,19 +500,22 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             if (activeSetGroups.ContainsKey(boxSet.Name))
                 continue;
 
-            // Safety guard: only delete if the collection has no remote provider ID
-            // to avoid removing collections the user created via other means (e.g. TMDB).
-            var hasTmdbId = !string.IsNullOrEmpty(
-                boxSet.GetProviderId(MetadataProvider.Tmdb));
-            var hasImdbId = !string.IsNullOrEmpty(
-                boxSet.GetProviderId(MetadataProvider.Imdb));
-
-            if (hasTmdbId || hasImdbId)
+            // Safety guard: skip collections with a remote provider ID
+            // unless the user has explicitly opted in to deleting those too.
+            if (!includeWithProviderId)
             {
-                _logger.LogDebug(
-                    "Skipping deletion of collection '{SetName}' — it has a remote provider ID",
-                    boxSet.Name);
-                continue;
+                var hasTmdbId = !string.IsNullOrEmpty(
+                    boxSet.GetProviderId(MetadataProvider.Tmdb));
+                var hasImdbId = !string.IsNullOrEmpty(
+                    boxSet.GetProviderId(MetadataProvider.Imdb));
+
+                if (hasTmdbId || hasImdbId)
+                {
+                    _logger.LogDebug(
+                        "Skipping deletion of collection '{SetName}' — it has a remote provider ID",
+                        boxSet.Name);
+                    continue;
+                }
             }
 
             _logger.LogInformation("Deleting orphaned collection '{SetName}'", boxSet.Name);
@@ -577,7 +596,10 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             return;
 
         if (disposing)
+        {
             _debounceTimer.Dispose();
+            _syncLock.Dispose();
+        }
 
         _disposed = true;
     }

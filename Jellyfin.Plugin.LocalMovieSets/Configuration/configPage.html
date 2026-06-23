@@ -123,8 +123,24 @@
                     </label>
                     <div class="fieldDescription checkboxFieldDescription">
                         Remove Jellyfin collections that no longer have any movies
-                        with a matching &lt;set&gt; tag. Only affects collections without
-                        a TMDB or IMDB provider ID (i.e. those created by this plugin).
+                        with a matching &lt;set&gt; tag. By default, collections with
+                        a TMDB or IMDb provider ID are kept as a safety guard.
+                    </div>
+                </div>
+
+                <!-- ── Delete Sets With Provider ID ───────────────────────────── -->
+                <div class="checkboxContainer checkboxContainer-withDescription" style="margin-left: 2em;">
+                    <label class="emby-checkbox-label">
+                        <input id="DeleteSetsWithProviderId"
+                               type="checkbox"
+                               is="emby-checkbox"
+                        />
+                        <span>Also delete orphaned collections with provider IDs</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        When enabled, orphaned collections are deleted even if they
+                        have a TMDB or IMDb provider ID. Use this if your set NFOs
+                        contain &lt;tmdbid&gt; tags and you want full automatic cleanup.
                     </div>
                 </div>
 
@@ -249,6 +265,7 @@
                     page.querySelector('#NfoNaming').value            = config.NfoNaming || 'SetSubfolder';
                     page.querySelector('#MinimumMovies').value        = config.MinimumMovies ?? 1;
                     page.querySelector('#DeleteOrphanedSets').checked = config.DeleteOrphanedSets === true;
+                    page.querySelector('#DeleteSetsWithProviderId').checked = config.DeleteSetsWithProviderId === true;
                     page.querySelector('#UpdateExistingArtwork').checked = config.UpdateExistingArtwork === true;
                     page.querySelector('#CollectionSortBy').value = config.CollectionSortBy || 'Name';
                     page.querySelector('#CollectionSortOrder').value = config.CollectionSortOrder || 'Ascending';
@@ -263,6 +280,7 @@
                     config.NfoNaming            = page.querySelector('#NfoNaming').value;
                     config.MinimumMovies        = parseInt(page.querySelector('#MinimumMovies').value, 10) || 1;
                     config.DeleteOrphanedSets   = page.querySelector('#DeleteOrphanedSets').checked;
+                    config.DeleteSetsWithProviderId = page.querySelector('#DeleteSetsWithProviderId').checked;
                     config.UpdateExistingArtwork = page.querySelector('#UpdateExistingArtwork').checked;
                     config.CollectionSortBy     = page.querySelector('#CollectionSortBy').value;
                     config.CollectionSortOrder  = page.querySelector('#CollectionSortOrder').value;
@@ -437,7 +455,11 @@
                             color: #aaa;
                             font-weight: bold;
                         `;
-                        parentItem.innerHTML = '<span style="margin-right: 0.8em; font-size: 1.1em;">&#128193;</span> [Parent Directory (..)]';
+                        const parentIcon = document.createElement('span');
+                        parentIcon.style.cssText = 'margin-right: 0.8em; font-size: 1.1em;';
+                        parentIcon.textContent = '\uD83D\uDCC1';
+                        parentItem.appendChild(parentIcon);
+                        parentItem.appendChild(document.createTextNode(' [Parent Directory (..)]'));
                         parentItem.onclick = () => renderPath(parentPath);
                         parentItem.onmouseenter = () => { parentItem.style.background = '#2c2c2e'; };
                         parentItem.onmouseleave = () => { parentItem.style.background = 'none'; };
@@ -473,7 +495,11 @@
                                 border-bottom: 1px solid #222;
                                 color: #fff;
                             `;
-                            el.innerHTML = '<span style="margin-right: 0.85em; font-size: 1.1em;">&#128193;</span> ' + displayName;
+                            const folderIcon = document.createElement('span');
+                            folderIcon.style.cssText = 'margin-right: 0.85em; font-size: 1.1em;';
+                            folderIcon.textContent = '\uD83D\uDCC1';
+                            el.appendChild(folderIcon);
+                            el.appendChild(document.createTextNode(' ' + displayName));
                             el.onclick = () => renderPath(itemPath);
                             
                             el.onmouseenter = () => { el.style.background = '#2c2c2e'; };

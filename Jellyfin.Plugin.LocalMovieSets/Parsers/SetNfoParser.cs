@@ -183,6 +183,14 @@ public class SetNfoParser
     public static string SanitizeFolderName(string name)
     {
         var invalid = Path.GetInvalidFileNameChars();
-        return string.Join(string.Empty, name.Split(invalid));
+        var sanitized = string.Join(string.Empty, name.Split(invalid));
+
+        // Guard against "." / ".." which Path.Combine would resolve as current/parent dir
+        if (string.IsNullOrWhiteSpace(sanitized) || sanitized.All(c => c == '.'))
+        {
+            return "_" + sanitized;
+        }
+
+        return sanitized;
     }
 }

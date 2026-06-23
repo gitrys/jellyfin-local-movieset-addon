@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using MediaBrowser.Controller.Library;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Jellyfin.Plugin.LocalMovieSets.Api;
@@ -11,6 +12,7 @@ namespace Jellyfin.Plugin.LocalMovieSets.Api;
 /// </summary>
 [ApiController]
 [Route("LocalMovieSets")]
+[Authorize(Policy = "RequiresElevation")]
 public class LocalMovieSetsController : ControllerBase
 {
     private readonly ILibraryManager _libraryManager;
