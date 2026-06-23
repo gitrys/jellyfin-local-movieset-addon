@@ -13,7 +13,7 @@ namespace Jellyfin.Plugin.LocalMovieSets.Services;
 
 /// <summary>
 /// Copies artwork files from a tinyMediaManager set folder into a Jellyfin
-/// BoxSet collection item using <see cref="IProviderManager.SaveImage"/>.
+/// BoxSet collection item using <see cref="IProviderManager"/>.
 /// </summary>
 public class SetArtworkProvider
 {
@@ -32,6 +32,9 @@ public class SetArtworkProvider
         (["clearart.png",  "clearart.jpg"],                                 ImageType.Art),
         (["banner.jpg",    "banner.png"],                                   ImageType.Banner),
         (["disc.png",      "disc.jpg",      "discart.png"],                 ImageType.Disc),
+        (["box.jpg",       "box.png"],                                      ImageType.Box),
+        (["boxrear.jpg",   "boxrear.png",   "box_rear.jpg", "box_rear.png", "back.jpg", "back.png"], ImageType.BoxRear),
+        (["menu.jpg",      "menu.png"],                                     ImageType.Menu),
     ];
 
     /// <summary>

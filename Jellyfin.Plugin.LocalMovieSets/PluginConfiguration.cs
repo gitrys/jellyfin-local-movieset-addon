@@ -61,10 +61,14 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool UpdateExistingArtwork { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets the default display order for newly created collections.
-    /// Valid values: "SortName", "PremiereDate", "DateModified".
+    /// Gets or sets the default sort field for newly created collections.
     /// </summary>
-    public string CollectionDisplayOrder { get; set; } = "SortName";
+    public string CollectionSortBy { get; set; } = "Name";
+
+    /// <summary>
+    /// Gets or sets the default sort direction for newly created collections.
+    /// </summary>
+    public string CollectionSortOrder { get; set; } = "Ascending";
 }
 
 

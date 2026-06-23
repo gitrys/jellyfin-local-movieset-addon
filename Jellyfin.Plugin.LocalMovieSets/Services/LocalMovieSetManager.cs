@@ -238,7 +238,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 return;
             }
 
-            collection.DisplayOrder = config.CollectionDisplayOrder;
+            collection.DisplayOrder = config.CollectionSortBy;
             await collection.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -341,6 +341,34 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             && !string.Equals(collection.OriginalTitle, setInfo.OriginalTitle, StringComparison.Ordinal))
         {
             collection.OriginalTitle = setInfo.OriginalTitle;
+            changed = true;
+        }
+
+        var genresArray = setInfo.Genres.ToArray();
+        if (collection.Genres is null || !collection.Genres.SequenceEqual(genresArray, StringComparer.Ordinal))
+        {
+            collection.Genres = genresArray;
+            changed = true;
+        }
+
+        var studiosArray = setInfo.Studios.ToArray();
+        if (collection.Studios is null || !collection.Studios.SequenceEqual(studiosArray, StringComparer.Ordinal))
+        {
+            collection.Studios = studiosArray;
+            changed = true;
+        }
+
+        if (!string.IsNullOrEmpty(setInfo.TmdbId)
+            && !string.Equals(collection.GetProviderId(MetadataProvider.Tmdb), setInfo.TmdbId, StringComparison.Ordinal))
+        {
+            collection.SetProviderId(MetadataProvider.Tmdb, setInfo.TmdbId);
+            changed = true;
+        }
+
+        if (!string.IsNullOrEmpty(setInfo.ImdbId)
+            && !string.Equals(collection.GetProviderId(MetadataProvider.Imdb), setInfo.ImdbId, StringComparison.Ordinal))
+        {
+            collection.SetProviderId(MetadataProvider.Imdb, setInfo.ImdbId);
             changed = true;
         }
 

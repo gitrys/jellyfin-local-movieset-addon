@@ -106,7 +106,12 @@ public class SetNfoParserTests : IDisposable
         var nfoContent = @"<set>
   <title>Iron Man Collection</title>
   <originaltitle>Iron Man Original Collection</originaltitle>
-  <overview>The complete saga of Iron Man movies.</overview>
+  <plot>The complete saga of Iron Man movies.</plot>
+  <genre>Action</genre>
+  <genre>Sci-Fi</genre>
+  <studio>Marvel Studios</studio>
+  <tmdbid>125570</tmdbid>
+  <imdbid>tt0123456</imdbid>
 </set>";
         File.WriteAllText(nfoPath, nfoContent);
 
@@ -118,6 +123,13 @@ public class SetNfoParserTests : IDisposable
         Assert.Equal("Iron Man Collection", result.Title);
         Assert.Equal("Iron Man Original Collection", result.OriginalTitle);
         Assert.Equal("The complete saga of Iron Man movies.", result.Overview);
+        Assert.Equal(2, result.Genres.Count);
+        Assert.Contains("Action", result.Genres);
+        Assert.Contains("Sci-Fi", result.Genres);
+        Assert.Single(result.Studios);
+        Assert.Equal("Marvel Studios", result.Studios[0]);
+        Assert.Equal("125570", result.TmdbId);
+        Assert.Equal("tt0123456", result.ImdbId);
     }
 
     [Fact]
@@ -142,5 +154,32 @@ public class SetNfoParserTests : IDisposable
         Assert.NotNull(result);
         Assert.Equal(setName, result.Title);
         Assert.Equal("Saga description.", result.Overview);
+        Assert.Empty(result.Genres);
+        Assert.Empty(result.Studios);
+    }
+
+    [Fact]
+    public void ParseSet_UniqueId_ReturnsSetNfoInfo()
+    {
+        // Arrange
+        var setName = "Iron Man Collection";
+        var subfolder = Path.Combine(_tempDirectory, setName);
+        Directory.CreateDirectory(subfolder);
+
+        var nfoPath = Path.Combine(subfolder, $"{setName}.nfo");
+        var nfoContent = @"<set>
+  <title>Iron Man Collection</title>
+  <uniqueid default=""true"" type=""tmdb"">125570</uniqueid>
+  <uniqueid type=""imdb"">tt0123456</uniqueid>
+</set>";
+        File.WriteAllText(nfoPath, nfoContent);
+
+        // Act
+        var result = _parser.ParseSet(_tempDirectory, setName, NfoNamingConvention.SetSubfolder);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("125570", result.TmdbId);
+        Assert.Equal("tt0123456", result.ImdbId);
     }
 }

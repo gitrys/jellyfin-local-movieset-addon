@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 
@@ -11,7 +13,19 @@ namespace Jellyfin.Plugin.LocalMovieSets.Parsers;
 /// <param name="Title">The display title of the collection.</param>
 /// <param name="OriginalTitle">Optional original/alternate title.</param>
 /// <param name="Overview">Optional description of the collection.</param>
-public record SetNfoInfo(string Title, string? OriginalTitle, string? Overview);
+/// <param name="Genres">List of parsed genres.</param>
+/// <param name="Studios">List of parsed studios.</param>
+/// <param name="TmdbId">Optional TMDB collection ID.</param>
+/// <param name="ImdbId">Optional IMDb collection ID.</param>
+public record SetNfoInfo(
+    string Title,
+    string? OriginalTitle,
+    string? Overview,
+    IReadOnlyList<string> Genres,
+    IReadOnlyList<string> Studios,
+    string? TmdbId,
+    string? ImdbId);
+
 
 /// <summary>
 /// Parses a tinyMediaManager dedicated set .nfo file from the configured
@@ -68,7 +82,40 @@ public class SetNfoParser
 
             var title = root.Element("title")?.Value?.Trim();
             var originalTitle = root.Element("originaltitle")?.Value?.Trim();
-            var overview = root.Element("overview")?.Value?.Trim();
+            var overview = root.Element("plot")?.Value?.Trim();
+            if (string.IsNullOrEmpty(overview))
+            {
+                overview = root.Element("overview")?.Value?.Trim();
+            }
+
+            var genres = root.Elements("genre")
+                .Select(e => e.Value?.Trim())
+                .Where(v => !string.IsNullOrEmpty(v))
+                .Select(v => v!)
+                .ToList();
+
+            var studios = root.Elements("studio")
+                .Select(e => e.Value?.Trim())
+                .Where(v => !string.IsNullOrEmpty(v))
+                .Select(v => v!)
+                .ToList();
+
+            // Parse TMDB and IMDb IDs
+            var tmdbId = root.Element("tmdbid")?.Value?.Trim();
+            if (string.IsNullOrEmpty(tmdbId))
+            {
+                tmdbId = root.Elements("uniqueid")
+                    .FirstOrDefault(x => string.Equals(x.Attribute("type")?.Value?.Trim(), "tmdb", StringComparison.OrdinalIgnoreCase))
+                    ?.Value?.Trim();
+            }
+
+            var imdbId = root.Element("imdbid")?.Value?.Trim();
+            if (string.IsNullOrEmpty(imdbId))
+            {
+                imdbId = root.Elements("uniqueid")
+                    .FirstOrDefault(x => string.Equals(x.Attribute("type")?.Value?.Trim(), "imdb", StringComparison.OrdinalIgnoreCase))
+                    ?.Value?.Trim();
+            }
 
             // Fall back to set name if no title in file
             if (string.IsNullOrWhiteSpace(title))
@@ -77,7 +124,11 @@ public class SetNfoParser
             return new SetNfoInfo(
                 title,
                 string.IsNullOrEmpty(originalTitle) ? null : originalTitle,
-                string.IsNullOrEmpty(overview) ? null : overview);
+                string.IsNullOrEmpty(overview) ? null : overview,
+                genres,
+                studios,
+                string.IsNullOrEmpty(tmdbId) ? null : tmdbId,
+                string.IsNullOrEmpty(imdbId) ? null : imdbId);
         }
         catch (Exception ex)
         {

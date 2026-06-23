@@ -129,20 +129,41 @@
                     </div>
                 </div>
 
-                <!-- ── Default Collection Sort Order ─────────────────────────────────── -->
+                <!-- ── Default Collection Sort By ─────────────────────────────────── -->
                 <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="CollectionDisplayOrder">
-                        Default Collection Sort Order
+                    <label class="inputLabel inputLabelUnfocused" for="CollectionSortBy">
+                        Default Collection Sort By
                     </label>
-                    <select id="CollectionDisplayOrder" is="emby-select" class="emby-select-withcolor emby-select">
-                        <option value="SortName">Sort Name / Alphabetical</option>
-                        <option value="PremiereDate">Release Date / Premiere Date</option>
-                        <option value="DateModified">Date Modified</option>
+                    <select id="CollectionSortBy" is="emby-select" class="emby-select-withcolor emby-select">
+                        <option value="Name">Name</option>
+                        <option value="Random">Random</option>
+                        <option value="CommunityRating">Community Rating</option>
+                        <option value="CriticsRating">Critics Rating</option>
+                        <option value="DateCreated">Date Added</option>
+                        <option value="DatePlayed">Date Played</option>
+                        <option value="ParentalRating">Parental Rating</option>
+                        <option value="PlayCount">Play Count</option>
+                        <option value="PremiereDate">Release Date</option>
+                        <option value="Runtime">Runtime</option>
                     </select>
                     <div class="fieldDescription">
                         Default display/sort order applied to newly created collections.
                         You can still manually override this for individual collections by clicking 
                         "Edit Metadata" on the collection's details page in Jellyfin.
+                    </div>
+                </div>
+
+                <!-- ── Default Collection Sort Order ─────────────────────────────────── -->
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="CollectionSortOrder">
+                        Default Collection Sort Order
+                    </label>
+                    <select id="CollectionSortOrder" is="emby-select" class="emby-select-withcolor emby-select">
+                        <option value="Ascending">Ascending</option>
+                        <option value="Descending">Descending</option>
+                    </select>
+                    <div class="fieldDescription">
+                        Default sorting direction applied to newly created collections.
                     </div>
                 </div>
 
@@ -196,7 +217,8 @@
                     page.querySelector('#MinimumMovies').value        = config.MinimumMovies ?? 1;
                     page.querySelector('#DeleteOrphanedSets').checked = config.DeleteOrphanedSets === true;
                     page.querySelector('#UpdateExistingArtwork').checked = config.UpdateExistingArtwork === true;
-                    page.querySelector('#CollectionDisplayOrder').value = config.CollectionDisplayOrder || 'SortName';
+                    page.querySelector('#CollectionSortBy').value = config.CollectionSortBy || 'Name';
+                    page.querySelector('#CollectionSortOrder').value = config.CollectionSortOrder || 'Ascending';
                 });
             }
 
@@ -209,7 +231,8 @@
                     config.MinimumMovies        = parseInt(page.querySelector('#MinimumMovies').value, 10) || 1;
                     config.DeleteOrphanedSets   = page.querySelector('#DeleteOrphanedSets').checked;
                     config.UpdateExistingArtwork = page.querySelector('#UpdateExistingArtwork').checked;
-                    config.CollectionDisplayOrder = page.querySelector('#CollectionDisplayOrder').value;
+                    config.CollectionSortBy     = page.querySelector('#CollectionSortBy').value;
+                    config.CollectionSortOrder  = page.querySelector('#CollectionSortOrder').value;
 
                     ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function () {
                         showStatus('Settings saved.', false);
