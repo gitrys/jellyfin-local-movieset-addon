@@ -226,10 +226,12 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
         try
         {
+            var sortedMovies = SortMovies(movies, config.CollectionSortBy, config.CollectionSortOrder);
+
             var collection = await _collectionManager.CreateCollectionAsync(new CollectionCreationOptions
             {
                 Name = setName,
-                ItemIdList = movies.Select(m => m.Id.ToString()).ToArray()
+                ItemIdList = sortedMovies.Select(m => m.Id.ToString()).ToArray()
             }).ConfigureAwait(false);
 
             if (collection is null)
@@ -238,7 +240,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 return;
             }
 
-            collection.DisplayOrder = config.CollectionSortBy;
+            collection.DisplayOrder = MapSortByToJellyfin(config.CollectionSortBy);
             await collection.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -272,15 +274,28 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
         try
         {
-            // Find movies not yet in the collection
-            var existingChildIds = boxSet
+            var sortedMovies = SortMovies(movies, config.CollectionSortBy, config.CollectionSortOrder);
+
+            var existingMovieItems = boxSet
                 .GetLinkedChildren()
+                .OfType<Movie>()
+                .ToList();
+
+            var existingMovieIds = existingMovieItems
                 .Select(c => c.Id)
                 .ToHashSet();
 
-            var newMovieIds = movies
-                .Where(m => !existingChildIds.Contains(m.Id))
+            var targetMovieIds = sortedMovies
                 .Select(m => m.Id)
+                .ToHashSet();
+
+            var newMovieIds = sortedMovies
+                .Where(m => !existingMovieIds.Contains(m.Id))
+                .Select(m => m.Id)
+                .ToArray();
+
+            var movieIdsToRemove = existingMovieIds
+                .Where(id => !targetMovieIds.Contains(id))
                 .ToArray();
 
             if (newMovieIds.Length > 0)
@@ -293,6 +308,34 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     .AddToCollectionAsync(boxSet.Id, newMovieIds)
                     .ConfigureAwait(false);
             }
+
+            if (movieIdsToRemove.Length > 0)
+            {
+                _logger.LogInformation(
+                    "Removing {Count} orphaned movie(s) from collection '{SetName}'",
+                    movieIdsToRemove.Length, setName);
+
+                await _collectionManager
+                    .RemoveFromCollectionAsync(boxSet.Id, movieIdsToRemove)
+                    .ConfigureAwait(false);
+            }
+
+            var changed = false;
+            var mappedSortBy = MapSortByToJellyfin(config.CollectionSortBy);
+            if (!string.Equals(boxSet.DisplayOrder, mappedSortBy, StringComparison.Ordinal))
+            {
+                boxSet.DisplayOrder = mappedSortBy;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                await boxSet.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            await ApplySetMetadataAsync(boxSet, setName, config, cancellationToken)
+                .ConfigureAwait(false);
 
             // Refresh artwork if requested
             if (config.UpdateExistingArtwork)
@@ -310,6 +353,48 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         {
             _logger.LogError(ex, "Failed to update collection '{SetName}'", setName);
         }
+    }
+
+    private List<Movie> SortMovies(List<Movie> movies, string sortBy, string sortOrder)
+    {
+        var isDescending = string.Equals(sortOrder, "Descending", StringComparison.OrdinalIgnoreCase);
+
+        Func<Movie, object?> keySelector = sortBy switch
+        {
+            "SortName" => m => m.SortName,
+            "Random" => m => Guid.NewGuid(),
+            "CommunityRating" => m => m.CommunityRating,
+            "CriticsRating" or "CriticRating" => m => m.CriticRating,
+            "DateCreated" => m => m.DateCreated,
+            "PremiereDate" => m => m.PremiereDate,
+            "Runtime" => m => m.RunTimeTicks,
+            _ => m => m.Name
+        };
+
+        if (string.Equals(sortBy, "Random", StringComparison.OrdinalIgnoreCase))
+        {
+            var random = new Random();
+            return movies.OrderBy(_ => random.Next()).ToList();
+        }
+
+        if (isDescending)
+        {
+            return movies.OrderByDescending(keySelector).ThenByDescending(m => m.SortName).ToList();
+        }
+        else
+        {
+            return movies.OrderBy(keySelector).ThenBy(m => m.SortName).ToList();
+        }
+    }
+
+    private static string MapSortByToJellyfin(string sortBy)
+    {
+        return sortBy switch
+        {
+            "CriticsRating" => "CriticRating",
+            "ParentalRating" => "OfficialRating",
+            _ => sortBy
+        };
     }
 
     /// <summary>
