@@ -19,6 +19,21 @@
                     <h2 class="sectionTitle">Local Movie Sets</h2>
                 </div>
 
+                <!-- ── Conflict Warning ── -->
+                <div id="ConflictWarningBox" style="display: none; background: rgba(244, 67, 54, 0.15); border: 1px solid #f44336; border-radius: 8px; padding: 1.25em; margin-bottom: 2em; font-size: 0.95em; line-height: 1.5;">
+                    <h3 style="margin-top: 0; margin-bottom: 0.5em; color: #f44336; display: flex; align-items: center; gap: 0.5em; font-weight: bold;">
+                        <span style="font-size: 1.2em;">⚠️</span> Warning: Native Collection Auto-Add is Active
+                    </h3>
+                    <p style="margin: 0 0 0.8em 0; color: #eee;">
+                        The native Jellyfin option <strong>"Automatically add to collection"</strong> is currently enabled on the following libraries:
+                        <span id="ConflictLibNames" style="color: #ff9800; font-weight: bold;"></span>
+                    </p>
+                    <p style="margin: 0; color: #ccc; font-size: 0.9em;">
+                        To prevent TMDB from conflicting with tinyMediaManager metadata (creating duplicated collections or mixing up items), please disable this option in 
+                        <strong>Dashboard &rarr; Libraries &rarr; (select library) &rarr; Metadata settings</strong>.
+                    </p>
+                </div>
+
                 <div style="background: rgba(0, 164, 220, 0.1); border: 1px solid #00a4dc; border-radius: 8px; padding: 1.25em; margin-bottom: 2em; font-size: 0.95em; line-height: 1.5;">
                     <h3 style="margin-top: 0; margin-bottom: 0.5em; color: #00a4dc; display: flex; align-items: center; gap: 0.4em;">
                         <span>💡</span> Setup Guide &amp; Best Practices
@@ -208,6 +223,23 @@
                 el.style.color = isError ? '#F44336' : '#4CAF50';
                 el.style.display = 'block';
                 setTimeout(() => { el.style.display = 'none'; }, 5000);
+            }
+
+            /* ── Check Conflicts ── */
+            function checkConflicts(page) {
+                const url = ApiClient.getUrl('LocalMovieSets/CheckConflicts');
+                ApiClient.getJSON(url).then(function (result) {
+                    const warningEl = page.querySelector('#ConflictWarningBox');
+                    if (result && result.HasConflicts) {
+                        const libNames = result.ConflictingLibraries.join(', ');
+                        page.querySelector('#ConflictLibNames').textContent = libNames;
+                        warningEl.style.display = 'block';
+                    } else {
+                        warningEl.style.display = 'none';
+                    }
+                }).catch(function (err) {
+                    console.error('Failed to check collection conflicts:', err);
+                });
             }
 
             /* ── Load config ── */
@@ -480,6 +512,7 @@
                 if (!page.id || page.id !== 'LocalMovieSetsConfigPage') return;
 
                 loadConfig(page);
+                checkConflicts(page);
 
                 const form = page.querySelector('#LocalMovieSetsConfigForm');
                 form.removeEventListener('submit', form._saveHandler);
