@@ -444,6 +444,16 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                         collection.PremiereDate = targetDate;
                         changed = true;
                     }
+
+                    if (targetDate.HasValue)
+                    {
+                        var targetYear = targetDate.Value.Year;
+                        if (collection.ProductionYear != targetYear)
+                        {
+                            collection.ProductionYear = targetYear;
+                            changed = true;
+                        }
+                    }
                 }
             }
         }
