@@ -39,6 +39,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     // Prevents concurrent syncs (debounce timer vs scheduled task)
     private readonly SemaphoreSlim _syncLock = new(1, 1);
     private readonly System.Reflection.MethodInfo? _updatePeopleAsyncMethod;
+    private readonly System.Reflection.MethodInfo? _getPeopleMethod;
     private bool _disposed;
 
     /// <summary>
@@ -61,6 +62,9 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
         _updatePeopleAsyncMethod = typeof(ILibraryManager).GetMethods()
             .FirstOrDefault(m => m.Name == "UpdatePeopleAsync" && m.GetParameters().Length == 3);
+
+        _getPeopleMethod = typeof(ILibraryManager).GetMethods()
+            .FirstOrDefault(m => m.Name == "GetPeople" && m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(BaseItem));
 
         // Timer starts stopped (Timeout.Infinite = never fire)
         _debounceTimer = new Timer(
@@ -409,6 +413,39 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             }
         }
         await _collectionManager.RemoveFromCollectionAsync(collectionId, itemIds).ConfigureAwait(false);
+    }
+
+    private IReadOnlyList<PersonInfo> GetPeopleSafe(BaseItem item)
+    {
+        if (_getPeopleMethod != null)
+        {
+            try
+            {
+                var result = _getPeopleMethod.Invoke(_libraryManager, new object[] { item });
+                if (result is IReadOnlyList<PersonInfo> readOnlyList)
+                {
+                    return readOnlyList;
+                }
+                if (result is System.Collections.IEnumerable enumerable)
+                {
+                    return enumerable.Cast<PersonInfo>().ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error invoking GetPeople via reflection for item '{ItemName}'", item.Name);
+            }
+        }
+
+        try
+        {
+            return (IReadOnlyList<PersonInfo>?)_libraryManager.GetPeople(item) ?? Array.Empty<PersonInfo>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calling GetPeople fallback for item '{ItemName}'", item.Name);
+            return Array.Empty<PersonInfo>();
+        }
     }
 
     // ─── Private helpers ──────────────────────────────────────────────────────
@@ -788,7 +825,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
             foreach (var movie in movies)
             {
-                var moviePeople = _libraryManager.GetPeople(movie);
+                var moviePeople = GetPeopleSafe(movie);
                 if (moviePeople == null) continue;
 
                 int actorCount = 0;
