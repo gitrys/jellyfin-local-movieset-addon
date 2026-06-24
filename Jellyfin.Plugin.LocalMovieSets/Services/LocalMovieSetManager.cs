@@ -39,6 +39,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     // Prevents concurrent syncs (debounce timer vs scheduled task)
     private readonly SemaphoreSlim _syncLock = new(1, 1);
     private readonly System.Reflection.MethodInfo? _updatePeopleAsyncMethod;
+    private readonly System.Reflection.MethodInfo? _updatePeopleMethod;
     private readonly System.Reflection.MethodInfo? _getPeopleMethod;
     private bool _disposed;
 
@@ -62,6 +63,9 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
         _updatePeopleAsyncMethod = typeof(ILibraryManager).GetMethods()
             .FirstOrDefault(m => m.Name == "UpdatePeopleAsync" && m.GetParameters().Length == 3);
+
+        _updatePeopleMethod = typeof(ILibraryManager).GetMethods()
+            .FirstOrDefault(m => m.Name == "UpdatePeople" && m.GetParameters().Length == 2);
 
         _getPeopleMethod = typeof(ILibraryManager).GetMethods()
             .FirstOrDefault(m => m.Name == "GetPeople" && m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(BaseItem));
@@ -436,16 +440,12 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 _logger.LogError(ex, "Error invoking GetPeople via reflection for item '{ItemName}'", item.Name);
             }
         }
+        else
+        {
+            _logger.LogError("GetPeople method not found on ILibraryManager via reflection.");
+        }
 
-        try
-        {
-            return (IReadOnlyList<PersonInfo>?)_libraryManager.GetPeople(item) ?? Array.Empty<PersonInfo>();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error calling GetPeople fallback for item '{ItemName}'", item.Name);
-            return Array.Empty<PersonInfo>();
-        }
+        return Array.Empty<PersonInfo>();
     }
 
     // ─── Private helpers ──────────────────────────────────────────────────────
@@ -887,9 +887,13 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                         await task.ConfigureAwait(false);
                     }
                 }
+                else if (_updatePeopleMethod != null)
+                {
+                    _updatePeopleMethod.Invoke(_libraryManager, new object[] { collection, aggregatedPeople });
+                }
                 else
                 {
-                    _libraryManager.UpdatePeople(collection, aggregatedPeople);
+                    _logger.LogError("No UpdatePeople or UpdatePeopleAsync method found on ILibraryManager.");
                 }
             }
             catch (Exception ex)
