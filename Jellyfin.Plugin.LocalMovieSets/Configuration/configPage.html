@@ -83,11 +83,21 @@
                     <label class="inputLabel inputLabelUnfocused" for="NfoNaming">
                         NFO File Naming Convention
                     </label>
-                    <select id="NfoNaming" is="emby-select" class="emby-select-withcolor emby-select">
-                        <option value="SetSubfolder">Set Subfolder  — &lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</option>
-                        <option value="FlatFile">Flat File      — &lt;SetFolder&gt;/&lt;SetName&gt;.nfo</option>
-                        <option value="CollectionNfo">collection.nfo — &lt;SetFolder&gt;/&lt;SetName&gt;/collection.nfo</option>
-                    </select>
+                    <div style="display: flex; gap: 0.5em; align-items: center; margin-bottom: 0.4em;">
+                        <select id="NfoNaming" is="emby-select" class="emby-select-withcolor emby-select" style="flex-grow: 1; margin: 0;">
+                            <option value="SetSubfolder">Set Subfolder  — &lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</option>
+                            <option value="FlatFile">Flat File      — &lt;SetFolder&gt;/&lt;SetName&gt;.nfo</option>
+                            <option value="CollectionNfo">collection.nfo — &lt;SetFolder&gt;/&lt;SetName&gt;/collection.nfo</option>
+                        </select>
+                        <button is="emby-button"
+                                id="BtnDetectNaming"
+                                type="button"
+                                class="raised block emby-button"
+                                style="margin: 0; padding: 0.5em 1em; font-size: 0.9em; height: 38px;">
+                            <span>Auto-Detect</span>
+                        </button>
+                    </div>
+                    <div id="DetectNamingStatus" style="font-size: 0.95em; margin-bottom: 0.6em; font-weight: bold; display: none;"></div>
                     <div class="fieldDescription">
                         Must match the "NFO file naming" option configured in
                         tinyMediaManager → Settings → Movies → Movie Sets.
@@ -307,6 +317,55 @@
                     }).catch(function () {
                         showStatus('Failed to start sync. Is the task already running?', true);
                     });
+                });
+            }
+
+            /* ── Auto-Detect Naming Convention ── */
+            let detectStatusTimeout = null;
+            function showDetectStatus(msg, isError) {
+                const el = document.getElementById('DetectNamingStatus');
+                if (!el) return;
+                el.textContent = msg;
+                el.style.color = isError ? '#FF9800' : '#4CAF50';
+                el.style.display = 'block';
+                
+                if (detectStatusTimeout) {
+                    clearTimeout(detectStatusTimeout);
+                }
+                detectStatusTimeout = setTimeout(() => { el.style.display = 'none'; }, 8000);
+            }
+
+            function detectNamingConvention(page) {
+                const folderPath = page.querySelector('#SetDataFolder').value.trim();
+                if (!folderPath) {
+                    showDetectStatus('Please configure the Movie Set Data Folder first.', true);
+                    return;
+                }
+
+                const btn = page.querySelector('#BtnDetectNaming');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<span>Scanning...</span>';
+                btn.disabled = true;
+
+                const url = ApiClient.getUrl('LocalMovieSets/DetectNaming', { path: folderPath });
+                ApiClient.getJSON(url).then(function (result) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+
+                    if (result && result.Success) {
+                        const selectEl = page.querySelector('#NfoNaming');
+                        selectEl.value = result.DetectedConvention;
+                        selectEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+                        showDetectStatus(result.Message, false);
+                    } else {
+                        showDetectStatus(result ? result.Message : 'Failed to scan folder.', true);
+                    }
+                }).catch(function (err) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    showDetectStatus('Error connecting to the detection endpoint.', true);
+                    console.error('Failed to auto-detect NFO naming:', err);
                 });
             }
 
@@ -553,6 +612,11 @@
                 btnBrowse.removeEventListener('click', btnBrowse._clickHandler);
                 btnBrowse._clickHandler = () => openFolderBrowser(page.querySelector('#SetDataFolder'));
                 btnBrowse.addEventListener('click', btnBrowse._clickHandler);
+
+                const btnDetect = page.querySelector('#BtnDetectNaming');
+                btnDetect.removeEventListener('click', btnDetect._clickHandler);
+                btnDetect._clickHandler = () => detectNamingConvention(page);
+                btnDetect.addEventListener('click', btnDetect._clickHandler);
             });
 
         }());
