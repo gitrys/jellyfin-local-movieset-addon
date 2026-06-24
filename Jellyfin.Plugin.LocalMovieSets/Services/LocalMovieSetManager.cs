@@ -259,7 +259,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             await collection.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken)
                 .ConfigureAwait(false);
 
-            await ApplySetMetadataAsync(collection, setName, config, cancellationToken)
+            await ApplySetMetadataAsync(collection, setName, sortedMovies, config, cancellationToken)
                 .ConfigureAwait(false);
 
             await _artworkProvider.SyncArtworkAsync(
@@ -349,7 +349,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     .ConfigureAwait(false);
             }
 
-            await ApplySetMetadataAsync(boxSet, setName, config, cancellationToken)
+            await ApplySetMetadataAsync(boxSet, setName, sortedMovies, config, cancellationToken)
                 .ConfigureAwait(false);
 
             // Refresh artwork if requested
@@ -414,62 +414,88 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
     /// <summary>
     /// Reads the dedicated set NFO (if available) and applies overview/title to the BoxSet.
+    /// Also calculates the collection's PremiereDate chronologically based on configuration.
     /// </summary>
     private async Task ApplySetMetadataAsync(
         BoxSet collection,
         string setName,
+        List<Movie> movies,
         PluginConfiguration config,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(config.SetDataFolder))
-            return;
-
-        var setInfo = _setNfoParser.ParseSet(config.SetDataFolder, setName, config.NfoNaming);
-        if (setInfo is null)
-            return;
-
         var changed = false;
 
-        if (!string.IsNullOrWhiteSpace(setInfo.Overview)
-            && !string.Equals(collection.Overview, setInfo.Overview, StringComparison.Ordinal))
+        // 1. Calculate collection PremiereDate based on oldest movie
+        if (config.CollectionReleaseDate != CollectionReleaseDateMode.DoNotCalculate)
         {
-            collection.Overview = setInfo.Overview;
-            changed = true;
+            var oldestMovie = movies
+                .Where(m => m.PremiereDate.GetValueOrDefault() > DateTime.MinValue)
+                .OrderBy(m => m.PremiereDate.GetValueOrDefault())
+                .FirstOrDefault();
+
+            if (oldestMovie != null)
+            {
+                var targetDate = oldestMovie.PremiereDate;
+                if (config.CollectionReleaseDate == CollectionReleaseDateMode.AlwaysOverwrite
+                    || (config.CollectionReleaseDate == CollectionReleaseDateMode.SetOnlyIfEmpty && !collection.PremiereDate.HasValue))
+                {
+                    if (collection.PremiereDate != targetDate)
+                    {
+                        collection.PremiereDate = targetDate;
+                        changed = true;
+                    }
+                }
+            }
         }
 
-        if (!string.IsNullOrWhiteSpace(setInfo.OriginalTitle)
-            && !string.Equals(collection.OriginalTitle, setInfo.OriginalTitle, StringComparison.Ordinal))
+        // 2. Parse dedicated set NFO metadata if folder is configured
+        if (!string.IsNullOrWhiteSpace(config.SetDataFolder))
         {
-            collection.OriginalTitle = setInfo.OriginalTitle;
-            changed = true;
-        }
+            var setInfo = _setNfoParser.ParseSet(config.SetDataFolder, setName, config.NfoNaming);
+            if (setInfo != null)
+            {
+                if (!string.IsNullOrWhiteSpace(setInfo.Overview)
+                    && !string.Equals(collection.Overview, setInfo.Overview, StringComparison.Ordinal))
+                {
+                    collection.Overview = setInfo.Overview;
+                    changed = true;
+                }
 
-        var genresArray = setInfo.Genres.ToArray();
-        if (collection.Genres is null || !collection.Genres.SequenceEqual(genresArray, StringComparer.Ordinal))
-        {
-            collection.Genres = genresArray;
-            changed = true;
-        }
+                if (!string.IsNullOrWhiteSpace(setInfo.OriginalTitle)
+                    && !string.Equals(collection.OriginalTitle, setInfo.OriginalTitle, StringComparison.Ordinal))
+                {
+                    collection.OriginalTitle = setInfo.OriginalTitle;
+                    changed = true;
+                }
 
-        var studiosArray = setInfo.Studios.ToArray();
-        if (collection.Studios is null || !collection.Studios.SequenceEqual(studiosArray, StringComparer.Ordinal))
-        {
-            collection.Studios = studiosArray;
-            changed = true;
-        }
+                var genresArray = setInfo.Genres.ToArray();
+                if (collection.Genres is null || !collection.Genres.SequenceEqual(genresArray, StringComparer.Ordinal))
+                {
+                    collection.Genres = genresArray;
+                    changed = true;
+                }
 
-        if (!string.IsNullOrEmpty(setInfo.TmdbId)
-            && !string.Equals(collection.GetProviderId(MetadataProvider.Tmdb), setInfo.TmdbId, StringComparison.Ordinal))
-        {
-            collection.SetProviderId(MetadataProvider.Tmdb, setInfo.TmdbId);
-            changed = true;
-        }
+                var studiosArray = setInfo.Studios.ToArray();
+                if (collection.Studios is null || !collection.Studios.SequenceEqual(studiosArray, StringComparer.Ordinal))
+                {
+                    collection.Studios = studiosArray;
+                    changed = true;
+                }
 
-        if (!string.IsNullOrEmpty(setInfo.ImdbId)
-            && !string.Equals(collection.GetProviderId(MetadataProvider.Imdb), setInfo.ImdbId, StringComparison.Ordinal))
-        {
-            collection.SetProviderId(MetadataProvider.Imdb, setInfo.ImdbId);
-            changed = true;
+                if (!string.IsNullOrEmpty(setInfo.TmdbId)
+                    && !string.Equals(collection.GetProviderId(MetadataProvider.Tmdb), setInfo.TmdbId, StringComparison.Ordinal))
+                {
+                    collection.SetProviderId(MetadataProvider.Tmdb, setInfo.TmdbId);
+                    changed = true;
+                }
+
+                if (!string.IsNullOrEmpty(setInfo.ImdbId)
+                    && !string.Equals(collection.GetProviderId(MetadataProvider.Imdb), setInfo.ImdbId, StringComparison.Ordinal))
+                {
+                    collection.SetProviderId(MetadataProvider.Imdb, setInfo.ImdbId);
+                    changed = true;
+                }
+            }
         }
 
         if (changed)

@@ -209,6 +209,21 @@
                     </div>
                 </div>
 
+                <!-- ── Release Date Calculation ────────────────────────────────────── -->
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="CollectionReleaseDate">
+                        Release Date Calculation
+                    </label>
+                    <select id="CollectionReleaseDate" is="emby-select" class="emby-select-withcolor emby-select">
+                        <option value="DoNotCalculate">Do not calculate</option>
+                        <option value="AlwaysOverwrite">Always overwrite</option>
+                        <option value="SetOnlyIfEmpty">Set only if empty</option>
+                    </select>
+                    <div class="fieldDescription">
+                        Automatically calculate the collection's release date based on the oldest movie in it.
+                    </div>
+                </div>
+
                 <!-- ── Actions ───────────────────────────────────────────────── -->
                 <div style="display:flex; gap: 1em; margin-top: 1.5em; flex-wrap: wrap;">
                     <button is="emby-button"
@@ -279,6 +294,7 @@
                     page.querySelector('#UpdateExistingArtwork').checked = config.UpdateExistingArtwork === true;
                     page.querySelector('#CollectionSortBy').value = config.CollectionSortBy || 'Name';
                     page.querySelector('#CollectionSortOrder').value = config.CollectionSortOrder || 'Ascending';
+                    page.querySelector('#CollectionReleaseDate').value = config.CollectionReleaseDate || 'DoNotCalculate';
                 });
             }
 
@@ -294,6 +310,7 @@
                     config.UpdateExistingArtwork = page.querySelector('#UpdateExistingArtwork').checked;
                     config.CollectionSortBy     = page.querySelector('#CollectionSortBy').value;
                     config.CollectionSortOrder  = page.querySelector('#CollectionSortOrder').value;
+                    config.CollectionReleaseDate = page.querySelector('#CollectionReleaseDate').value;
 
                     ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function () {
                         showStatus('Settings saved.', false);

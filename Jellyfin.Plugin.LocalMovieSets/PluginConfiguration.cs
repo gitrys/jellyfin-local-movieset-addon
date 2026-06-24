@@ -27,6 +27,27 @@ public enum NfoNamingConvention
 }
 
 /// <summary>
+/// Mode for calculating the collection's release date.
+/// </summary>
+public enum CollectionReleaseDateMode
+{
+    /// <summary>
+    /// Do not calculate or set release dates for collections.
+    /// </summary>
+    DoNotCalculate = 0,
+
+    /// <summary>
+    /// Always calculate the release date based on the oldest movie in the collection.
+    /// </summary>
+    AlwaysOverwrite = 1,
+
+    /// <summary>
+    /// Only calculate and set the release date if the collection has no release date currently set.
+    /// </summary>
+    SetOnlyIfEmpty = 2
+}
+
+/// <summary>
 /// Plugin configuration stored as XML in the Jellyfin data directory.
 /// </summary>
 public class PluginConfiguration : BasePluginConfiguration
@@ -41,6 +62,11 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets the NFO naming convention used by tinyMediaManager for set files.
     /// </summary>
     public NfoNamingConvention NfoNaming { get; set; } = NfoNamingConvention.SetSubfolder;
+
+    /// <summary>
+    /// Gets or sets the mode for calculating the collection's release date.
+    /// </summary>
+    public CollectionReleaseDateMode CollectionReleaseDate { get; set; } = CollectionReleaseDateMode.DoNotCalculate;
 
     /// <summary>
     /// Gets or sets the minimum number of movies that must be present in the library
