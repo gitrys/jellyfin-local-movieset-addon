@@ -38,6 +38,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
     // Prevents concurrent syncs (debounce timer vs scheduled task)
     private readonly SemaphoreSlim _syncLock = new(1, 1);
+    private readonly System.Reflection.MethodInfo? _updatePeopleAsyncMethod;
     private bool _disposed;
 
     /// <summary>
@@ -57,6 +58,9 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         _movieNfoParser = movieNfoParser;
         _setNfoParser = setNfoParser;
         _logger = logger;
+
+        _updatePeopleAsyncMethod = typeof(ILibraryManager).GetMethods()
+            .FirstOrDefault(m => m.Name == "UpdatePeopleAsync" && m.GetParameters().Length == 3);
 
         // Timer starts stopped (Timeout.Infinite = never fire)
         _debounceTimer = new Timer(
@@ -838,8 +842,18 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
             try
             {
-                await _libraryManager.UpdatePeopleAsync(collection, aggregatedPeople, cancellationToken)
-                    .ConfigureAwait(false);
+                if (_updatePeopleAsyncMethod != null)
+                {
+                    var task = (Task?)_updatePeopleAsyncMethod.Invoke(_libraryManager, new object[] { collection, aggregatedPeople, cancellationToken });
+                    if (task != null)
+                    {
+                        await task.ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    _libraryManager.UpdatePeople(collection, aggregatedPeople);
+                }
             }
             catch (Exception ex)
             {
