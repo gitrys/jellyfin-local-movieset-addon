@@ -102,6 +102,12 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets the default sort direction for newly created collections.
     /// </summary>
     public string CollectionSortOrder { get; set; } = "Ascending";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to enable the Mount Guard.
+    /// When true, checks if all configured movie library folders are accessible and not empty before syncing.
+    /// </summary>
+    public bool EnableMountGuard { get; set; } = true;
 }
 
 

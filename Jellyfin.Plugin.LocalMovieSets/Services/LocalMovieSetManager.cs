@@ -121,6 +121,12 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 return;
             }
 
+            if (config.EnableMountGuard && !CheckMounts())
+            {
+                _logger.LogWarning("Local Movie Sets: sync aborted due to offline or empty library paths (Mount Guard active).");
+                return;
+            }
+
             // ── Step 1: Query all movies ──────────────────────────────────────
             var allMovies = _libraryManager
                 .GetItemsResult(new InternalItemsQuery
@@ -199,6 +205,9 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     await CreateNewCollectionAsync(setName, movies, config, cancellationToken)
                         .ConfigureAwait(false);
                 }
+
+                // Spacing delay to let Jellyfin's file system watcher settle
+                await Task.Delay(150, cancellationToken).ConfigureAwait(false);
             }
 
             // ── Step 5: Optionally remove orphaned collections ─────────────────
@@ -225,6 +234,177 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         {
             _syncLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Checks configured movie library paths to verify they are online and not empty.
+    /// Used by Mount Guard to prevent collection corruption due to offline network mounts.
+    /// </summary>
+    private bool CheckMounts()
+    {
+        var movieLibraries = _libraryManager.GetVirtualFolders()
+            .Where(f => f.CollectionType == MediaBrowser.Model.Entities.CollectionTypeOptions.movies);
+
+        foreach (var library in movieLibraries)
+        {
+            if (library.Locations == null) continue;
+            foreach (var path in library.Locations)
+            {
+                if (string.IsNullOrWhiteSpace(path)) continue;
+
+                if (!Directory.Exists(path))
+                {
+                    _logger.LogWarning("Mount Guard: Library path '{Path}' is offline or missing. Sync aborted to protect collections.", path);
+                    return false;
+                }
+
+                try
+                {
+                    if (!Directory.EnumerateFileSystemEntries(path).Any())
+                    {
+                        _logger.LogWarning("Mount Guard: Library path '{Path}' is empty. Sync aborted to protect collections.", path);
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Mount Guard: Library path '{Path}' is inaccessible. Sync aborted to protect collections.", path);
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Deletes ALL BoxSet collections in Jellyfin and triggers a clean scan and sync.
+    /// </summary>
+    public async Task ForceRebuildAsync(CancellationToken cancellationToken)
+    {
+        if (!await _syncLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException("Sync is already in progress. Please wait for it to complete.");
+        }
+
+        try
+        {
+            _logger.LogInformation("Local Movie Sets: starting Force Rebuild");
+
+            var config = Plugin.Instance?.Configuration;
+            if (config != null && config.EnableMountGuard)
+            {
+                if (!CheckMounts())
+                {
+                    throw new InvalidOperationException("Force rebuild aborted because one or more library paths are offline/empty.");
+                }
+            }
+
+            var existingBoxSets = _libraryManager
+                .GetItemsResult(new InternalItemsQuery
+                {
+                    IncludeItemTypes = [BaseItemKind.BoxSet]
+                })
+                .Items
+                .OfType<BoxSet>()
+                .ToList();
+
+            _logger.LogInformation("Local Movie Sets: deleting {Count} existing collection(s)", existingBoxSets.Count);
+
+            foreach (var boxSet in existingBoxSets)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    _libraryManager.DeleteItem(boxSet, new DeleteOptions
+                    {
+                        DeleteFileLocation = false
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to delete collection '{SetName}' during rebuild", boxSet.Name);
+                }
+            }
+
+            _logger.LogInformation("Local Movie Sets: finished deleting collections, starting fresh sync");
+        }
+        finally
+        {
+            _syncLock.Release();
+        }
+
+        // Trigger the fresh scan and sync
+        await ScanAndSyncAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task UpdateRepositoryWithRetryAsync(
+        BaseItem item,
+        ItemUpdateType updateType,
+        CancellationToken cancellationToken,
+        int maxRetries = 3,
+        int delayMs = 250)
+    {
+        for (int i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                await item.UpdateToRepositoryAsync(updateType, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            catch (IOException ex) when (ex.Message.Contains("used by another process") || ex.HResult == -2147024864)
+            {
+                _logger.LogWarning(ex, "File lock encountered while updating repository for '{ItemName}'. Retrying {Attempt}/{MaxRetries} after {Delay}ms...", item.Name, i + 1, maxRetries, delayMs);
+                await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        await item.UpdateToRepositoryAsync(updateType, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task AddToCollectionWithRetryAsync(
+        Guid collectionId,
+        IReadOnlyCollection<Guid> itemIds,
+        CancellationToken cancellationToken,
+        int maxRetries = 3,
+        int delayMs = 250)
+    {
+        for (int i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                await _collectionManager.AddToCollectionAsync(collectionId, itemIds).ConfigureAwait(false);
+                return;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "File lock encountered during AddToCollectionAsync. Retrying {Attempt}/{MaxRetries} after {Delay}ms...", i + 1, maxRetries, delayMs);
+                await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        await _collectionManager.AddToCollectionAsync(collectionId, itemIds).ConfigureAwait(false);
+    }
+
+    private async Task RemoveFromCollectionWithRetryAsync(
+        Guid collectionId,
+        IReadOnlyCollection<Guid> itemIds,
+        CancellationToken cancellationToken,
+        int maxRetries = 3,
+        int delayMs = 250)
+    {
+        for (int i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                await _collectionManager.RemoveFromCollectionAsync(collectionId, itemIds).ConfigureAwait(false);
+                return;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "File lock encountered during RemoveFromCollectionAsync. Retrying {Attempt}/{MaxRetries} after {Delay}ms...", i + 1, maxRetries, delayMs);
+                await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        await _collectionManager.RemoveFromCollectionAsync(collectionId, itemIds).ConfigureAwait(false);
     }
 
     // ─── Private helpers ──────────────────────────────────────────────────────
@@ -256,11 +436,25 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             }
 
             collection.DisplayOrder = MapSortByToJellyfin(config.CollectionSortBy);
-            await collection.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken)
+            await UpdateRepositoryWithRetryAsync(collection, ItemUpdateType.MetadataEdit, cancellationToken)
                 .ConfigureAwait(false);
 
             await ApplySetMetadataAsync(collection, setName, sortedMovies, config, cancellationToken)
                 .ConfigureAwait(false);
+
+            // Force update on all movies in the new collection to refresh UI grouping cache
+            foreach (var movie in sortedMovies)
+            {
+                try
+                {
+                    await UpdateRepositoryWithRetryAsync(movie, ItemUpdateType.MetadataEdit, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to update movie '{MovieName}' after adding to new collection", movie.Name);
+                }
+            }
 
             await _artworkProvider.SyncArtworkAsync(
                 collection,
@@ -319,9 +513,23 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     "Adding {Count} new movie(s) to collection '{SetName}'",
                     newMovieIds.Length, setName);
 
-                await _collectionManager
-                    .AddToCollectionAsync(boxSet.Id, newMovieIds)
+                await AddToCollectionWithRetryAsync(boxSet.Id, newMovieIds, cancellationToken)
                     .ConfigureAwait(false);
+
+                // Force update on newly added movies to refresh UI grouping cache
+                var newMovieItems = sortedMovies.Where(m => newMovieIds.Contains(m.Id)).ToList();
+                foreach (var movie in newMovieItems)
+                {
+                    try
+                    {
+                        await UpdateRepositoryWithRetryAsync(movie, ItemUpdateType.MetadataEdit, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to update movie '{MovieName}' after adding to collection", movie.Name);
+                    }
+                }
             }
 
             if (movieIdsToRemove.Length > 0)
@@ -330,9 +538,23 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     "Removing {Count} orphaned movie(s) from collection '{SetName}'",
                     movieIdsToRemove.Length, setName);
 
-                await _collectionManager
-                    .RemoveFromCollectionAsync(boxSet.Id, movieIdsToRemove)
+                await RemoveFromCollectionWithRetryAsync(boxSet.Id, movieIdsToRemove, cancellationToken)
                     .ConfigureAwait(false);
+
+                // Force update on removed movies to show them outside the collection
+                var removedMovieItems = existingMovieItems.Where(m => movieIdsToRemove.Contains(m.Id)).ToList();
+                foreach (var movie in removedMovieItems)
+                {
+                    try
+                    {
+                        await UpdateRepositoryWithRetryAsync(movie, ItemUpdateType.MetadataEdit, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to update movie '{MovieName}' after removing from collection", movie.Name);
+                    }
+                }
             }
 
             var changed = false;
@@ -345,7 +567,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
             if (changed)
             {
-                await boxSet.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken)
+                await UpdateRepositoryWithRetryAsync(boxSet, ItemUpdateType.MetadataEdit, cancellationToken)
                     .ConfigureAwait(false);
             }
 
@@ -510,8 +732,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
         if (changed)
         {
-            await collection
-                .UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken)
+            await UpdateRepositoryWithRetryAsync(collection, ItemUpdateType.MetadataEdit, cancellationToken)
                 .ConfigureAwait(false);
 
             _logger.LogDebug("Updated metadata for collection '{SetName}'", setName);
@@ -586,7 +807,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 movie.SortName = string.Empty;
                 try
                 {
-                    await movie.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken)
+                    await UpdateRepositoryWithRetryAsync(movie, ItemUpdateType.MetadataEdit, cancellationToken)
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex)

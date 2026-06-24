@@ -170,6 +170,22 @@
                     </div>
                 </div>
 
+                <!-- ── Enable Mount Guard ────────────────────────────────────── -->
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label class="emby-checkbox-label">
+                        <input id="EnableMountGuard"
+                               type="checkbox"
+                               is="emby-checkbox"
+                        />
+                        <span>Enable Mount Guard</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        When enabled, the plugin checks if all configured movie library folders
+                        are online and not empty before syncing. If a folder goes offline or becomes
+                        empty (e.g. network share drops), the sync is aborted to prevent collections from losing their members.
+                    </div>
+                </div>
+
                 <!-- ── Default Collection Sort By ─────────────────────────────────── -->
                 <div class="inputContainer">
                     <label class="inputLabel inputLabelUnfocused" for="CollectionSortBy">
@@ -237,6 +253,13 @@
                             class="raised block emby-button">
                         <span>&#9654; Sync Now</span>
                     </button>
+                    <button is="emby-button"
+                            id="BtnForceRebuild"
+                            type="button"
+                            class="raised block emby-button"
+                            style="background: #e53935; color: #fff;">
+                        <span>⚠️ Force Rebuild</span>
+                    </button>
                 </div>
 
                 <!-- Status message -->
@@ -292,6 +315,7 @@
                     page.querySelector('#DeleteOrphanedSets').checked = config.DeleteOrphanedSets === true;
                     page.querySelector('#DeleteSetsWithProviderId').checked = config.DeleteSetsWithProviderId === true;
                     page.querySelector('#UpdateExistingArtwork').checked = config.UpdateExistingArtwork === true;
+                    page.querySelector('#EnableMountGuard').checked = config.EnableMountGuard !== false;
                     page.querySelector('#CollectionSortBy').value = config.CollectionSortBy || 'Name';
                     page.querySelector('#CollectionSortOrder').value = config.CollectionSortOrder || 'Ascending';
                     page.querySelector('#CollectionReleaseDate').value = config.CollectionReleaseDate || 'DoNotCalculate';
@@ -308,6 +332,7 @@
                     config.DeleteOrphanedSets   = page.querySelector('#DeleteOrphanedSets').checked;
                     config.DeleteSetsWithProviderId = page.querySelector('#DeleteSetsWithProviderId').checked;
                     config.UpdateExistingArtwork = page.querySelector('#UpdateExistingArtwork').checked;
+                    config.EnableMountGuard     = page.querySelector('#EnableMountGuard').checked;
                     config.CollectionSortBy     = page.querySelector('#CollectionSortBy').value;
                     config.CollectionSortOrder  = page.querySelector('#CollectionSortOrder').value;
                     config.CollectionReleaseDate = page.querySelector('#CollectionReleaseDate').value;
@@ -334,6 +359,27 @@
                     }).catch(function () {
                         showStatus('Failed to start sync. Is the task already running?', true);
                     });
+                });
+            }
+
+            /* ── Trigger force rebuild ── */
+            function forceRebuild() {
+                const confirmMsg = "This will delete ALL collections and rebuild them from scratch. Continue?";
+                if (!confirm(confirmMsg)) {
+                    return;
+                }
+
+                const url = ApiClient.getUrl('LocalMovieSets/ForceRebuild');
+                showStatus('Rebuild started... deleting collections and starting sync.', false);
+                
+                ApiClient.ajax({
+                    type: 'POST',
+                    url: url
+                }).then(function () {
+                    showStatus('Force Rebuild completed successfully!', false);
+                }).catch(function (err) {
+                    console.error('Failed to force rebuild:', err);
+                    showStatus('Failed to force rebuild. Check server logs.', true);
                 });
             }
 
@@ -624,6 +670,10 @@
                 const btnSync = page.querySelector('#BtnSyncNow');
                 btnSync.removeEventListener('click', syncNow);
                 btnSync.addEventListener('click', syncNow);
+
+                const btnRebuild = page.querySelector('#BtnForceRebuild');
+                btnRebuild.removeEventListener('click', forceRebuild);
+                btnRebuild.addEventListener('click', forceRebuild);
 
                 const btnBrowse = page.querySelector('#BtnBrowseFolder');
                 btnBrowse.removeEventListener('click', btnBrowse._clickHandler);

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Jellyfin.Plugin.LocalMovieSets.Services;
 using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,14 +19,17 @@ namespace Jellyfin.Plugin.LocalMovieSets.Api;
 public class LocalMovieSetsController : ControllerBase
 {
     private readonly ILibraryManager _libraryManager;
+    private readonly LocalMovieSetManager _manager;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LocalMovieSetsController"/> class.
     /// </summary>
     /// <param name="libraryManager">Jellyfin library manager (injected).</param>
-    public LocalMovieSetsController(ILibraryManager libraryManager)
+    /// <param name="manager">LocalMovieSetManager instance (injected).</param>
+    public LocalMovieSetsController(ILibraryManager libraryManager, LocalMovieSetManager manager)
     {
         _libraryManager = libraryManager;
+        _manager = manager;
     }
 
     /// <summary>
@@ -179,6 +183,24 @@ public class LocalMovieSetsController : ControllerBase
                 Success = false,
                 Message = $"Error scanning folder: {ex.Message}"
             });
+        }
+    }
+
+    /// <summary>
+    /// Deletes all BoxSet collections and triggers a fresh scan/sync.
+    /// </summary>
+    /// <returns>A response indicating success or failure.</returns>
+    [HttpPost("ForceRebuild")]
+    public async Task<IActionResult> ForceRebuild(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _manager.ForceRebuildAsync(cancellationToken).ConfigureAwait(false);
+            return Ok(new { Success = true, Message = "Force rebuild started successfully." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { Success = false, Message = ex.Message });
         }
     }
 }
