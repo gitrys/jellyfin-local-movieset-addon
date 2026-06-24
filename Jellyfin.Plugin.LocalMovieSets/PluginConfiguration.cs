@@ -108,6 +108,21 @@ public class PluginConfiguration : BasePluginConfiguration
     /// When true, checks if all configured movie library folders are accessible and not empty before syncing.
     /// </summary>
     public bool EnableMountGuard { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to aggregate community ratings from member movies.
+    /// </summary>
+    public bool AggregateRatings { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to aggregate tags from member movies.
+    /// </summary>
+    public bool AggregateTags { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to aggregate cast and crew from member movies.
+    /// </summary>
+    public bool AggregatePeople { get; set; } = false;
 }
 
 

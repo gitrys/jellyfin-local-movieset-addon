@@ -186,6 +186,49 @@
                     </div>
                 </div>
 
+                <!-- ── Aggregate Community Ratings ────────────────────────────── -->
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label class="emby-checkbox-label">
+                        <input id="AggregateRatings"
+                               type="checkbox"
+                               is="emby-checkbox"
+                        />
+                        <span>Aggregate community ratings</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        When enabled, calculates and sets the collection's community rating as the average of the ratings of its member movies.
+                    </div>
+                </div>
+
+                <!-- ── Aggregate Tags ────────────────────────────────────────── -->
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label class="emby-checkbox-label">
+                        <input id="AggregateTags"
+                               type="checkbox"
+                               is="emby-checkbox"
+                        />
+                        <span>Aggregate tags</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        When enabled, aggregates all unique tags from member movies and applies them to the collection.
+                    </div>
+                </div>
+
+                <!-- ── Aggregate Cast and Crew ───────────────────────────────── -->
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label class="emby-checkbox-label">
+                        <input id="AggregatePeople"
+                               type="checkbox"
+                               is="emby-checkbox"
+                        />
+                        <span>Aggregate cast and crew</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        When enabled, aggregates unique directors and writers, and the first 10 actors from each member movie, and displays them on the collection card.
+                    </div>
+                </div>
+
+
                 <!-- ── Default Collection Sort By ─────────────────────────────────── -->
                 <div class="inputContainer">
                     <label class="inputLabel inputLabelUnfocused" for="CollectionSortBy">
@@ -316,6 +359,9 @@
                     page.querySelector('#DeleteSetsWithProviderId').checked = config.DeleteSetsWithProviderId === true;
                     page.querySelector('#UpdateExistingArtwork').checked = config.UpdateExistingArtwork === true;
                     page.querySelector('#EnableMountGuard').checked = config.EnableMountGuard !== false;
+                    page.querySelector('#AggregateRatings').checked = config.AggregateRatings === true;
+                    page.querySelector('#AggregateTags').checked = config.AggregateTags === true;
+                    page.querySelector('#AggregatePeople').checked = config.AggregatePeople === true;
                     page.querySelector('#CollectionSortBy').value = config.CollectionSortBy || 'Name';
                     page.querySelector('#CollectionSortOrder').value = config.CollectionSortOrder || 'Ascending';
                     page.querySelector('#CollectionReleaseDate').value = config.CollectionReleaseDate || 'DoNotCalculate';
@@ -333,6 +379,9 @@
                     config.DeleteSetsWithProviderId = page.querySelector('#DeleteSetsWithProviderId').checked;
                     config.UpdateExistingArtwork = page.querySelector('#UpdateExistingArtwork').checked;
                     config.EnableMountGuard     = page.querySelector('#EnableMountGuard').checked;
+                    config.AggregateRatings     = page.querySelector('#AggregateRatings').checked;
+                    config.AggregateTags        = page.querySelector('#AggregateTags').checked;
+                    config.AggregatePeople      = page.querySelector('#AggregatePeople').checked;
                     config.CollectionSortBy     = page.querySelector('#CollectionSortBy').value;
                     config.CollectionSortOrder  = page.querySelector('#CollectionSortOrder').value;
                     config.CollectionReleaseDate = page.querySelector('#CollectionReleaseDate').value;

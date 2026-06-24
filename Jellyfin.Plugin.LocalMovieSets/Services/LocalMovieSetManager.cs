@@ -730,6 +730,123 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             }
         }
 
+        // 3. Aggregate community rating, tags, and people
+        if (config.AggregateRatings)
+        {
+            var ratings = movies
+                .Where(m => m.CommunityRating.HasValue)
+                .Select(m => m.CommunityRating!.Value)
+                .ToList();
+
+            float? avgRating = null;
+            if (ratings.Count > 0)
+            {
+                avgRating = (float)Math.Round(ratings.Average(), 1);
+            }
+
+            if (collection.CommunityRating != avgRating)
+            {
+                collection.CommunityRating = avgRating;
+                changed = true;
+            }
+        }
+
+        if (config.AggregateTags)
+        {
+            var uniqueTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var movie in movies)
+            {
+                if (movie.Tags != null)
+                {
+                    foreach (var tag in movie.Tags)
+                    {
+                        if (!string.IsNullOrWhiteSpace(tag))
+                        {
+                            uniqueTags.Add(tag.Trim());
+                        }
+                    }
+                }
+            }
+
+            var tagsArray = uniqueTags.ToArray();
+            var currentTags = collection.Tags ?? Array.Empty<string>();
+            if (!currentTags.SequenceEqual(tagsArray, StringComparer.OrdinalIgnoreCase))
+            {
+                collection.Tags = tagsArray;
+                changed = true;
+            }
+        }
+
+        if (config.AggregatePeople)
+        {
+            var aggregatedPeople = new List<PersonInfo>();
+            var seenPeople = new HashSet<(string Name, PersonKind Type)>();
+
+            foreach (var movie in movies)
+            {
+                var moviePeople = _libraryManager.GetPeople(movie);
+                if (moviePeople == null) continue;
+
+                int actorCount = 0;
+                foreach (var person in moviePeople)
+                {
+                    if (person == null || string.IsNullOrWhiteSpace(person.Name)) continue;
+
+                    var type = person.Type;
+                    var nameKey = person.Name.Trim();
+
+                    if (type == PersonKind.Director || type == PersonKind.Writer)
+                    {
+                        var key = (nameKey.ToLowerInvariant(), type);
+                        if (!seenPeople.Contains(key))
+                        {
+                            seenPeople.Add(key);
+                            aggregatedPeople.Add(new PersonInfo
+                            {
+                                Name = nameKey,
+                                Type = type,
+                                Role = person.Role,
+                                ImageUrl = person.ImageUrl,
+                                ProviderIds = person.ProviderIds,
+                                SortOrder = person.SortOrder
+                            });
+                        }
+                    }
+                    else if (type == PersonKind.Actor)
+                    {
+                        if (actorCount < 10)
+                        {
+                            actorCount++;
+                            var key = (nameKey.ToLowerInvariant(), type);
+                            if (!seenPeople.Contains(key))
+                            {
+                                seenPeople.Add(key);
+                                aggregatedPeople.Add(new PersonInfo
+                                {
+                                    Name = nameKey,
+                                    Type = type,
+                                    Role = person.Role,
+                                    ImageUrl = person.ImageUrl,
+                                    ProviderIds = person.ProviderIds,
+                                    SortOrder = person.SortOrder
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            try
+            {
+                await _libraryManager.UpdatePeopleAsync(collection, aggregatedPeople, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to update aggregated people for collection '{SetName}'", setName);
+            }
+        }
+
         if (changed)
         {
             await UpdateRepositoryWithRetryAsync(collection, ItemUpdateType.MetadataEdit, cancellationToken)
