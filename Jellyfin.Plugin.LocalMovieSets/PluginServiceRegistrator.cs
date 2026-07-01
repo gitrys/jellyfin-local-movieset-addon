@@ -21,8 +21,9 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<MovieNfoParser>();
         serviceCollection.AddSingleton<SetNfoParser>();
 
-        // Artwork provider — stateless, singleton is appropriate
-        serviceCollection.AddSingleton<SetArtworkProvider>();
+        // Note: BoxSetMetadataProvider and BoxSetImageProvider are NOT registered
+        // here. Jellyfin discovers IMetadataProvider/IImageProvider implementations
+        // in plugin assemblies automatically and instantiates them with DI.
 
         // Core manager — implements IHostedService to listen for library events
         serviceCollection.AddSingleton<LocalMovieSetManager>();

@@ -19,6 +19,10 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
+    <!-- Needed because the plugin project marks Jellyfin packages PrivateAssets=all,
+         so they do not flow transitively to this test project. -->
+    <PackageReference Include="Jellyfin.Controller" Version="10.10.3" />
+    <PackageReference Include="Jellyfin.Model" Version="10.10.3" />
   </ItemGroup>
 
   <ItemGroup>

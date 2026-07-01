@@ -8,7 +8,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <Version>1.0.26.0</Version>
+    <Version>1.0.27.0</Version>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
@@ -33,6 +33,11 @@
   <ItemGroup>
     <!-- Embed the config page HTML so Jellyfin can serve it from the plugin assembly -->
     <EmbeddedResource Include="Configuration\configPage.html" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Let the test project exercise internal helpers (e.g. provider mappings) -->
+    <InternalsVisibleTo Include="Jellyfin.Plugin.LocalMovieSets.Tests" />
   </ItemGroup>
 
 </Project>
