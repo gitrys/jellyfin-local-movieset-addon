@@ -175,6 +175,15 @@ public class SetNfoParser
     }
 
     /// <summary>
+    /// Characters invalid in file/folder names on Windows or Unix paths.
+    /// Using a fixed set (not <see cref="Path.GetInvalidFileNameChars"/> alone)
+    /// keeps sanitization consistent across OSes — Jellyfin often runs on Linux
+    /// while set names may originate from Windows-oriented tools like TMM.
+    /// </summary>
+    private static readonly char[] CrossPlatformInvalidFileNameChars =
+        ['<', '>', ':', '"', '/', '\\', '|', '?', '*', '\0'];
+
+    /// <summary>
     /// Strips characters that are invalid in file/folder names so the set name
     /// can be used as a filesystem path component.
     /// </summary>
@@ -182,7 +191,7 @@ public class SetNfoParser
     /// <returns>Sanitized name safe for use as a folder/file name.</returns>
     public static string SanitizeFolderName(string name)
     {
-        var invalid = Path.GetInvalidFileNameChars();
+        var invalid = CrossPlatformInvalidFileNameChars;
         var sanitized = string.Join(string.Empty, name.Split(invalid));
 
         // Guard against "." / ".." which Path.Combine would resolve as current/parent dir
