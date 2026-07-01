@@ -674,9 +674,13 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
+                    // Delete the on-disk "[boxset]" folder too. It only contains
+                    // Jellyfin-managed artwork and collection.xml (never media), and
+                    // leaving it behind causes stale-folder collisions when a
+                    // collection with the same name is recreated right after.
                     _libraryManager.DeleteItem(boxSet, new DeleteOptions
                     {
-                        DeleteFileLocation = false
+                        DeleteFileLocation = true
                     });
                 }
                 catch (Exception ex)
@@ -1280,9 +1284,12 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
             try
             {
+                // Remove the on-disk "[boxset]" folder as well so orphaned
+                // collections don't leave stale folders behind (matches the
+                // behavior of deleting a collection through the Jellyfin UI).
                 _libraryManager.DeleteItem(boxSet, new DeleteOptions
                 {
-                    DeleteFileLocation = false
+                    DeleteFileLocation = true
                 });
                 deletedCount++;
             }
