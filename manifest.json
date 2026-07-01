@@ -9,6 +9,14 @@
     "overview": "A Jellyfin plugin that creates and manages movie collections (box sets) from local metadata only \u2014 no TMDB or external API calls. Data is read from movie .nfo files and optionally a tinyMediaManager Movie Set Data Folder.",
     "versions": [
       {
+        "version": "1.0.26.0",
+        "changelog": "Release 1.0.26.0",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.26.0/Jellyfin.Plugin.LocalMovieSets_1.0.26.0.zip",
+        "checksum": "242f4edd85a502a07099b23ae305ade6",
+        "timestamp": "2026-07-01T23:21:32Z"
+      },
+      {
         "version": "1.0.25.0",
         "changelog": "Release 1.0.25.0",
         "targetAbi": "10.10.0.0",
