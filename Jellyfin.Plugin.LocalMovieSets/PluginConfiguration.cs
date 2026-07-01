@@ -94,9 +94,11 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool UpdateExistingArtwork { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets the default sort field for newly created collections.
+    /// Gets or sets the display order for collections.
+    /// Supported values: "Default" (creation/link order), "PremiereDate", "SortName".
+    /// Legacy values from older versions are treated as "Default".
     /// </summary>
-    public string CollectionSortBy { get; set; } = "Name";
+    public string CollectionSortBy { get; set; } = "Default";
 
     /// <summary>
     /// Gets or sets the default sort direction for newly created collections.
@@ -123,6 +125,12 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets a value indicating whether to aggregate cast and crew from member movies.
     /// </summary>
     public bool AggregatePeople { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the one-time cleanup of sort titles
+    /// written by old plugin versions has already been performed.
+    /// </summary>
+    public bool LegacySortTitleCleanupCompleted { get; set; } = false;
 }
 
 

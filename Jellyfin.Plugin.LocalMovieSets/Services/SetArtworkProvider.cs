@@ -101,8 +101,12 @@ public class SetArtworkProvider
                         imageType, setName, imagePath);
 
                     await using var stream = File.OpenRead(imagePath);
+
+                    // Always save to index 0: a null index would append a new image
+                    // for multi-image types (backdrops), accumulating duplicates on
+                    // every re-sync instead of replacing the existing one.
                     await _providerManager
-                        .SaveImage(item, stream, mimeType, imageType, null, cancellationToken)
+                        .SaveImage(item, stream, mimeType, imageType, 0, cancellationToken)
                         .ConfigureAwait(false);
 
                     break; // Only use the first found file for each image type

@@ -2,10 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.LocalMovieSets.Services;
 using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.LocalMovieSets.Api;
 
@@ -20,16 +23,51 @@ public class LocalMovieSetsController : ControllerBase
 {
     private readonly ILibraryManager _libraryManager;
     private readonly LocalMovieSetManager _manager;
+    private readonly ILogger<LocalMovieSetsController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LocalMovieSetsController"/> class.
     /// </summary>
     /// <param name="libraryManager">Jellyfin library manager (injected).</param>
     /// <param name="manager">LocalMovieSetManager instance (injected).</param>
-    public LocalMovieSetsController(ILibraryManager libraryManager, LocalMovieSetManager manager)
+    /// <param name="logger">Logger instance (injected).</param>
+    public LocalMovieSetsController(
+        ILibraryManager libraryManager,
+        LocalMovieSetManager manager,
+        ILogger<LocalMovieSetsController> logger)
     {
         _libraryManager = libraryManager;
         _manager = manager;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Returns the status and statistics of the most recent sync run.
+    /// </summary>
+    /// <returns>The current sync status snapshot.</returns>
+    [HttpGet("Status")]
+    public ActionResult<SyncStatusInfo> GetStatus()
+    {
+        return Ok(_manager.GetStatusSnapshot());
+    }
+
+    /// <summary>
+    /// Computes a read-only preview of what the next sync would do
+    /// under the currently saved settings. Nothing is modified.
+    /// </summary>
+    /// <returns>The preview result.</returns>
+    [HttpGet("Preview")]
+    public ActionResult<SyncPreviewResult> Preview(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(_manager.Preview(cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Preview failed");
+            return Ok(new SyncPreviewResult { ErrorMessage = ex.Message });
+        }
     }
 
     /// <summary>
@@ -188,20 +226,32 @@ public class LocalMovieSetsController : ControllerBase
 
     /// <summary>
     /// Deletes all BoxSet collections and triggers a fresh scan/sync.
+    /// The rebuild runs in the background; this endpoint returns immediately
+    /// so the request cannot time out on large libraries.
     /// </summary>
-    /// <returns>A response indicating success or failure.</returns>
+    /// <returns>A response indicating whether the rebuild was started.</returns>
     [HttpPost("ForceRebuild")]
-    public async Task<IActionResult> ForceRebuild(CancellationToken cancellationToken)
+    public IActionResult ForceRebuild()
     {
-        try
+        if (_manager.IsSyncRunning)
         {
-            await _manager.ForceRebuildAsync(cancellationToken).ConfigureAwait(false);
-            return Ok(new { Success = true, Message = "Force rebuild started successfully." });
+            return BadRequest(new { Success = false, Message = "Sync is already in progress. Please wait for it to complete." });
         }
-        catch (Exception ex)
+
+        _ = Task.Run(async () =>
         {
-            return BadRequest(new { Success = false, Message = ex.Message });
-        }
+            try
+            {
+                await _manager.ForceRebuildAsync(CancellationToken.None).ConfigureAwait(false);
+                _logger.LogInformation("Force rebuild finished");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Force rebuild failed");
+            }
+        });
+
+        return Ok(new { Success = true, Message = "Force rebuild started. Check the server log for progress." });
     }
 }
 

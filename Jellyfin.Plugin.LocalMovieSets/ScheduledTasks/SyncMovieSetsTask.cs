@@ -64,7 +64,7 @@ public class SyncMovieSetsTask : IScheduledTask
         _logger.LogInformation("Local Movie Sets scheduled task started");
         progress.Report(0);
 
-        await _manager.ScanAndSyncAsync(cancellationToken).ConfigureAwait(false);
+        await _manager.ScanAndSyncAsync(cancellationToken, progress).ConfigureAwait(false);
 
         progress.Report(100);
         _logger.LogInformation("Local Movie Sets scheduled task finished");

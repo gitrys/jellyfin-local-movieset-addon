@@ -27,7 +27,7 @@ public class MovieNfoParserTests : IDisposable
     }
 
     [Fact]
-    public void ParseNfo_NoNfoFile_ReturnsNull()
+    public void ParseNfo_NoNfoFile_ReturnsNullMembership()
     {
         // Arrange
         var moviePath = Path.Combine(_tempDirectory, "movie.mkv");
@@ -36,11 +36,12 @@ public class MovieNfoParserTests : IDisposable
         var result = _parser.ParseNfo(moviePath);
 
         // Assert
-        Assert.Null(result);
+        Assert.Null(result.Membership);
+        Assert.False(result.HadError);
     }
 
     [Fact]
-    public void ParseNfo_NfoWithNoSetTag_ReturnsNull()
+    public void ParseNfo_NfoWithNoSetTag_ReturnsNullMembership()
     {
         // Arrange
         var moviePath = Path.Combine(_tempDirectory, "movie.mkv");
@@ -54,11 +55,12 @@ public class MovieNfoParserTests : IDisposable
         var result = _parser.ParseNfo(moviePath);
 
         // Assert
-        Assert.Null(result);
+        Assert.Null(result.Membership);
+        Assert.False(result.HadError);
     }
 
     [Fact]
-    public void ParseNfo_NfoWithEmptySetName_ReturnsNull()
+    public void ParseNfo_NfoWithEmptySetName_ReturnsNullMembership()
     {
         // Arrange
         var moviePath = Path.Combine(_tempDirectory, "movie.mkv");
@@ -75,11 +77,12 @@ public class MovieNfoParserTests : IDisposable
         var result = _parser.ParseNfo(moviePath);
 
         // Assert
-        Assert.Null(result);
+        Assert.Null(result.Membership);
+        Assert.False(result.HadError);
     }
 
     [Fact]
-    public void ParseNfo_NfoWithWhitespaceName_ReturnsNull()
+    public void ParseNfo_NfoWithWhitespaceName_ReturnsNullMembership()
     {
         // Arrange
         var moviePath = Path.Combine(_tempDirectory, "movie.mkv");
@@ -96,11 +99,12 @@ public class MovieNfoParserTests : IDisposable
         var result = _parser.ParseNfo(moviePath);
 
         // Assert
-        Assert.Null(result);
+        Assert.Null(result.Membership);
+        Assert.False(result.HadError);
     }
 
     [Fact]
-    public void ParseNfo_MalformedXml_ReturnsNull()
+    public void ParseNfo_MalformedXml_ReportsError()
     {
         // Arrange
         var moviePath = Path.Combine(_tempDirectory, "movie.mkv");
@@ -116,7 +120,8 @@ public class MovieNfoParserTests : IDisposable
         var result = _parser.ParseNfo(moviePath);
 
         // Assert
-        Assert.Null(result);
+        Assert.Null(result.Membership);
+        Assert.True(result.HadError);
     }
 
     [Fact]
@@ -138,9 +143,10 @@ public class MovieNfoParserTests : IDisposable
         var result = _parser.ParseNfo(moviePath);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Equal("Marvel Cinematic Universe", result.SetName);
-        Assert.Equal("A franchise of superhero movies.", result.SetOverview);
+        Assert.NotNull(result.Membership);
+        Assert.False(result.HadError);
+        Assert.Equal("Marvel Cinematic Universe", result.Membership.SetName);
+        Assert.Equal("A franchise of superhero movies.", result.Membership.SetOverview);
     }
 
     [Fact]
@@ -159,9 +165,73 @@ public class MovieNfoParserTests : IDisposable
         var result = _parser.ParseNfo(moviePath);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Equal("Marvel Cinematic Universe", result.SetName);
-        Assert.Null(result.SetOverview);
+        Assert.NotNull(result.Membership);
+        Assert.Equal("Marvel Cinematic Universe", result.Membership.SetName);
+        Assert.Null(result.Membership.SetOverview);
+    }
+
+    [Fact]
+    public void ParseNfo_TrailingJunkAfterRootElement_ReturnsSetMembership()
+    {
+        // Scrapers often append a trailer URL after the closing tag; Kodi accepts this.
+        var moviePath = Path.Combine(_tempDirectory, "movie.mkv");
+        var nfoPath = Path.Combine(_tempDirectory, "movie.nfo");
+        var nfoContent = @"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
+<movie>
+  <title>Sample Movie</title>
+  <set>
+    <name>Sample Collection</name>
+  </set>
+</movie>
+https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+        File.WriteAllText(nfoPath, nfoContent);
+
+        var result = _parser.ParseNfo(moviePath);
+
+        Assert.NotNull(result.Membership);
+        Assert.False(result.HadError);
+        Assert.Equal("Sample Collection", result.Membership.SetName);
+    }
+
+    [Fact]
+    public void ParseNfo_DirectoryMoviePath_FindsNfoInsideFolder()
+    {
+        // Folder-based rips (DVD/BD): the item path is the movie folder itself
+        var movieDir = Path.Combine(_tempDirectory, "Iron Man (2008)");
+        Directory.CreateDirectory(movieDir);
+
+        var nfoPath = Path.Combine(movieDir, "Iron Man (2008).nfo");
+        var nfoContent = @"<movie>
+  <set>
+    <name>Iron Man Collection</name>
+  </set>
+</movie>";
+        File.WriteAllText(nfoPath, nfoContent);
+
+        var result = _parser.ParseNfo(movieDir);
+
+        Assert.NotNull(result.Membership);
+        Assert.Equal("Iron Man Collection", result.Membership.SetName);
+    }
+
+    [Fact]
+    public void ParseNfo_DirectoryMoviePath_FallsBackToMovieNfo()
+    {
+        var movieDir = Path.Combine(_tempDirectory, "Some Movie (1999)");
+        Directory.CreateDirectory(movieDir);
+
+        var nfoPath = Path.Combine(movieDir, "movie.nfo");
+        var nfoContent = @"<movie>
+  <set>
+    <name>Some Collection</name>
+  </set>
+</movie>";
+        File.WriteAllText(nfoPath, nfoContent);
+
+        var result = _parser.ParseNfo(movieDir);
+
+        Assert.NotNull(result.Membership);
+        Assert.Equal("Some Collection", result.Membership.SetName);
     }
 
     [Fact]
@@ -169,7 +239,7 @@ public class MovieNfoParserTests : IDisposable
     {
         // Arrange
         var moviePath = Path.Combine(_tempDirectory, "ironman.mkv");
-        
+
         // Movie-specific NFO
         var specificNfoPath = Path.Combine(_tempDirectory, "ironman.nfo");
         var specificNfoContent = @"<movie>
@@ -192,9 +262,7 @@ public class MovieNfoParserTests : IDisposable
         var result = _parser.ParseNfo(moviePath);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Equal("Iron Man Collection", result.SetName);
+        Assert.NotNull(result.Membership);
+        Assert.Equal("Iron Man Collection", result.Membership.SetName);
     }
 }
-
-

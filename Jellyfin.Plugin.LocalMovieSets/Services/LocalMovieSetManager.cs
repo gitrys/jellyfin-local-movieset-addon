@@ -38,6 +38,17 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
     // Prevents concurrent syncs (debounce timer vs scheduled task)
     private readonly SemaphoreSlim _syncLock = new(1, 1);
+
+    // Cancelled on StopAsync/Dispose so background syncs stop at shutdown
+    private readonly CancellationTokenSource _shutdownCts = new();
+
+    // True while a sync is running, so the plugin's own repository updates
+    // don't re-trigger the debounce timer via ItemUpdated events.
+    private volatile bool _isSyncing;
+
+    // Snapshot of the most recent sync run (in-memory only; resets on restart).
+    // Replaced at the start of each run and mutated only while _syncLock is held.
+    private SyncStatusInfo _lastStatus = new();
     private readonly System.Reflection.MethodInfo? _updatePeopleAsyncMethod;
     private readonly System.Reflection.MethodInfo? _updatePeopleMethod;
     private readonly System.Reflection.MethodInfo? _getPeopleMethod;
@@ -72,10 +83,26 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
         // Timer starts stopped (Timeout.Infinite = never fire)
         _debounceTimer = new Timer(
-            _ => _ = ScanAndSyncAsync(CancellationToken.None),
+            _ => _ = ScanAndSyncAsync(_shutdownCts.Token),
             null,
             Timeout.Infinite,
             Timeout.Infinite);
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether a sync or rebuild is currently running.
+    /// </summary>
+    public bool IsSyncRunning => _syncLock.CurrentCount == 0;
+
+    /// <summary>
+    /// Returns a snapshot of the most recent sync run's status and statistics.
+    /// </summary>
+    /// <returns>A copy of the current status.</returns>
+    public SyncStatusInfo GetStatusSnapshot()
+    {
+        var snapshot = _lastStatus.Clone();
+        snapshot.IsRunning = IsSyncRunning;
+        return snapshot;
     }
 
     /// <inheritdoc />
@@ -83,6 +110,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     {
         _libraryManager.ItemAdded += OnLibraryItemChanged;
         _libraryManager.ItemUpdated += OnLibraryItemChanged;
+        _libraryManager.ItemRemoved += OnLibraryItemChanged;
         _logger.LogInformation("Local Movie Sets: library event listeners registered");
         return Task.CompletedTask;
     }
@@ -92,16 +120,33 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     {
         _libraryManager.ItemAdded -= OnLibraryItemChanged;
         _libraryManager.ItemUpdated -= OnLibraryItemChanged;
+        _libraryManager.ItemRemoved -= OnLibraryItemChanged;
         _debounceTimer.Change(Timeout.Infinite, Timeout.Infinite);
+
+        // Cancel any background sync started by the debounce timer
+        try
+        {
+            _shutdownCts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Called when a library item is added or updated.
+    /// Called when a library item is added, updated or removed.
     /// Resets the debounce timer so a sync fires 30 seconds after the last event.
+    /// Events caused by the plugin's own updates during a sync are ignored.
     /// </summary>
     private void OnLibraryItemChanged(object? sender, ItemChangeEventArgs e)
     {
+        if (_isSyncing)
+        {
+            return;
+        }
+
         if (e.Item is Movie)
         {
             _debounceTimer.Change(TimeSpan.FromSeconds(30), Timeout.InfiniteTimeSpan);
@@ -109,18 +154,60 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     }
 
     /// <summary>
-    /// Main sync entry point. Scans all movies, groups them by set name from their
-    /// NFO files, then creates/updates Jellyfin BoxSet collections to match.
+    /// Main sync entry point. Acquires the sync lock, then scans all movies,
+    /// groups them by set name from their NFO files, and creates/updates
+    /// Jellyfin BoxSet collections to match.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
-    public async Task ScanAndSyncAsync(CancellationToken cancellationToken)
+    /// <param name="progress">Optional progress reporter (0-100), used by the scheduled task.</param>
+    public async Task ScanAndSyncAsync(CancellationToken cancellationToken, IProgress<double>? progress = null)
     {
-        // Prevent overlapping syncs (debounce timer vs scheduled task)
-        if (!await _syncLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+        bool acquired;
+        try
+        {
+            // Prevent overlapping syncs (debounce timer vs scheduled task)
+            acquired = await _syncLock.WaitAsync(0, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (ObjectDisposedException)
+        {
+            // Shutdown race: the manager was disposed while a timer callback fired
+            return;
+        }
+
+        if (!acquired)
         {
             _logger.LogInformation("Local Movie Sets: sync already in progress, skipping");
             return;
         }
+
+        try
+        {
+            await ScanAndSyncCoreAsync(cancellationToken, progress).ConfigureAwait(false);
+        }
+        finally
+        {
+            ReleaseSyncLockSafe();
+        }
+    }
+
+    /// <summary>
+    /// Performs the actual scan and sync. Assumes the caller holds <see cref="_syncLock"/>.
+    /// Never throws: cancellation and errors are logged.
+    /// </summary>
+    private async Task ScanAndSyncCoreAsync(CancellationToken cancellationToken, IProgress<double>? progress = null)
+    {
+        _isSyncing = true;
+
+        var stats = new SyncStatusInfo
+        {
+            LastRunStartedUtc = DateTime.UtcNow,
+            LastRunOutcome = SyncOutcomes.Running
+        };
+        _lastStatus = stats;
 
         try
         {
@@ -130,92 +217,88 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             if (config is null)
             {
                 _logger.LogError("Plugin configuration is not available");
+                stats.LastRunOutcome = SyncOutcomes.Failed;
+                stats.LastErrorMessage = "Plugin configuration is not available";
                 return;
             }
 
             if (config.EnableMountGuard && !CheckMounts())
             {
                 _logger.LogWarning("Local Movie Sets: sync aborted due to offline or empty library paths (Mount Guard active).");
+                stats.LastRunOutcome = SyncOutcomes.MountGuardAborted;
                 return;
             }
 
             // ── Step 1: Query all movies ──────────────────────────────────────
-            var allMovies = _libraryManager
-                .GetItemsResult(new InternalItemsQuery
-                {
-                    IncludeItemTypes = [BaseItemKind.Movie],
-                    IsVirtualItem = false
-                })
-                .Items
-                .OfType<Movie>()
-                .ToList();
+            var allMovies = QueryAllMovies();
+            stats.MoviesScanned = allMovies.Count;
 
             _logger.LogInformation("Local Movie Sets: scanning {Count} movies", allMovies.Count);
+            progress?.Report(5);
 
             // ── Step 2: Parse NFOs — group movies by set name ─────────────────
-            var setGroups = new Dictionary<string, List<Movie>>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var movie in allMovies)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (string.IsNullOrWhiteSpace(movie.Path))
-                    continue;
-
-                var membership = _movieNfoParser.ParseNfo(movie.Path);
-                if (membership is null)
-                    continue;
-
-                if (!setGroups.TryGetValue(membership.SetName, out var group))
-                {
-                    group = [];
-                    setGroups[membership.SetName] = group;
-                }
-
-                group.Add(movie);
-            }
+            var setGroups = BuildSetGroups(allMovies, cancellationToken, stats);
+            stats.SetsFound = setGroups.Count;
+            stats.MoviesInSets = setGroups.Values.Sum(g => g.Count);
 
             _logger.LogInformation(
                 "Local Movie Sets: found {SetCount} distinct sets across {MovieCount} movies",
-                setGroups.Count,
-                setGroups.Values.Sum(g => g.Count));
+                stats.SetsFound,
+                stats.MoviesInSets);
+            progress?.Report(15);
 
             // ── Step 3: Load existing BoxSet collections ───────────────────────
-            var existingBoxSets = _libraryManager
-                .GetItemsResult(new InternalItemsQuery
-                {
-                    IncludeItemTypes = [BaseItemKind.BoxSet]
-                })
-                .Items
-                .OfType<BoxSet>()
-                .ToList();
+            var (existingBoxSets, existingByName, duplicateNames) = LoadExistingBoxSets();
+            stats.DuplicateCollectionNames = duplicateNames;
 
-            var existingByName = existingBoxSets
-                .ToDictionary(b => b.Name, StringComparer.OrdinalIgnoreCase);
+            if (duplicateNames.Count > 0)
+            {
+                _logger.LogWarning(
+                    "Local Movie Sets: multiple collections share the same name ({Names}). Only the first of each will be managed; consider removing the duplicates.",
+                    string.Join(", ", duplicateNames));
+            }
 
             // ── Step 4: Create or update collections ───────────────────────────
+            var processedSets = 0;
             foreach (var (setName, movies) in setGroups)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var minimumMovies = Math.Max(1, config.MinimumMovies);
-                if (movies.Count < minimumMovies)
-                {
-                    _logger.LogDebug(
-                        "Skipping set '{SetName}': {Count} movies < minimum {Min}",
-                        setName, movies.Count, config.MinimumMovies);
-                    continue;
-                }
-
                 if (existingByName.TryGetValue(setName, out var existingBoxSet))
                 {
-                    await UpdateExistingCollectionAsync(existingBoxSet, movies, setName, config, cancellationToken)
+                    // Existing collections are always kept in sync, even below the
+                    // minimum, so they don't freeze in a stale state.
+                    var updated = await UpdateExistingCollectionAsync(existingBoxSet, movies, setName, config, cancellationToken)
                         .ConfigureAwait(false);
+                    if (updated)
+                    {
+                        stats.CollectionsUpdated++;
+                    }
                 }
                 else
                 {
-                    await CreateNewCollectionAsync(setName, movies, config, cancellationToken)
+                    var minimumMovies = Math.Max(1, config.MinimumMovies);
+                    if (movies.Count < minimumMovies)
+                    {
+                        _logger.LogDebug(
+                            "Not creating collection for set '{SetName}': {Count} movies < minimum {Min}",
+                            setName, movies.Count, config.MinimumMovies);
+                        processedSets++;
+                        continue;
+                    }
+
+                    var created = await CreateNewCollectionAsync(setName, movies, config, cancellationToken)
                         .ConfigureAwait(false);
+                    if (created)
+                    {
+                        stats.CollectionsCreated++;
+                    }
+                }
+
+                processedSets++;
+                if (setGroups.Count > 0)
+                {
+                    progress?.Report(15 + (70.0 * processedSets / setGroups.Count));
                 }
 
                 // Spacing delay to let Jellyfin's file system watcher settle
@@ -225,26 +308,283 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             // ── Step 5: Optionally remove orphaned collections ─────────────────
             if (config.DeleteOrphanedSets)
             {
-                await DeleteOrphanedSetsAsync(existingBoxSets, setGroups, config.DeleteSetsWithProviderId, cancellationToken)
+                stats.CollectionsDeleted = await DeleteOrphanedSetsAsync(existingBoxSets, setGroups, config.DeleteSetsWithProviderId, cancellationToken)
                     .ConfigureAwait(false);
             }
 
-            // ── Step 6: Cleanup legacy sort titles ──────────────────────────────
-            await CleanupLegacySortTitlesAsync(allMovies, cancellationToken).ConfigureAwait(false);
+            progress?.Report(90);
 
+            // ── Step 6: One-time cleanup of legacy sort titles ──────────────────
+            if (!config.LegacySortTitleCleanupCompleted)
+            {
+                await CleanupLegacySortTitlesAsync(allMovies, cancellationToken).ConfigureAwait(false);
+
+                config.LegacySortTitleCleanupCompleted = true;
+                Plugin.Instance?.SaveConfiguration();
+            }
+
+            stats.LastRunOutcome = SyncOutcomes.Success;
+            progress?.Report(100);
             _logger.LogInformation("Local Movie Sets: sync completed successfully");
         }
         catch (OperationCanceledException)
         {
+            stats.LastRunOutcome = SyncOutcomes.Cancelled;
             _logger.LogInformation("Local Movie Sets: sync was cancelled");
         }
         catch (Exception ex)
         {
+            stats.LastRunOutcome = SyncOutcomes.Failed;
+            stats.LastErrorMessage = ex.Message;
             _logger.LogError(ex, "Local Movie Sets: sync failed with an unexpected error");
         }
         finally
         {
+            stats.LastRunCompletedUtc = DateTime.UtcNow;
+            _isSyncing = false;
+        }
+    }
+
+    /// <summary>
+    /// Queries all non-virtual movies from the library.
+    /// </summary>
+    private List<Movie> QueryAllMovies()
+    {
+        return _libraryManager
+            .GetItemsResult(new InternalItemsQuery
+            {
+                IncludeItemTypes = [BaseItemKind.Movie],
+                IsVirtualItem = false
+            })
+            .Items
+            .OfType<Movie>()
+            .ToList();
+    }
+
+    /// <summary>
+    /// Parses each movie's NFO and groups movies by set name (case-insensitive).
+    /// </summary>
+    /// <param name="allMovies">Movies to scan.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="stats">Optional stats object; NFO parse errors are counted on it.</param>
+    private Dictionary<string, List<Movie>> BuildSetGroups(
+        List<Movie> allMovies,
+        CancellationToken cancellationToken,
+        SyncStatusInfo? stats = null)
+    {
+        var setGroups = new Dictionary<string, List<Movie>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var movie in allMovies)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (string.IsNullOrWhiteSpace(movie.Path))
+                continue;
+
+            var outcome = _movieNfoParser.ParseNfo(movie.Path);
+            if (outcome.HadError && stats != null)
+            {
+                stats.NfoParseErrors++;
+            }
+
+            if (outcome.Membership is null)
+                continue;
+
+            if (!setGroups.TryGetValue(outcome.Membership.SetName, out var group))
+            {
+                group = [];
+                setGroups[outcome.Membership.SetName] = group;
+            }
+
+            group.Add(movie);
+        }
+
+        return setGroups;
+    }
+
+    /// <summary>
+    /// Loads all BoxSet collections and builds a name lookup. Jellyfin can contain
+    /// multiple collections with the same name (e.g. leftovers from other plugins);
+    /// only the first of each name is managed, and duplicates are reported.
+    /// </summary>
+    private (List<BoxSet> All, Dictionary<string, BoxSet> ByName, List<string> DuplicateNames) LoadExistingBoxSets()
+    {
+        var existingBoxSets = _libraryManager
+            .GetItemsResult(new InternalItemsQuery
+            {
+                IncludeItemTypes = [BaseItemKind.BoxSet]
+            })
+            .Items
+            .OfType<BoxSet>()
+            .ToList();
+
+        var groups = existingBoxSets
+            .GroupBy(b => b.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var existingByName = groups
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var duplicateNames = groups
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        return (existingBoxSets, existingByName, duplicateNames);
+    }
+
+    /// <summary>
+    /// Computes the membership difference between a collection's current linked
+    /// movies and the target movie list.
+    /// </summary>
+    private static (Guid[] ToAdd, Guid[] ToRemove, List<Movie> ExistingMovies) ComputeMembershipDiff(
+        BoxSet boxSet,
+        List<Movie> targetMovies)
+    {
+        var existingMovieItems = boxSet
+            .GetLinkedChildren()
+            .OfType<Movie>()
+            .ToList();
+
+        var existingMovieIds = existingMovieItems
+            .Select(c => c.Id)
+            .ToHashSet();
+
+        var targetMovieIds = targetMovies
+            .Select(m => m.Id)
+            .ToHashSet();
+
+        var toAdd = targetMovies
+            .Where(m => !existingMovieIds.Contains(m.Id))
+            .Select(m => m.Id)
+            .ToArray();
+
+        var toRemove = existingMovieIds
+            .Where(id => !targetMovieIds.Contains(id))
+            .ToArray();
+
+        return (toAdd, toRemove, existingMovieItems);
+    }
+
+    /// <summary>
+    /// Read-only dry run: computes what the next sync would do under the
+    /// currently saved settings, without modifying anything.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The preview result.</returns>
+    public SyncPreviewResult Preview(CancellationToken cancellationToken)
+    {
+        var result = new SyncPreviewResult();
+
+        if (IsSyncRunning)
+        {
+            result.SyncRunning = true;
+            return result;
+        }
+
+        var config = Plugin.Instance?.Configuration;
+        if (config is null)
+        {
+            result.ErrorMessage = "Plugin configuration is not available.";
+            return result;
+        }
+
+        if (config.EnableMountGuard && !CheckMounts())
+        {
+            result.MountGuardBlocked = true;
+            return result;
+        }
+
+        var allMovies = QueryAllMovies();
+        var setGroups = BuildSetGroups(allMovies, cancellationToken);
+        var (existingBoxSets, existingByName, _) = LoadExistingBoxSets();
+        var minimumMovies = Math.Max(1, config.MinimumMovies);
+
+        foreach (var (setName, movies) in setGroups)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (existingByName.TryGetValue(setName, out var boxSet))
+            {
+                var sortedMovies = SortMovies(movies, config.CollectionSortBy, config.CollectionSortOrder);
+                var (toAdd, toRemove, _) = ComputeMembershipDiff(boxSet, sortedMovies);
+
+                if (toAdd.Length == 0 && toRemove.Length == 0)
+                {
+                    result.UnchangedCount++;
+                }
+                else
+                {
+                    result.ToUpdate.Add(new PreviewUpdateInfo
+                    {
+                        Name = setName,
+                        MoviesToAdd = toAdd.Length,
+                        MoviesToRemove = toRemove.Length
+                    });
+                }
+            }
+            else if (movies.Count >= minimumMovies)
+            {
+                result.ToCreate.Add(new PreviewSetInfo { Name = setName, MovieCount = movies.Count });
+            }
+            else
+            {
+                result.BelowMinimum.Add(new PreviewSetInfo { Name = setName, MovieCount = movies.Count });
+            }
+        }
+
+        foreach (var boxSet in existingBoxSets)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (setGroups.ContainsKey(boxSet.Name))
+                continue;
+
+            if (!config.DeleteOrphanedSets)
+            {
+                result.ProtectedOrphans.Add(new PreviewProtectedInfo
+                {
+                    Name = boxSet.Name,
+                    Reason = "Orphan deletion is disabled"
+                });
+                continue;
+            }
+
+            if (!config.DeleteSetsWithProviderId)
+            {
+                var hasProviderId =
+                    !string.IsNullOrEmpty(boxSet.GetProviderId(MetadataProvider.Tmdb))
+                    || !string.IsNullOrEmpty(boxSet.GetProviderId(MetadataProvider.Imdb));
+
+                if (hasProviderId)
+                {
+                    result.ProtectedOrphans.Add(new PreviewProtectedInfo
+                    {
+                        Name = boxSet.Name,
+                        Reason = "Has a TMDB/IMDb provider ID"
+                    });
+                    continue;
+                }
+            }
+
+            result.ToDelete.Add(boxSet.Name);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Releases the sync lock, tolerating the shutdown race where the semaphore
+    /// has already been disposed while a background sync was still running.
+    /// </summary>
+    private void ReleaseSyncLockSafe()
+    {
+        try
+        {
             _syncLock.Release();
+        }
+        catch (ObjectDisposedException)
+        {
         }
     }
 
@@ -291,7 +631,11 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
     /// <summary>
     /// Deletes ALL BoxSet collections in Jellyfin and triggers a clean scan and sync.
+    /// The sync lock is held across both phases so no other sync can interleave.
     /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when a sync is already running or the mount guard blocks the rebuild.
+    /// </exception>
     public async Task ForceRebuildAsync(CancellationToken cancellationToken)
     {
         if (!await _syncLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
@@ -301,6 +645,8 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
         try
         {
+            _isSyncing = true;
+
             _logger.LogInformation("Local Movie Sets: starting Force Rebuild");
 
             var config = Plugin.Instance?.Configuration;
@@ -340,14 +686,16 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             }
 
             _logger.LogInformation("Local Movie Sets: finished deleting collections, starting fresh sync");
+
+            // Fresh scan and sync while still holding the lock, so the debounce
+            // timer or scheduled task can't steal it between the two phases.
+            await ScanAndSyncCoreAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
-            _syncLock.Release();
+            _isSyncing = false;
+            ReleaseSyncLockSafe();
         }
-
-        // Trigger the fresh scan and sync
-        await ScanAndSyncAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task UpdateRepositoryWithRetryAsync(
@@ -364,7 +712,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 await item.UpdateToRepositoryAsync(updateType, cancellationToken).ConfigureAwait(false);
                 return;
             }
-            catch (IOException ex) when (ex.Message.Contains("used by another process") || ex.HResult == -2147024864)
+            catch (IOException ex)
             {
                 _logger.LogWarning(ex, "File lock encountered while updating repository for '{ItemName}'. Retrying {Attempt}/{MaxRetries} after {Delay}ms...", item.Name, i + 1, maxRetries, delayMs);
                 await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
@@ -450,7 +798,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
     // ─── Private helpers ──────────────────────────────────────────────────────
 
-    private async Task CreateNewCollectionAsync(
+    private async Task<bool> CreateNewCollectionAsync(
         string setName,
         List<Movie> movies,
         PluginConfiguration config,
@@ -473,7 +821,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             if (collection is null)
             {
                 _logger.LogWarning("CreateCollectionAsync returned null for '{SetName}'", setName);
-                return;
+                return false;
             }
 
             collection.DisplayOrder = MapSortByToJellyfin(config.CollectionSortBy);
@@ -504,14 +852,17 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 config.NfoNaming,
                 overwrite: true,
                 cancellationToken).ConfigureAwait(false);
+
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to create collection '{SetName}'", setName);
+            return false;
         }
     }
 
-    private async Task UpdateExistingCollectionAsync(
+    private async Task<bool> UpdateExistingCollectionAsync(
         BoxSet boxSet,
         List<Movie> movies,
         string setName,
@@ -526,27 +877,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         {
             var sortedMovies = SortMovies(movies, config.CollectionSortBy, config.CollectionSortOrder);
 
-            var existingMovieItems = boxSet
-                .GetLinkedChildren()
-                .OfType<Movie>()
-                .ToList();
-
-            var existingMovieIds = existingMovieItems
-                .Select(c => c.Id)
-                .ToHashSet();
-
-            var targetMovieIds = sortedMovies
-                .Select(m => m.Id)
-                .ToHashSet();
-
-            var newMovieIds = sortedMovies
-                .Where(m => !existingMovieIds.Contains(m.Id))
-                .Select(m => m.Id)
-                .ToArray();
-
-            var movieIdsToRemove = existingMovieIds
-                .Where(id => !targetMovieIds.Contains(id))
-                .ToArray();
+            var (newMovieIds, movieIdsToRemove, existingMovieItems) = ComputeMembershipDiff(boxSet, sortedMovies);
 
             if (newMovieIds.Length > 0)
             {
@@ -626,52 +957,47 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     overwrite: true,
                     cancellationToken).ConfigureAwait(false);
             }
+
+            return newMovieIds.Length > 0 || movieIdsToRemove.Length > 0 || changed;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to update collection '{SetName}'", setName);
+            return false;
         }
     }
 
-    private List<Movie> SortMovies(List<Movie> movies, string sortBy, string sortOrder)
+    /// <summary>
+    /// Orders movies for the initial linked-children order of a collection.
+    /// "SortName" sorts by sort title; everything else (Default, PremiereDate and
+    /// legacy config values) sorts chronologically by premiere date.
+    /// The sort direction only matters for "Creation Order" (Default) display mode.
+    /// </summary>
+    private static List<Movie> SortMovies(List<Movie> movies, string sortBy, string sortOrder)
     {
         var isDescending = string.Equals(sortOrder, "Descending", StringComparison.OrdinalIgnoreCase);
 
-        Func<Movie, object?> keySelector = sortBy switch
-        {
-            "SortName" => m => m.SortName,
-            "Random" => m => Guid.NewGuid(),
-            "CommunityRating" => m => m.CommunityRating,
-            "CriticsRating" or "CriticRating" => m => m.CriticRating,
-            "DateCreated" => m => m.DateCreated,
-            "PremiereDate" => m => m.PremiereDate,
-            "Runtime" => m => m.RunTimeTicks,
-            _ => m => m.Name
-        };
+        Func<Movie, object?> keySelector = string.Equals(sortBy, "SortName", StringComparison.OrdinalIgnoreCase)
+            ? m => m.SortName
+            : m => m.PremiereDate ?? DateTime.MaxValue;
 
-        if (string.Equals(sortBy, "Random", StringComparison.OrdinalIgnoreCase))
-        {
-            var random = new Random();
-            return movies.OrderBy(_ => random.Next()).ToList();
-        }
-
-        if (isDescending)
-        {
-            return movies.OrderByDescending(keySelector).ThenByDescending(m => m.SortName).ToList();
-        }
-        else
-        {
-            return movies.OrderBy(keySelector).ThenBy(m => m.SortName).ToList();
-        }
+        return isDescending
+            ? movies.OrderByDescending(keySelector).ThenByDescending(m => m.SortName).ToList()
+            : movies.OrderBy(keySelector).ThenBy(m => m.SortName).ToList();
     }
 
+    /// <summary>
+    /// Maps the configured sort mode to a Jellyfin BoxSet DisplayOrder value.
+    /// Jellyfin only honors "SortName" and "PremiereDate"; anything else
+    /// (including legacy config values) means default linked-children order.
+    /// </summary>
     private static string MapSortByToJellyfin(string sortBy)
     {
         return sortBy switch
         {
-            "CriticsRating" => "CriticRating",
-            "ParentalRating" => "OfficialRating",
-            _ => sortBy
+            "SortName" => "SortName",
+            "PremiereDate" => "PremiereDate",
+            _ => string.Empty
         };
     }
 
@@ -916,12 +1242,15 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     /// By default, only removes collections without a TMDB/IMDb provider ID.
     /// When <paramref name="includeWithProviderId"/> is true, all orphaned collections are deleted.
     /// </summary>
-    private Task DeleteOrphanedSetsAsync(
+    /// <returns>The number of collections deleted.</returns>
+    private Task<int> DeleteOrphanedSetsAsync(
         List<BoxSet> existingBoxSets,
         Dictionary<string, List<Movie>> activeSetGroups,
         bool includeWithProviderId,
         CancellationToken cancellationToken)
     {
+        var deletedCount = 0;
+
         foreach (var boxSet in existingBoxSets)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -955,6 +1284,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 {
                     DeleteFileLocation = false
                 });
+                deletedCount++;
             }
             catch (Exception ex)
             {
@@ -962,11 +1292,12 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             }
         }
 
-        return Task.CompletedTask;
+        return Task.FromResult(deletedCount);
     }
 
     /// <summary>
-    /// Temporary cleanup of previously plugin-modified movie sort titles.
+    /// One-time cleanup of movie sort titles written by old plugin versions.
+    /// Runs only until <see cref="PluginConfiguration.LegacySortTitleCleanupCompleted"/> is set.
     /// </summary>
     private async Task CleanupLegacySortTitlesAsync(List<Movie> allMovies, CancellationToken cancellationToken)
     {
@@ -976,7 +1307,10 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             if (IsLegacyPluginSortName(movie.SortName, movie.Name))
             {
                 _logger.LogInformation("Reverting legacy sort title for '{MovieName}'", movie.Name);
-                movie.SortName = string.Empty;
+
+                // Clear the forced sort name so Jellyfin recomputes the default,
+                // instead of persisting an empty sort title.
+                movie.ForcedSortName = null;
                 try
                 {
                     await UpdateRepositoryWithRetryAsync(movie, ItemUpdateType.MetadataEdit, cancellationToken)
@@ -1027,6 +1361,16 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         if (disposing)
         {
             _debounceTimer.Dispose();
+
+            try
+            {
+                _shutdownCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
+            _shutdownCts.Dispose();
             _syncLock.Dispose();
         }
 

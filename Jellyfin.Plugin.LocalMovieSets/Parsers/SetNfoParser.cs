@@ -75,7 +75,7 @@ public class SetNfoParser
 
         try
         {
-            var doc = XDocument.Load(nfoPath, LoadOptions.None);
+            var doc = NfoXmlLoader.Load(nfoPath);
             var root = doc.Root;
             if (root is null)
                 return null;

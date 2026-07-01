@@ -60,6 +60,8 @@ Navigate to **Dashboard → Plugins → Local Movie Sets** to configure:
 | **Delete Orphaned Sets** | Remove collections that no longer have any matching NFO data (only deletes collections without TMDB/IMDB IDs) |
 | **Overwrite Existing Artwork** | Re-copy artwork from the TMM set folder on every sync |
 
+> **Note on renaming sets:** if you rename a set in your NFOs, a new collection is created under the new name, but the old collection is only removed automatically when **Delete Orphaned Sets** is enabled. Otherwise the movies remain members of both collections until you delete the old one manually.
+
 ---
 
 ## How It Works

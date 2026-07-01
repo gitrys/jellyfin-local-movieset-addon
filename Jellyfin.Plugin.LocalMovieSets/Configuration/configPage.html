@@ -19,6 +19,12 @@
                     <h2 class="sectionTitle">Local Movie Sets</h2>
                 </div>
 
+                <!-- ── Sync Status ── -->
+                <div id="SyncStatusPanel" style="background: rgba(255, 255, 255, 0.06); border: 1px solid #333; border-radius: 8px; padding: 1em 1.25em; margin-bottom: 1.5em; font-size: 0.95em; line-height: 1.6;">
+                    <h3 style="margin: 0 0 0.4em 0; font-size: 1em; color: #00a4dc;">Sync Status</h3>
+                    <div id="SyncStatusContent" style="color: #ccc;">Loading…</div>
+                </div>
+
                 <!-- ── Conflict Warning ── -->
                 <div id="ConflictWarningBox" style="display: none; background: rgba(244, 67, 54, 0.15); border: 1px solid #f44336; border-radius: 8px; padding: 1.25em; margin-bottom: 2em; font-size: 0.95em; line-height: 1.5;">
                     <h3 style="margin-top: 0; margin-bottom: 0.5em; color: #f44336; display: flex; align-items: center; gap: 0.5em; font-weight: bold;">
@@ -135,6 +141,10 @@
                         Remove Jellyfin collections that no longer have any movies
                         with a matching &lt;set&gt; tag. By default, collections with
                         a TMDB or IMDb provider ID are kept as a safety guard.
+                        Note: when this is disabled and a set is renamed in your NFOs,
+                        the old collection is left untouched — movies may then appear
+                        in both the old and the new collection until you remove the
+                        old one manually (or enable this option).
                     </div>
                 </div>
 
@@ -235,21 +245,15 @@
                         Default Collection Sort By
                     </label>
                     <select id="CollectionSortBy" is="emby-select" class="emby-select-withcolor emby-select">
-                        <option value="Name">Name</option>
-                        <option value="SortName">Sort Title</option>
-                        <option value="Random">Random</option>
-                        <option value="CommunityRating">Community Rating</option>
-                        <option value="CriticsRating">Critics Rating</option>
-                        <option value="DateCreated">Date Added</option>
-                        <option value="DatePlayed">Date Played</option>
-                        <option value="ParentalRating">Parental Rating</option>
-                        <option value="PlayCount">Play Count</option>
+                        <option value="Default">Creation Order (Release Date)</option>
                         <option value="PremiereDate">Release Date</option>
-                        <option value="Runtime">Runtime</option>
+                        <option value="SortName">Sort Name</option>
                     </select>
                     <div class="fieldDescription">
-                        Default display/sort order applied to newly created collections.
-                        You can still manually override this for individual collections by clicking 
+                        Display order applied to collections. Jellyfin natively supports only
+                        "Release Date" and "Sort Name"; "Creation Order" keeps the order in which
+                        the plugin linked the movies (sorted by release date when created).
+                        You can still manually override this for individual collections by clicking
                         "Edit Metadata" on the collection's details page in Jellyfin.
                     </div>
                 </div>
@@ -264,7 +268,9 @@
                         <option value="Descending">Descending</option>
                     </select>
                     <div class="fieldDescription">
-                        Default sorting direction applied to newly created collections.
+                        Sorting direction for the order in which movies are linked into a collection.
+                        Only affects "Creation Order" mode — Jellyfin's native "Release Date" and
+                        "Sort Name" display orders are always ascending.
                     </div>
                 </div>
 
@@ -297,6 +303,12 @@
                         <span>&#9654; Sync Now</span>
                     </button>
                     <button is="emby-button"
+                            id="BtnPreview"
+                            type="button"
+                            class="raised block emby-button">
+                        <span>Preview Changes</span>
+                    </button>
+                    <button is="emby-button"
                             id="BtnForceRebuild"
                             type="button"
                             class="raised block emby-button"
@@ -308,6 +320,11 @@
                 <!-- Status message -->
                 <div id="StatusMsg"
                      style="margin-top: 1em; color: #4CAF50; display:none;">
+                </div>
+
+                <!-- Preview results -->
+                <div id="PreviewResultPanel"
+                     style="display: none; margin-top: 1.5em; background: rgba(255, 255, 255, 0.06); border: 1px solid #333; border-radius: 8px; padding: 1em 1.25em; font-size: 0.95em; line-height: 1.6;">
                 </div>
 
             </form>
@@ -349,6 +366,190 @@
                 });
             }
 
+            /* ── Sync Status panel ── */
+            let statusPollTimer = null;
+
+            function formatUtc(iso) {
+                if (!iso) return 'unknown';
+                const d = new Date(iso);
+                return isNaN(d.getTime()) ? 'unknown' : d.toLocaleString();
+            }
+
+            function renderSyncStatus(page, s) {
+                const el = page.querySelector('#SyncStatusContent');
+                if (!el) return;
+                el.textContent = '';
+
+                function addLine(text, color) {
+                    const div = document.createElement('div');
+                    div.textContent = text;
+                    if (color) div.style.color = color;
+                    el.appendChild(div);
+                }
+
+                if (s.IsRunning) {
+                    addLine('A sync is currently running' + (s.LastRunStartedUtc ? ' (started ' + formatUtc(s.LastRunStartedUtc) + ')' : '') + '…', '#00a4dc');
+                    return;
+                }
+
+                if (s.LastRunOutcome === 'NeverRan' || !s.LastRunStartedUtc) {
+                    addLine('No sync since the server started. Statistics reset on restart.');
+                    return;
+                }
+
+                const outcomeLabels = {
+                    Success: ['Success', '#4CAF50'],
+                    Failed: ['Failed', '#F44336'],
+                    Cancelled: ['Cancelled', '#FF9800'],
+                    MountGuardAborted: ['Aborted by Mount Guard (library path offline or empty)', '#FF9800'],
+                    Running: ['Running', '#00a4dc']
+                };
+                const [label, color] = outcomeLabels[s.LastRunOutcome] || [s.LastRunOutcome, '#ccc'];
+
+                addLine('Last sync: ' + formatUtc(s.LastRunCompletedUtc || s.LastRunStartedUtc) + ' — ' + label, color);
+
+                if (s.LastRunOutcome === 'Success' || s.LastRunOutcome === 'Cancelled') {
+                    addLine(
+                        s.MoviesScanned + ' movies scanned · ' + s.MoviesInSets + ' in sets · ' + s.SetsFound + ' sets found');
+                    addLine(
+                        s.CollectionsCreated + ' collection(s) created · ' + s.CollectionsUpdated + ' updated · ' + s.CollectionsDeleted + ' deleted');
+                }
+
+                if (s.NfoParseErrors > 0) {
+                    addLine(s.NfoParseErrors + ' NFO file(s) could not be parsed — see server log.', '#FF9800');
+                }
+
+                if (s.DuplicateCollectionNames && s.DuplicateCollectionNames.length > 0) {
+                    addLine('Duplicate collection names detected: ' + s.DuplicateCollectionNames.join(', '), '#FF9800');
+                }
+
+                if (s.LastErrorMessage) {
+                    addLine('Error: ' + s.LastErrorMessage, '#F44336');
+                }
+            }
+
+            function loadSyncStatus(page) {
+                const url = ApiClient.getUrl('LocalMovieSets/Status');
+                ApiClient.getJSON(url).then(function (s) {
+                    renderSyncStatus(page, s);
+                    if (s.IsRunning) {
+                        scheduleStatusPoll(page);
+                    }
+                }).catch(function (err) {
+                    console.error('Failed to load sync status:', err);
+                    const el = page.querySelector('#SyncStatusContent');
+                    if (el) el.textContent = 'Could not load sync status.';
+                });
+            }
+
+            function scheduleStatusPoll(page) {
+                stopStatusPoll();
+                statusPollTimer = setTimeout(function () { loadSyncStatus(page); }, 5000);
+            }
+
+            function stopStatusPoll() {
+                if (statusPollTimer) {
+                    clearTimeout(statusPollTimer);
+                    statusPollTimer = null;
+                }
+            }
+
+            /* ── Preview changes ── */
+            function renderPreview(page, r) {
+                const panel = page.querySelector('#PreviewResultPanel');
+                if (!panel) return;
+                panel.textContent = '';
+                panel.style.display = 'block';
+
+                function addLine(text, color) {
+                    const div = document.createElement('div');
+                    div.textContent = text;
+                    if (color) div.style.color = color;
+                    panel.appendChild(div);
+                }
+
+                function addSection(title, entries) {
+                    if (!entries || entries.length === 0) return;
+                    const details = document.createElement('details');
+                    details.style.marginTop = '0.4em';
+                    const summary = document.createElement('summary');
+                    summary.textContent = title + ' (' + entries.length + ')';
+                    summary.style.cursor = 'pointer';
+                    details.appendChild(summary);
+                    const ul = document.createElement('ul');
+                    ul.style.margin = '0.3em 0 0.3em 1.2em';
+                    entries.forEach(function (text) {
+                        const li = document.createElement('li');
+                        li.textContent = text;
+                        ul.appendChild(li);
+                    });
+                    details.appendChild(ul);
+                    panel.appendChild(details);
+                }
+
+                const heading = document.createElement('h3');
+                heading.textContent = 'Preview — what the next sync would do';
+                heading.style.cssText = 'margin: 0 0 0.4em 0; font-size: 1em; color: #00a4dc;';
+                panel.appendChild(heading);
+
+                if (r.SyncRunning) {
+                    addLine('A sync is currently running — try again once it finishes.', '#FF9800');
+                    return;
+                }
+                if (r.MountGuardBlocked) {
+                    addLine('Mount Guard: one or more library paths are offline or empty. A sync would be aborted.', '#FF9800');
+                    return;
+                }
+                if (r.ErrorMessage) {
+                    addLine('Error: ' + r.ErrorMessage, '#F44336');
+                    return;
+                }
+
+                addLine('Note: this preview reflects the currently saved settings. Save first if you changed anything above.', '#888');
+
+                if (r.ToCreate.length === 0 && r.ToUpdate.length === 0 && r.ToDelete.length === 0
+                    && r.BelowMinimum.length === 0) {
+                    addLine('No changes — ' + r.UnchangedCount + ' collection(s) already up to date.', '#4CAF50');
+                }
+
+                addSection('Collections to create', r.ToCreate.map(function (x) {
+                    return x.Name + ' (' + x.MovieCount + ' movie(s))';
+                }));
+                addSection('Collections to update', r.ToUpdate.map(function (x) {
+                    return x.Name + ' (+' + x.MoviesToAdd + ' / \u2212' + x.MoviesToRemove + ' movie(s))';
+                }));
+                addSection('Orphaned collections to delete', r.ToDelete.slice());
+                addSection('Orphaned collections kept', r.ProtectedOrphans.map(function (x) {
+                    return x.Name + ' — ' + x.Reason;
+                }));
+                addSection('Sets below the movie minimum (not created)', r.BelowMinimum.map(function (x) {
+                    return x.Name + ' (' + x.MovieCount + ' movie(s))';
+                }));
+
+                if (r.UnchangedCount > 0) {
+                    addLine(r.UnchangedCount + ' collection(s) unchanged.');
+                }
+            }
+
+            function previewChanges(page) {
+                const btn = page.querySelector('#BtnPreview');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<span>Scanning...</span>';
+                btn.disabled = true;
+
+                const url = ApiClient.getUrl('LocalMovieSets/Preview');
+                ApiClient.getJSON(url).then(function (result) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    renderPreview(page, result);
+                }).catch(function (err) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    console.error('Failed to compute preview:', err);
+                    showStatus('Failed to compute preview. Check server logs.', true);
+                });
+            }
+
             /* ── Load config ── */
             function loadConfig(page) {
                 ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
@@ -362,7 +563,11 @@
                     page.querySelector('#AggregateRatings').checked = config.AggregateRatings === true;
                     page.querySelector('#AggregateTags').checked = config.AggregateTags === true;
                     page.querySelector('#AggregatePeople').checked = config.AggregatePeople === true;
-                    page.querySelector('#CollectionSortBy').value = config.CollectionSortBy || 'Name';
+                    // Legacy configs may contain values that are no longer offered
+                    // (Name, CommunityRating, ...) — map those to Default.
+                    const sortBy = config.CollectionSortBy;
+                    const validSortBy = ['Default', 'PremiereDate', 'SortName'];
+                    page.querySelector('#CollectionSortBy').value = validSortBy.includes(sortBy) ? sortBy : 'Default';
                     page.querySelector('#CollectionSortOrder').value = config.CollectionSortOrder || 'Ascending';
                     page.querySelector('#CollectionReleaseDate').value = config.CollectionReleaseDate || 'DoNotCalculate';
                 });
@@ -395,7 +600,7 @@
             }
 
             /* ── Trigger sync task ── */
-            function syncNow() {
+            function syncNow(page) {
                 // Get the task by key, then run it
                 ApiClient.getScheduledTasks(false, false).then(function (tasks) {
                     const task = tasks.find(t => t.Key === TASK_KEY);
@@ -405,6 +610,7 @@
                     }
                     ApiClient.startScheduledTask(task.Id).then(function () {
                         showStatus('Sync started! Check Scheduled Tasks for progress.', false);
+                        scheduleStatusPoll(page);
                     }).catch(function () {
                         showStatus('Failed to start sync. Is the task already running?', true);
                     });
@@ -412,23 +618,23 @@
             }
 
             /* ── Trigger force rebuild ── */
-            function forceRebuild() {
+            function forceRebuild(page) {
                 const confirmMsg = "This will delete ALL collections and rebuild them from scratch. Continue?";
                 if (!confirm(confirmMsg)) {
                     return;
                 }
 
                 const url = ApiClient.getUrl('LocalMovieSets/ForceRebuild');
-                showStatus('Rebuild started... deleting collections and starting sync.', false);
-                
+
                 ApiClient.ajax({
                     type: 'POST',
                     url: url
                 }).then(function () {
-                    showStatus('Force Rebuild completed successfully!', false);
+                    showStatus('Rebuild started — check the server log or Scheduled Tasks for progress.', false);
+                    scheduleStatusPoll(page);
                 }).catch(function (err) {
-                    console.error('Failed to force rebuild:', err);
-                    showStatus('Failed to force rebuild. Check server logs.', true);
+                    console.error('Failed to start force rebuild:', err);
+                    showStatus('Failed to start force rebuild (is a sync already running?). Check server logs.', true);
                 });
             }
 
@@ -710,6 +916,7 @@
 
                 loadConfig(page);
                 checkConflicts(page);
+                loadSyncStatus(page);
 
                 const form = page.querySelector('#LocalMovieSetsConfigForm');
                 form.removeEventListener('submit', form._saveHandler);
@@ -717,12 +924,19 @@
                 form.addEventListener('submit', form._saveHandler);
 
                 const btnSync = page.querySelector('#BtnSyncNow');
-                btnSync.removeEventListener('click', syncNow);
-                btnSync.addEventListener('click', syncNow);
+                btnSync.removeEventListener('click', btnSync._clickHandler);
+                btnSync._clickHandler = () => syncNow(page);
+                btnSync.addEventListener('click', btnSync._clickHandler);
 
                 const btnRebuild = page.querySelector('#BtnForceRebuild');
-                btnRebuild.removeEventListener('click', forceRebuild);
-                btnRebuild.addEventListener('click', forceRebuild);
+                btnRebuild.removeEventListener('click', btnRebuild._clickHandler);
+                btnRebuild._clickHandler = () => forceRebuild(page);
+                btnRebuild.addEventListener('click', btnRebuild._clickHandler);
+
+                const btnPreview = page.querySelector('#BtnPreview');
+                btnPreview.removeEventListener('click', btnPreview._clickHandler);
+                btnPreview._clickHandler = () => previewChanges(page);
+                btnPreview.addEventListener('click', btnPreview._clickHandler);
 
                 const btnBrowse = page.querySelector('#BtnBrowseFolder');
                 btnBrowse.removeEventListener('click', btnBrowse._clickHandler);
@@ -733,6 +947,12 @@
                 btnDetect.removeEventListener('click', btnDetect._clickHandler);
                 btnDetect._clickHandler = () => detectNamingConvention(page);
                 btnDetect.addEventListener('click', btnDetect._clickHandler);
+            });
+
+            document.addEventListener('pagehide', function (e) {
+                if (e.target && e.target.id === 'LocalMovieSetsConfigPage') {
+                    stopStatusPoll();
+                }
             });
 
         }());

@@ -3,7 +3,7 @@ import sys
 import json
 import hashlib
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 def get_md5(file_path):
     hash_md5 = hashlib.md5()
@@ -53,7 +53,7 @@ def main():
         
     checksum = get_md5(zip_path)
     target_abi = get_target_abi()
-    timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     
     # URL to download the release asset
     zip_filename = os.path.basename(zip_path)

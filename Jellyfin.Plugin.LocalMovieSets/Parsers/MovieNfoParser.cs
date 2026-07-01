@@ -14,6 +14,16 @@ namespace Jellyfin.Plugin.LocalMovieSets.Parsers;
 public record SetMembership(string SetName, string? SetOverview);
 
 /// <summary>
+/// Result of parsing a movie's NFO file(s).
+/// </summary>
+/// <param name="Membership">The set membership, or <c>null</c> if the movie is not in a set.</param>
+/// <param name="HadError">
+/// <c>true</c> when an NFO file existed but could not be parsed and no membership
+/// was obtained from any other candidate file.
+/// </param>
+public record NfoParseOutcome(SetMembership? Membership, bool HadError);
+
+/// <summary>
 /// Parses a Kodi/tinyMediaManager style movie .nfo file and extracts the
 /// &lt;set&gt;&lt;name&gt; tag that identifies which collection a movie belongs to.
 /// </summary>
@@ -32,12 +42,15 @@ public class MovieNfoParser
 
     /// <summary>
     /// Attempts to read and parse the NFO file for the given movie file path,
-    /// returning the set membership if a &lt;set&gt;&lt;name&gt; tag is found.
+    /// returning the set membership if a &lt;set&gt;&lt;name&gt; tag is found,
+    /// and whether any NFO file failed to parse.
     /// </summary>
     /// <param name="movieFilePath">Full path to the movie video file (e.g. movie.mkv).</param>
-    /// <returns>A <see cref="SetMembership"/> if the NFO contains a set tag; otherwise <c>null</c>.</returns>
-    public SetMembership? ParseNfo(string movieFilePath)
+    /// <returns>An <see cref="NfoParseOutcome"/> with the membership (if any) and error flag.</returns>
+    public NfoParseOutcome ParseNfo(string movieFilePath)
     {
+        var hadError = false;
+
         foreach (var nfoPath in GetNfoCandidates(movieFilePath))
         {
             if (!File.Exists(nfoPath))
@@ -47,7 +60,7 @@ public class MovieNfoParser
 
             try
             {
-                var doc = XDocument.Load(nfoPath, LoadOptions.None);
+                var doc = NfoXmlLoader.Load(nfoPath);
                 var root = doc.Root;
 
                 // Support both <movie> root (standard) and bare root elements
@@ -56,7 +69,7 @@ public class MovieNfoParser
 
                 var setElement = root.Element("set");
                 if (setElement is null)
-                    return null;  // NFO exists but no <set> tag → movie is not in a set
+                    return new NfoParseOutcome(null, false);  // NFO exists but no <set> tag → movie is not in a set
 
                 var setName = setElement.Element("name")?.Value?.Trim();
                 if (string.IsNullOrWhiteSpace(setName))
@@ -68,28 +81,45 @@ public class MovieNfoParser
                 }
 
                 if (string.IsNullOrWhiteSpace(setName))
-                    return null;
+                    return new NfoParseOutcome(null, false);
 
                 var setOverview = setElement.Element("overview")?.Value?.Trim();
 
                 _logger.LogDebug("Movie '{MoviePath}' belongs to set '{SetName}'", movieFilePath, setName);
-                return new SetMembership(setName, string.IsNullOrEmpty(setOverview) ? null : setOverview);
+                var membership = new SetMembership(setName, string.IsNullOrEmpty(setOverview) ? null : setOverview);
+                return new NfoParseOutcome(membership, false);
             }
             catch (Exception ex)
             {
+                hadError = true;
                 _logger.LogWarning(ex, "Failed to parse NFO file: {NfoPath}", nfoPath);
             }
         }
 
-        return null;
+        return new NfoParseOutcome(null, hadError);
     }
 
     /// <summary>
-    /// Returns the candidate NFO file paths for a given movie file, in priority order.
+    /// Returns the candidate NFO file paths for a given movie path, in priority order.
     /// Kodi/TMM convention: {MovieName}.nfo takes priority, then movie.nfo.
+    /// For folder-based rips (DVD/BD structures) the item path is a directory
+    /// and the NFO lives inside that directory.
     /// </summary>
     private static IEnumerable<string> GetNfoCandidates(string movieFilePath)
     {
+        if (Directory.Exists(movieFilePath))
+        {
+            var folderName = Path.GetFileName(Path.TrimEndingDirectorySeparator(movieFilePath));
+
+            // 1. {FolderName}.nfo inside the movie folder
+            if (!string.IsNullOrEmpty(folderName))
+                yield return Path.Combine(movieFilePath, $"{folderName}.nfo");
+
+            // 2. movie.nfo inside the movie folder
+            yield return Path.Combine(movieFilePath, "movie.nfo");
+            yield break;
+        }
+
         var dir = Path.GetDirectoryName(movieFilePath);
         if (string.IsNullOrEmpty(dir))
             yield break;

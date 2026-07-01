@@ -34,7 +34,9 @@ jobs:
 
       - name: Build and Publish Plugin
         run: |
-          dotnet publish Jellyfin.Plugin.LocalMovieSets/Jellyfin.Plugin.LocalMovieSets.csproj -c Release -o publish
+          # Override the csproj <Version> with the tag version so the DLL,
+          # the manifest and the release all report the same version.
+          dotnet publish Jellyfin.Plugin.LocalMovieSets/Jellyfin.Plugin.LocalMovieSets.csproj -c Release -o publish -p:Version=${{ env.VERSION }}
 
       - name: Package Plugin (ZIP)
         run: |
@@ -51,9 +53,14 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Checkout main branch to commit manifest updates
-          git checkout main
+
+          # Preserve the updated manifest, then switch to main. A direct
+          # checkout would fail if manifest.json differs between the tag
+          # and main ("would be overwritten by checkout").
+          cp manifest.json /tmp/manifest.json
+          git checkout -f main
+          cp /tmp/manifest.json manifest.json
+
           git add manifest.json
           git commit -m "chore: update manifest.json for version ${{ env.VERSION }} [skip ci]" || echo "No changes to commit"
           git push origin main
