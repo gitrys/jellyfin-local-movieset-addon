@@ -39,6 +39,13 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     // Prevents concurrent syncs (debounce timer vs scheduled task)
     private readonly SemaphoreSlim _syncLock = new(1, 1);
 
+    // Grace period between CreateCollectionAsync and our consolidated metadata save.
+    // Collection creation queues an internal metadata refresh that writes
+    // collection.xml; saving again immediately races it ("Error in metadata saver",
+    // sharing violation). The per-movie updates already add some spacing — this
+    // delay covers the remainder.
+    private const int PostCreateSaveDelayMs = 500;
+
     // Cancelled on StopAsync/Dispose so background syncs stop at shutdown
     private readonly CancellationTokenSource _shutdownCts = new();
 
@@ -828,14 +835,10 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 return false;
             }
 
-            collection.DisplayOrder = MapSortByToJellyfin(config.CollectionSortBy);
-            await UpdateRepositoryWithRetryAsync(collection, ItemUpdateType.MetadataEdit, cancellationToken)
-                .ConfigureAwait(false);
-
-            await ApplySetMetadataAsync(collection, setName, sortedMovies, config, cancellationToken)
-                .ConfigureAwait(false);
-
-            // Force update on all movies in the new collection to refresh UI grouping cache
+            // Force update on all movies in the new collection to refresh UI grouping
+            // cache. Doing this *before* saving the collection also gives the metadata
+            // refresh that CreateCollectionAsync queues internally time to finish its
+            // own collection.xml write, so our save below doesn't race it.
             foreach (var movie in sortedMovies)
             {
                 try
@@ -848,6 +851,19 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     _logger.LogError(ex, "Failed to update movie '{MovieName}' after adding to new collection", movie.Name);
                 }
             }
+
+            await Task.Delay(PostCreateSaveDelayMs, cancellationToken).ConfigureAwait(false);
+
+            // Apply all metadata in memory, then persist with a single UpdateItem
+            // call. Multiple back-to-back saves on a freshly created BoxSet collide
+            // with Jellyfin's own post-create save ("Error in metadata saver" /
+            // sharing violation on collection.xml).
+            collection.DisplayOrder = MapSortByToJellyfin(config.CollectionSortBy);
+            ApplySetMetadataCore(collection, setName, sortedMovies, config);
+            await UpdateRepositoryWithRetryAsync(collection, ItemUpdateType.MetadataEdit, cancellationToken)
+                .ConfigureAwait(false);
+            await UpdateCollectionPeopleAsync(collection, setName, sortedMovies, config, cancellationToken)
+                .ConfigureAwait(false);
 
             await _artworkProvider.SyncArtworkAsync(
                 collection,
@@ -933,6 +949,8 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 }
             }
 
+            // Apply DisplayOrder and all set metadata in memory, then persist with a
+            // single UpdateItem call to minimize concurrent collection.xml writes.
             var changed = false;
             var mappedSortBy = MapSortByToJellyfin(config.CollectionSortBy);
             if (!string.Equals(boxSet.DisplayOrder, mappedSortBy, StringComparison.Ordinal))
@@ -941,13 +959,15 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 changed = true;
             }
 
+            changed |= ApplySetMetadataCore(boxSet, setName, sortedMovies, config);
+
             if (changed)
             {
                 await UpdateRepositoryWithRetryAsync(boxSet, ItemUpdateType.MetadataEdit, cancellationToken)
                     .ConfigureAwait(false);
             }
 
-            await ApplySetMetadataAsync(boxSet, setName, sortedMovies, config, cancellationToken)
+            await UpdateCollectionPeopleAsync(boxSet, setName, sortedMovies, config, cancellationToken)
                 .ConfigureAwait(false);
 
             // Refresh artwork if requested
@@ -1006,15 +1026,19 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     }
 
     /// <summary>
-    /// Reads the dedicated set NFO (if available) and applies overview/title to the BoxSet.
-    /// Also calculates the collection's PremiereDate chronologically based on configuration.
+    /// Reads the dedicated set NFO (if available) and applies overview/title to the BoxSet
+    /// in memory. Also calculates the collection's PremiereDate chronologically based on
+    /// configuration and aggregates ratings/tags from the member movies.
+    /// Does NOT persist the item — callers are expected to issue a single UpdateItem
+    /// afterwards, so all metadata lands in one collection.xml write instead of several
+    /// racing ones.
     /// </summary>
-    private async Task ApplySetMetadataAsync(
+    /// <returns><c>true</c> if any property was modified.</returns>
+    private bool ApplySetMetadataCore(
         BoxSet collection,
         string setName,
         List<Movie> movies,
-        PluginConfiguration config,
-        CancellationToken cancellationToken)
+        PluginConfiguration config)
     {
         var changed = false;
 
@@ -1148,6 +1172,22 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             }
         }
 
+        return changed;
+    }
+
+    /// <summary>
+    /// Aggregates directors, writers and top-billed actors from the member movies onto
+    /// the collection. People are persisted through the library manager's UpdatePeople
+    /// path (separate from the item save), so this runs after the consolidated
+    /// UpdateItem call.
+    /// </summary>
+    private async Task UpdateCollectionPeopleAsync(
+        BoxSet collection,
+        string setName,
+        List<Movie> movies,
+        PluginConfiguration config,
+        CancellationToken cancellationToken)
+    {
         if (config.AggregatePeople)
         {
             var aggregatedPeople = new List<PersonInfo>();
@@ -1230,14 +1270,6 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             {
                 _logger.LogError(ex, "Failed to update aggregated people for collection '{SetName}'", setName);
             }
-        }
-
-        if (changed)
-        {
-            await UpdateRepositoryWithRetryAsync(collection, ItemUpdateType.MetadataEdit, cancellationToken)
-                .ConfigureAwait(false);
-
-            _logger.LogDebug("Updated metadata for collection '{SetName}'", setName);
         }
     }
 
