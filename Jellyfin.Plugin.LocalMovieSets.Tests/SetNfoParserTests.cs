@@ -28,32 +28,44 @@ public class SetNfoParserTests : IDisposable
     }
 
     [Theory]
-    [InlineData(NfoNamingConvention.SetSubfolder, "Marvel Cinematic Universe", @"Marvel Cinematic Universe\Marvel Cinematic Universe.nfo")]
-    [InlineData(NfoNamingConvention.FlatFile, "Marvel Cinematic Universe", @"Marvel Cinematic Universe.nfo")]
-    [InlineData(NfoNamingConvention.CollectionNfo, "Marvel Cinematic Universe", @"Marvel Cinematic Universe\collection.nfo")]
-    public void GetNfoPath_ReturnsCorrectPathBasedOnConvention(NfoNamingConvention naming, string setName, string expectedRelativePath)
+    [InlineData(NfoNamingConvention.SetSubfolder)]
+    [InlineData(NfoNamingConvention.FlatFile)]
+    [InlineData(NfoNamingConvention.CollectionNfo)]
+    public void GetNfoPath_ReturnsCorrectPathBasedOnConvention(NfoNamingConvention naming)
     {
+        const string setName = "Marvel Cinematic Universe";
+        var safeName = SetNfoParser.SanitizeFolderName(setName);
+
         // Act
         var result = SetNfoParser.GetNfoPath(_tempDirectory, setName, naming);
 
-        // Assert
-        var expectedPath = Path.Combine(_tempDirectory, expectedRelativePath);
+        // Assert — build expected path with Path.Combine so tests pass on Linux CI too
+        var expectedPath = naming switch
+        {
+            NfoNamingConvention.SetSubfolder => Path.Combine(_tempDirectory, safeName, $"{safeName}.nfo"),
+            NfoNamingConvention.FlatFile => Path.Combine(_tempDirectory, $"{safeName}.nfo"),
+            NfoNamingConvention.CollectionNfo => Path.Combine(_tempDirectory, safeName, "collection.nfo"),
+            _ => throw new ArgumentOutOfRangeException(nameof(naming))
+        };
         Assert.Equal(expectedPath, result);
     }
 
     [Theory]
-    [InlineData(NfoNamingConvention.SetSubfolder, "Marvel Cinematic Universe", @"Marvel Cinematic Universe")]
-    [InlineData(NfoNamingConvention.FlatFile, "Marvel Cinematic Universe", "")]
-    [InlineData(NfoNamingConvention.CollectionNfo, "Marvel Cinematic Universe", @"Marvel Cinematic Universe")]
-    public void GetArtworkFolder_ReturnsCorrectFolderBasedOnConvention(NfoNamingConvention naming, string setName, string expectedRelativePath)
+    [InlineData(NfoNamingConvention.SetSubfolder)]
+    [InlineData(NfoNamingConvention.FlatFile)]
+    [InlineData(NfoNamingConvention.CollectionNfo)]
+    public void GetArtworkFolder_ReturnsCorrectFolderBasedOnConvention(NfoNamingConvention naming)
     {
+        const string setName = "Marvel Cinematic Universe";
+        var safeName = SetNfoParser.SanitizeFolderName(setName);
+
         // Act
         var result = SetNfoParser.GetArtworkFolder(_tempDirectory, setName, naming);
 
         // Assert
-        var expectedPath = string.IsNullOrEmpty(expectedRelativePath)
+        var expectedPath = naming == NfoNamingConvention.FlatFile
             ? _tempDirectory
-            : Path.Combine(_tempDirectory, expectedRelativePath);
+            : Path.Combine(_tempDirectory, safeName);
         Assert.Equal(expectedPath, result);
     }
 
