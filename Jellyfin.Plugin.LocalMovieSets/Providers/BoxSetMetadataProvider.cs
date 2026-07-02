@@ -107,14 +107,12 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
             return false;
         }
 
-        var nfoPath = SetNfoParser.GetNfoPath(config.SetDataFolder, collectionName, config.NfoNaming);
-        if (File.Exists(nfoPath))
+        if (SetNfoParser.ResolveNfoPath(config.SetDataFolder, collectionName, config.NfoNaming) is not null)
         {
             return true;
         }
 
-        var artworkFolder = SetNfoParser.GetArtworkFolder(config.SetDataFolder, collectionName, config.NfoNaming);
-        return Directory.Exists(artworkFolder);
+        return SetNfoParser.ResolveArtworkFolder(config.SetDataFolder, collectionName, config.NfoNaming) is not null;
     }
 
     private static bool ApplyDisplayOrder(BoxSet collection, PluginConfiguration config)

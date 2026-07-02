@@ -8,7 +8,6 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
-using MediaBrowser.Model.MediaInfo;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.LocalMovieSets.Providers;
@@ -107,11 +106,14 @@ public class BoxSetImageProvider : IDynamicImageProvider
                 "Providing {ImageType} image for collection '{SetName}' from {Path}",
                 type, item.Name, imagePath);
 
+            // Return the image as a stream, not a path: Jellyfin deletes a
+            // returned path after copying it (it assumes a temp file), which
+            // would destroy the user's permanent set artwork on a writable
+            // share and spams UnauthorizedAccessException on a read-only one.
             var response = new DynamicImageResponse
             {
                 HasImage = true,
-                Path = imagePath,
-                Protocol = MediaProtocol.File
+                Stream = File.OpenRead(imagePath)
             };
             response.SetFormatFromMimeType(GetMimeType(imagePath));
 
@@ -141,8 +143,7 @@ public class BoxSetImageProvider : IDynamicImageProvider
             return null;
         }
 
-        var artworkFolder = SetNfoParser.GetArtworkFolder(config.SetDataFolder, item.Name, config.NfoNaming);
-        return Directory.Exists(artworkFolder) ? artworkFolder : null;
+        return SetNfoParser.ResolveArtworkFolder(config.SetDataFolder, item.Name, config.NfoNaming);
     }
 
     private static string? FindFirstExistingFile(string folder, string[] fileNames)

@@ -83,6 +83,93 @@ public class SetNfoParserTests : IDisposable
         Assert.Equal(expected, result);
     }
 
+    [Theory]
+    [InlineData("Mission: Impossible Collection", "_", "Mission_ Impossible Collection")]
+    [InlineData("Mission: Impossible Collection", " ", "Mission  Impossible Collection")]
+    [InlineData("28 Days/Weeks Later Collection", "_", "28 Days_Weeks Later Collection")]
+    [InlineData("28 Days/Weeks Later Collection", " ", "28 Days Weeks Later Collection")]
+    public void SanitizeFolderName_ReplacesInvalidCharactersWithReplacement(string input, string replacement, string expected)
+    {
+        // Act
+        var result = SetNfoParser.SanitizeFolderName(input, replacement);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void GetFolderNameCandidates_ReturnsAllVariantsInPriorityOrder()
+    {
+        // Act
+        var candidates = SetNfoParser.GetFolderNameCandidates("Mission: Impossible Collection");
+
+        // Assert — underscore (TMM default) first, then space, then strip
+        Assert.Equal(
+            new[]
+            {
+                "Mission_ Impossible Collection",
+                "Mission  Impossible Collection",
+                "Mission Impossible Collection"
+            },
+            candidates);
+    }
+
+    [Fact]
+    public void GetFolderNameCandidates_NoSpecialCharacters_ReturnsSingleCandidate()
+    {
+        // Act
+        var candidates = SetNfoParser.GetFolderNameCandidates("Iron Man Collection");
+
+        // Assert
+        Assert.Equal(new[] { "Iron Man Collection" }, candidates);
+    }
+
+    [Fact]
+    public void ResolveArtworkFolder_FindsUnderscoreNamedFolder()
+    {
+        // Arrange — TMM created the folder with ':' replaced by '_'
+        var tmmFolder = Path.Combine(_tempDirectory, "Star Trek_ Alternate Reality Collection");
+        Directory.CreateDirectory(tmmFolder);
+
+        // Act
+        var result = SetNfoParser.ResolveArtworkFolder(
+            _tempDirectory, "Star Trek: Alternate Reality Collection", NfoNamingConvention.SetSubfolder);
+
+        // Assert
+        Assert.Equal(tmmFolder, result);
+    }
+
+    [Fact]
+    public void ResolveArtworkFolder_NoFolderExists_ReturnsNull()
+    {
+        // Act
+        var result = SetNfoParser.ResolveArtworkFolder(
+            _tempDirectory, "The Conjuring Collection", NfoNamingConvention.SetSubfolder);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ParseSet_UnderscoreNamedFolder_ReturnsSetNfoInfo()
+    {
+        // Arrange — TMM naming: invalid chars replaced with '_'
+        const string setName = "Mission: Impossible Collection";
+        const string tmmFolderName = "Mission_ Impossible Collection";
+        var subfolder = Path.Combine(_tempDirectory, tmmFolderName);
+        Directory.CreateDirectory(subfolder);
+
+        var nfoPath = Path.Combine(subfolder, $"{tmmFolderName}.nfo");
+        File.WriteAllText(nfoPath, "<set><title>Mission: Impossible Collection</title></set>");
+
+        // Act
+        var result = _parser.ParseSet(_tempDirectory, setName, NfoNamingConvention.SetSubfolder);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Mission: Impossible Collection", result.Title);
+    }
+
     [Fact]
     public void ParseSet_FolderNotExists_ReturnsNull()
     {

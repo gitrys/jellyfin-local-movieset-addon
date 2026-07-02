@@ -63,11 +63,14 @@ public class SetNfoParser
             return null;
         }
 
-        var nfoPath = GetNfoPath(setDataFolder, setName, naming);
+        var nfoPath = ResolveNfoPath(setDataFolder, setName, naming);
 
-        if (!File.Exists(nfoPath))
+        if (nfoPath is null)
         {
-            _logger.LogDebug("No set NFO found at: {NfoPath}", nfoPath);
+            _logger.LogDebug(
+                "No set NFO found for '{SetName}' in {Folder} (tried all folder name variants)",
+                setName,
+                setDataFolder);
             return null;
         }
 
@@ -138,7 +141,9 @@ public class SetNfoParser
     }
 
     /// <summary>
-    /// Resolves the expected NFO file path based on the naming convention.
+    /// Resolves the expected NFO file path based on the naming convention,
+    /// using the default (strip) sanitization. Prefer <see cref="ResolveNfoPath"/>
+    /// when checking for an existing file, as it also tries TMM naming variants.
     /// </summary>
     /// <param name="setDataFolder">Root set data folder.</param>
     /// <param name="setName">Set name.</param>
@@ -146,20 +151,14 @@ public class SetNfoParser
     /// <returns>Full path to the expected NFO file.</returns>
     public static string GetNfoPath(string setDataFolder, string setName, NfoNamingConvention naming)
     {
-        var safeName = SanitizeFolderName(setName);
-        return naming switch
-        {
-            NfoNamingConvention.SetSubfolder  => Path.Combine(setDataFolder, safeName, $"{safeName}.nfo"),
-            NfoNamingConvention.FlatFile       => Path.Combine(setDataFolder, $"{safeName}.nfo"),
-            NfoNamingConvention.CollectionNfo  => Path.Combine(setDataFolder, safeName, "collection.nfo"),
-            _                                  => Path.Combine(setDataFolder, safeName, $"{safeName}.nfo")
-        };
+        return BuildNfoPath(setDataFolder, SanitizeFolderName(setName), naming);
     }
 
     /// <summary>
-    /// Resolves the directory that contains the set's artwork files.
+    /// Resolves the directory that contains the set's artwork files, using the
+    /// default (strip) sanitization. Prefer <see cref="ResolveArtworkFolder"/>
+    /// when checking for an existing folder, as it also tries TMM naming variants.
     /// For flat-file naming the artwork sits directly in the set data folder.
-    /// For all subfolder styles the artwork sits in the set's named subfolder.
     /// </summary>
     /// <param name="setDataFolder">Root set data folder.</param>
     /// <param name="setName">Set name.</param>
@@ -170,8 +169,93 @@ public class SetNfoParser
         if (naming == NfoNamingConvention.FlatFile)
             return setDataFolder;
 
-        var safeName = SanitizeFolderName(setName);
-        return Path.Combine(setDataFolder, safeName);
+        return Path.Combine(setDataFolder, SanitizeFolderName(setName));
+    }
+
+    /// <summary>
+    /// Finds the existing NFO file for a set, trying every folder/file name
+    /// variant produced by <see cref="GetFolderNameCandidates"/>.
+    /// </summary>
+    /// <param name="setDataFolder">Root set data folder.</param>
+    /// <param name="setName">Set name.</param>
+    /// <param name="naming">Naming convention.</param>
+    /// <returns>Full path to an existing NFO file, or <c>null</c> if none exists.</returns>
+    public static string? ResolveNfoPath(string setDataFolder, string setName, NfoNamingConvention naming)
+    {
+        foreach (var safeName in GetFolderNameCandidates(setName))
+        {
+            var nfoPath = BuildNfoPath(setDataFolder, safeName, naming);
+            if (File.Exists(nfoPath))
+            {
+                return nfoPath;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the existing artwork folder for a set, trying every folder name
+    /// variant produced by <see cref="GetFolderNameCandidates"/>.
+    /// For flat-file naming the artwork sits directly in the set data folder.
+    /// </summary>
+    /// <param name="setDataFolder">Root set data folder.</param>
+    /// <param name="setName">Set name.</param>
+    /// <param name="naming">Naming convention.</param>
+    /// <returns>Full path to an existing artwork folder, or <c>null</c> if none exists.</returns>
+    public static string? ResolveArtworkFolder(string setDataFolder, string setName, NfoNamingConvention naming)
+    {
+        if (naming == NfoNamingConvention.FlatFile)
+        {
+            return Directory.Exists(setDataFolder) ? setDataFolder : null;
+        }
+
+        foreach (var safeName in GetFolderNameCandidates(setName))
+        {
+            var folder = Path.Combine(setDataFolder, safeName);
+            if (Directory.Exists(folder))
+            {
+                return folder;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Sanitized folder/file name variants for a set name, in lookup priority
+    /// order. tinyMediaManager replaces characters that are invalid in file
+    /// names (like ':' and '/') with an underscore by default, or with a space
+    /// depending on the renamer settings; this plugin historically stripped
+    /// them. All distinct variants are returned so folders created by any of
+    /// these conventions are found.
+    /// </summary>
+    /// <param name="setName">Raw set name.</param>
+    /// <returns>Distinct sanitized name variants, most likely first.</returns>
+    public static IReadOnlyList<string> GetFolderNameCandidates(string setName)
+    {
+        var candidates = new List<string>(3);
+        foreach (var replacement in (string[])["_", " ", string.Empty])
+        {
+            var candidate = SanitizeFolderName(setName, replacement);
+            if (!candidates.Contains(candidate, StringComparer.Ordinal))
+            {
+                candidates.Add(candidate);
+            }
+        }
+
+        return candidates;
+    }
+
+    private static string BuildNfoPath(string setDataFolder, string safeName, NfoNamingConvention naming)
+    {
+        return naming switch
+        {
+            NfoNamingConvention.SetSubfolder  => Path.Combine(setDataFolder, safeName, $"{safeName}.nfo"),
+            NfoNamingConvention.FlatFile       => Path.Combine(setDataFolder, $"{safeName}.nfo"),
+            NfoNamingConvention.CollectionNfo  => Path.Combine(setDataFolder, safeName, "collection.nfo"),
+            _                                  => Path.Combine(setDataFolder, safeName, $"{safeName}.nfo")
+        };
     }
 
     /// <summary>
@@ -191,8 +275,19 @@ public class SetNfoParser
     /// <returns>Sanitized name safe for use as a folder/file name.</returns>
     public static string SanitizeFolderName(string name)
     {
-        var invalid = CrossPlatformInvalidFileNameChars;
-        var sanitized = string.Join(string.Empty, name.Split(invalid));
+        return SanitizeFolderName(name, string.Empty);
+    }
+
+    /// <summary>
+    /// Replaces characters that are invalid in file/folder names with the
+    /// given replacement so the set name can be used as a path component.
+    /// </summary>
+    /// <param name="name">Raw set name.</param>
+    /// <param name="replacement">Replacement for each invalid character (e.g. "_", " ", or "").</param>
+    /// <returns>Sanitized name safe for use as a folder/file name.</returns>
+    public static string SanitizeFolderName(string name, string replacement)
+    {
+        var sanitized = string.Join(replacement, name.Split(CrossPlatformInvalidFileNameChars));
 
         // Guard against "." / ".." which Path.Combine would resolve as current/parent dir
         if (string.IsNullOrWhiteSpace(sanitized) || sanitized.All(c => c == '.'))
