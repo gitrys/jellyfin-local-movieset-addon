@@ -23,6 +23,12 @@ namespace Jellyfin.Plugin.LocalMovieSets.Providers;
 /// </summary>
 public class BoxSetImageProvider : IDynamicImageProvider
 {
+    /// <summary>
+    /// Provider name as registered with Jellyfin. Must match what shows up in
+    /// the library's image fetcher configuration.
+    /// </summary>
+    public const string ProviderName = "Local Movie Sets";
+
     private readonly ILogger<BoxSetImageProvider> _logger;
 
     /// <summary>
@@ -52,7 +58,7 @@ public class BoxSetImageProvider : IDynamicImageProvider
     }
 
     /// <inheritdoc />
-    public string Name => "Local Movie Sets";
+    public string Name => ProviderName;
 
     /// <inheritdoc />
     public bool Supports(BaseItem item) => item is BoxSet;

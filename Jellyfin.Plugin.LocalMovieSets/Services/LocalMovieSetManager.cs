@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.LocalMovieSets.Parsers;
+using Jellyfin.Plugin.LocalMovieSets.Providers;
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
@@ -233,6 +234,10 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 stats.LastRunOutcome = SyncOutcomes.MountGuardAborted;
                 return;
             }
+
+            // The image provider only runs when it is enabled as an image
+            // fetcher in the collections library options, so make sure it is.
+            EnsureImageFetcherEnabled();
 
             // ── Step 1: Query all movies ──────────────────────────────────────
             var allMovies = QueryAllMovies();
@@ -593,6 +598,67 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         }
         catch (ObjectDisposedException)
         {
+        }
+    }
+
+    /// <summary>
+    /// Ensures the plugin's dynamic image provider is enabled as a BoxSet image
+    /// fetcher in every collections library. Jellyfin only runs an
+    /// <c>IDynamicImageProvider</c> when the library's per-type
+    /// <c>ImageFetchers</c> list contains its name; a library configured with an
+    /// empty list (e.g. after disabling TMDb/Fanart images for collections)
+    /// silently disables this plugin's artwork too. Runs once per sync and only
+    /// writes when a change is needed.
+    /// </summary>
+    private void EnsureImageFetcherEnabled()
+    {
+        try
+        {
+            foreach (var libraryFolder in _libraryManager.RootFolder.Children.OfType<CollectionFolder>())
+            {
+                if (libraryFolder.CollectionType != CollectionType.boxsets)
+                {
+                    continue;
+                }
+
+                var options = libraryFolder.GetLibraryOptions();
+                var typeOptions = options.TypeOptions?
+                    .FirstOrDefault(t => string.Equals(t.Type, nameof(BoxSet), StringComparison.OrdinalIgnoreCase));
+
+                // No per-type override: Jellyfin falls back to the server-wide
+                // metadata options, where fetchers are enabled unless explicitly
+                // disabled. Nothing to do.
+                if (typeOptions is null)
+                {
+                    continue;
+                }
+
+                var fetchers = typeOptions.ImageFetchers ?? [];
+                if (fetchers.Contains(BoxSetImageProvider.ProviderName, StringComparer.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                typeOptions.ImageFetchers = [.. fetchers, BoxSetImageProvider.ProviderName];
+
+                // Put the plugin first so local set artwork wins over remote
+                // fetchers should the user (re-)enable those later.
+                var order = typeOptions.ImageFetcherOrder ?? [];
+                if (!order.Contains(BoxSetImageProvider.ProviderName, StringComparer.OrdinalIgnoreCase))
+                {
+                    typeOptions.ImageFetcherOrder = [BoxSetImageProvider.ProviderName, .. order];
+                }
+
+                libraryFolder.UpdateLibraryOptions(options);
+                _logger.LogInformation(
+                    "Local Movie Sets: enabled '{Provider}' as a BoxSet image fetcher for library '{Library}'",
+                    BoxSetImageProvider.ProviderName,
+                    libraryFolder.Name);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Local Movie Sets: could not verify/enable the image fetcher in library options");
         }
     }
 
