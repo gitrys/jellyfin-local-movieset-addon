@@ -614,7 +614,9 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     {
         try
         {
-            foreach (var libraryFolder in _libraryManager.RootFolder.Children.OfType<CollectionFolder>())
+            // Library folders are children of the *user* root folder
+            // (root/default), not the aggregate root folder.
+            foreach (var libraryFolder in _libraryManager.GetUserRootFolder().Children.OfType<CollectionFolder>())
             {
                 if (libraryFolder.CollectionType != CollectionType.boxsets)
                 {

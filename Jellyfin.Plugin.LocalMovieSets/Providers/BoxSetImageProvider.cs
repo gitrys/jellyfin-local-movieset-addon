@@ -127,6 +127,14 @@ public class BoxSetImageProvider : IDynamicImageProvider
     /// </summary>
     private static string? GetArtworkFolderForItem(BaseItem item)
     {
+        // Jellyfin probes providers with a nameless dummy item when building
+        // the library options UI (/Libraries/AvailableOptions); a null name
+        // must not throw or the whole endpoint 500s.
+        if (string.IsNullOrWhiteSpace(item.Name))
+        {
+            return null;
+        }
+
         var config = Plugin.Instance?.Configuration;
         if (config is null || string.IsNullOrWhiteSpace(config.SetDataFolder))
         {
