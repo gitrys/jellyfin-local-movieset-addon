@@ -37,6 +37,33 @@ The compiled plugin is a single DLL: `Jellyfin.Plugin.LocalMovieSets.dll`
 
 ---
 
+## Deployment & Testing (Server)
+
+Für schnelles Testen und Aktualisieren auf dem Server (`ondemand`) steht ein automatisiertes, portables Skript bereit:
+
+- **Windows (Doppelklick oder CMD):**
+  ```cmd
+  deploy.bat
+  ```
+- **PowerShell:**
+  ```powershell
+  .\deploy-to-server.ps1 -ServerHost "ondemand"
+  ```
+- **Linux / Git Bash / WSL:**
+  ```bash
+  ./deploy.sh ondemand
+  ```
+
+**Was das Skript automatisch tut:**
+1. Führt `dotnet build -c Release` aus.
+2. Überträgt die gebaute DLL per SCP auf den Server nach `/tmp/`.
+3. Erstellt auf dem Server ein Backup der bisherigen DLL mit Zeitstempel (`...dll.bak_<timestamp>`).
+4. Kopiert die neue DLL in das aktive Plugin-Verzeichnis (`/var/lib/jellyfin/plugins/Local Movie Sets_*/`).
+5. Setzt die Dateiberechtigungen (`chown jellyfin:jellyfin` und `chmod 644`).
+6. Startet den Jellyfin-Dienst neu (`sudo systemctl restart jellyfin`) und überprüft den Status.
+
+---
+
 ## Installation
 
 1. Build the plugin (see above)

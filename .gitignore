@@ -6,18 +6,29 @@ publish/
 *.zip
 release_notes.md
 
-# Local .NET SDK
+# Local .NET SDK & CLI
 .dotnet-sdk/
 .dotnet/
+.dotnet-cli/
 .nuget/
 
-# IDE/Editor specific
+# Deployment scripts & tools (local/server)
+deploy.bat
+deploy-to-server.ps1
+deploy.sh
+scripts/
+
+# Test media
+testdateien/
+
+# IDE / Editor specific
 .vs/
 .vscode/
 *.user
 *.suo
 *.userosscache
 *.sln.docstates
+*.code-workspace
 
 # OS specific
 .DS_Store

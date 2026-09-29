@@ -94,6 +94,12 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool UpdateExistingArtwork { get; set; } = false;
 
     /// <summary>
+    /// Gets or sets a value indicating whether to search for set artwork inside individual movie folders
+    /// as a fallback when not found in the dedicated set data folder.
+    /// </summary>
+    public bool EnableMovieFolderArtworkFallback { get; set; } = true;
+
+    /// <summary>
     /// Gets or sets the display order for collections.
     /// Supported values: "Default" (creation/link order), "PremiereDate", "SortName".
     /// Legacy values from older versions are treated as "Default".

@@ -50,9 +50,11 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     // don't re-trigger the debounce timer via ItemUpdated events.
     private volatile bool _isSyncing;
 
-    // Snapshot of the most recent sync run (in-memory only; resets on restart).
-    // Replaced at the start of each run and mutated only while _syncLock is held.
+    // Snapshot of the most recent sync run.
     private SyncStatusInfo _lastStatus = new();
+    private readonly object _historyLock = new();
+    private readonly List<SyncStatusInfo> _syncHistory = [];
+    private const int MaxHistoryEntries = 10;
 
     // Set names discovered by the most recent sync. Consulted by the metadata
     // provider so it only touches collections this plugin manages. Replaced
@@ -84,6 +86,8 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             null,
             Timeout.Infinite,
             Timeout.Infinite);
+
+        LoadSyncHistory();
     }
 
     /// <summary>
@@ -101,19 +105,25 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     public bool IsManagedSet(string setName) => _managedSetNames.Contains(setName);
 
     /// <summary>
-    /// Returns a snapshot of the most recent sync run's status and statistics.
+    /// Returns a snapshot of the most recent sync run's status and statistics,
+    /// including recent historical runs.
     /// </summary>
     /// <returns>A copy of the current status.</returns>
     public SyncStatusInfo GetStatusSnapshot()
     {
-        var snapshot = _lastStatus.Clone();
-        snapshot.IsRunning = IsSyncRunning;
-        return snapshot;
+        lock (_historyLock)
+        {
+            var snapshot = _lastStatus.Clone();
+            snapshot.IsRunning = IsSyncRunning;
+            snapshot.History = _syncHistory.Select(x => x.Clone()).ToList();
+            return snapshot;
+        }
     }
 
     /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken)
     {
+        LoadSyncHistory();
         _libraryManager.ItemAdded += OnLibraryItemChanged;
         _libraryManager.ItemUpdated += OnLibraryItemChanged;
         _libraryManager.ItemRemoved += OnLibraryItemChanged;
@@ -355,6 +365,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         {
             stats.LastRunCompletedUtc = DateTime.UtcNow;
             _isSyncing = false;
+            RecordSyncHistory(stats);
         }
     }
 
@@ -1160,6 +1171,99 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
         var indexStr = prefix.Substring(lastSpaceIndex + 1);
         return indexStr.Length == 2 && int.TryParse(indexStr, out _);
+    }
+
+    private string GetHistoryFilePath()
+    {
+        var dataDir = Plugin.Instance?.DataFolderPath;
+        if (string.IsNullOrWhiteSpace(dataDir))
+        {
+            dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "jellyfin", "data", "LocalMovieSets");
+        }
+
+        Directory.CreateDirectory(dataDir);
+        return Path.Combine(dataDir, "sync_history.json");
+    }
+
+    private void LoadSyncHistory()
+    {
+        try
+        {
+            var filePath = GetHistoryFilePath();
+            if (!File.Exists(filePath))
+            {
+                return;
+            }
+
+            var json = File.ReadAllText(filePath);
+            var items = System.Text.Json.JsonSerializer.Deserialize<List<SyncStatusInfo>>(json);
+            if (items is { Count: > 0 })
+            {
+                lock (_historyLock)
+                {
+                    _syncHistory.Clear();
+                    _syncHistory.AddRange(items.Take(MaxHistoryEntries));
+                    _lastStatus = _syncHistory[0].Clone();
+                    _lastStatus.History = _syncHistory.Select(x => x.Clone()).ToList();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Local Movie Sets: failed to load sync history from disk");
+        }
+    }
+
+    private void RecordSyncHistory(SyncStatusInfo run)
+    {
+        try
+        {
+            lock (_historyLock)
+            {
+                var entry = run.Clone();
+                entry.History = Array.Empty<SyncStatusInfo>(); // Don't nest history inside history entries
+                _syncHistory.Insert(0, entry);
+                while (_syncHistory.Count > MaxHistoryEntries)
+                {
+                    _syncHistory.RemoveAt(_syncHistory.Count - 1);
+                }
+
+                _lastStatus.History = _syncHistory.Select(x => x.Clone()).ToList();
+
+                var filePath = GetHistoryFilePath();
+                var json = System.Text.Json.JsonSerializer.Serialize(_syncHistory, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(filePath, json);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Local Movie Sets: failed to persist sync history to disk");
+        }
+    }
+
+    /// <summary>
+    /// Clears the sync history and deletes the persisted file.
+    /// </summary>
+    public void ClearSyncHistory()
+    {
+        lock (_historyLock)
+        {
+            _syncHistory.Clear();
+            _lastStatus.History = Array.Empty<SyncStatusInfo>();
+
+            try
+            {
+                var filePath = GetHistoryFilePath();
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Local Movie Sets: failed to delete sync history file");
+            }
+        }
     }
 
     /// <inheritdoc />

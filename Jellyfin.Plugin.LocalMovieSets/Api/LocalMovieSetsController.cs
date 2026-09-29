@@ -52,6 +52,17 @@ public class LocalMovieSetsController : ControllerBase
     }
 
     /// <summary>
+    /// Clears the recorded sync history.
+    /// </summary>
+    /// <returns>NoContent on success.</returns>
+    [HttpPost("ClearHistory")]
+    public ActionResult ClearHistory()
+    {
+        _manager.ClearSyncHistory();
+        return NoContent();
+    }
+
+    /// <summary>
     /// Computes a read-only preview of what the next sync would do
     /// under the currently saved settings. Nothing is modified.
     /// </summary>

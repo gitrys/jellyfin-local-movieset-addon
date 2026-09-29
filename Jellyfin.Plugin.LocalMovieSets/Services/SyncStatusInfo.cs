@@ -73,9 +73,28 @@ public class SyncStatusInfo
     /// <summary>Gets or sets the error message of the last failed run, if any.</summary>
     public string? LastErrorMessage { get; set; }
 
+    private double? _durationSeconds;
+
+    /// <summary>Gets or sets the duration of the run in seconds.</summary>
+    public double? DurationSeconds
+    {
+        get => _durationSeconds ?? (LastRunStartedUtc.HasValue && LastRunCompletedUtc.HasValue
+            ? Math.Max(0, Math.Round((LastRunCompletedUtc.Value - LastRunStartedUtc.Value).TotalSeconds, 1))
+            : null);
+        set => _durationSeconds = value;
+    }
+
+    /// <summary>Gets or sets recent historical sync runs (newest first).</summary>
+    public IReadOnlyList<SyncStatusInfo> History { get; set; } = Array.Empty<SyncStatusInfo>();
+
     /// <summary>Creates a shallow copy of this snapshot.</summary>
     /// <returns>A copy safe to hand out to API consumers.</returns>
-    public SyncStatusInfo Clone() => (SyncStatusInfo)MemberwiseClone();
+    public SyncStatusInfo Clone()
+    {
+        var copy = (SyncStatusInfo)MemberwiseClone();
+        copy.History = new List<SyncStatusInfo>(History);
+        return copy;
+    }
 }
 
 /// <summary>

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.LocalMovieSets.Parsers;
+using Jellyfin.Plugin.LocalMovieSets.Services;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Providers;
@@ -13,12 +15,12 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.LocalMovieSets.Providers;
 
 /// <summary>
-/// Supplies collection artwork from the tinyMediaManager set data folder to
-/// Jellyfin's image refresh pipeline. The pipeline copies each returned file
-/// into the collection's own folder, so Jellyfin owns its copy and an offline
-/// share cannot strip images. Running inside the pipeline (instead of saving
-/// imperatively during sync) means all writes to the item are serialized and
-/// cannot race Jellyfin's own collection.xml saves.
+/// Supplies collection artwork to Jellyfin's image refresh pipeline.
+/// Artwork is looked up first in the dedicated tinyMediaManager set data folder.
+/// If not found (or no central folder is configured), it falls back to scanning
+/// the individual member movie folders for movie-set artwork (e.g. movieset-poster.jpg).
+/// Running inside the pipeline (instead of saving imperatively during sync) means all
+/// writes to the item are serialized and cannot race Jellyfin's own collection.xml saves.
 /// </summary>
 public class BoxSetImageProvider : IDynamicImageProvider
 {
@@ -28,10 +30,13 @@ public class BoxSetImageProvider : IDynamicImageProvider
     /// </summary>
     public const string ProviderName = "Local Movie Sets";
 
+    private static readonly string[] ImageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+
+    private readonly LocalMovieSetManager _setManager;
     private readonly ILogger<BoxSetImageProvider> _logger;
 
     /// <summary>
-    /// Maps artwork filenames (in priority order) to Jellyfin image types.
+    /// Maps central set folder artwork filenames (in priority order) to Jellyfin image types.
     /// </summary>
     internal static readonly IReadOnlyList<(string[] FileNames, ImageType ImageType)> ArtworkMappings =
     [
@@ -50,9 +55,13 @@ public class BoxSetImageProvider : IDynamicImageProvider
     /// <summary>
     /// Initializes a new instance of the <see cref="BoxSetImageProvider"/> class.
     /// </summary>
+    /// <param name="setManager">Local movie set manager instance (injected).</param>
     /// <param name="logger">Logger instance (injected).</param>
-    public BoxSetImageProvider(ILogger<BoxSetImageProvider> logger)
+    public BoxSetImageProvider(
+        LocalMovieSetManager setManager,
+        ILogger<BoxSetImageProvider> logger)
     {
+        _setManager = setManager;
         _logger = logger;
     }
 
@@ -65,15 +74,24 @@ public class BoxSetImageProvider : IDynamicImageProvider
     /// <inheritdoc />
     public IEnumerable<ImageType> GetSupportedImages(BaseItem item)
     {
-        var artworkFolder = GetArtworkFolderForItem(item);
-        if (artworkFolder is null)
+        if (item is not BoxSet boxSet)
         {
             yield break;
         }
 
+        var artworkFolder = GetArtworkFolderForItem(boxSet);
+
         foreach (var (fileNames, imageType) in ArtworkMappings)
         {
-            if (FindFirstExistingFile(artworkFolder, fileNames) is not null)
+            // Check central folder first
+            if (artworkFolder is not null && FindFirstExistingFile(artworkFolder, fileNames) is not null)
+            {
+                yield return imageType;
+                continue;
+            }
+
+            // Check movie folders as fallback
+            if (FindArtworkInMovieFolders(boxSet, imageType) is not null)
             {
                 yield return imageType;
             }
@@ -83,25 +101,35 @@ public class BoxSetImageProvider : IDynamicImageProvider
     /// <inheritdoc />
     public Task<DynamicImageResponse> GetImage(BaseItem item, ImageType type, CancellationToken cancellationToken)
     {
-        var artworkFolder = GetArtworkFolderForItem(item);
-        if (artworkFolder is null)
+        if (item is not BoxSet boxSet)
         {
             return Task.FromResult(new DynamicImageResponse { HasImage = false });
         }
 
-        foreach (var (fileNames, imageType) in ArtworkMappings)
+        string? imagePath = null;
+        var artworkFolder = GetArtworkFolderForItem(boxSet);
+
+        // 1. Try central set folder
+        if (artworkFolder is not null)
         {
-            if (imageType != type)
+            foreach (var (fileNames, imageType) in ArtworkMappings)
             {
-                continue;
+                if (imageType == type)
+                {
+                    imagePath = FindFirstExistingFile(artworkFolder, fileNames);
+                    break;
+                }
             }
+        }
 
-            var imagePath = FindFirstExistingFile(artworkFolder, fileNames);
-            if (imagePath is null)
-            {
-                break;
-            }
+        // 2. Fallback to individual movie folders
+        if (imagePath is null)
+        {
+            imagePath = FindArtworkInMovieFolders(boxSet, type);
+        }
 
+        if (imagePath is not null)
+        {
             _logger.LogInformation(
                 "Providing {ImageType} image for collection '{SetName}' from {Path}",
                 type, item.Name, imagePath);
@@ -124,14 +152,132 @@ public class BoxSetImageProvider : IDynamicImageProvider
     }
 
     /// <summary>
+    /// Searches individual movie folders belonging to this box set for matching set artwork.
+    /// </summary>
+    private string? FindArtworkInMovieFolders(BoxSet boxSet, ImageType type)
+    {
+        var config = Plugin.Instance?.Configuration;
+        if (config is not null && !config.EnableMovieFolderArtworkFallback)
+        {
+            return null;
+        }
+
+        var candidateNames = GetMovieFolderCandidateFileNames(boxSet.Name, type);
+        if (candidateNames.Count == 0)
+        {
+            return null;
+        }
+
+        var movies = _setManager.GetBoxSetMovies(boxSet);
+        if (movies.Count == 0)
+        {
+            return null;
+        }
+
+        var checkedFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var movie in movies)
+        {
+            var folder = Path.GetDirectoryName(movie.Path);
+            if (string.IsNullOrWhiteSpace(folder) || !checkedFolders.Add(folder) || !Directory.Exists(folder))
+            {
+                continue;
+            }
+
+            var match = FindFirstExistingFile(folder, candidateNames);
+            if (match is not null)
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Generates the list of candidate filenames for set artwork stored in a movie folder,
+    /// matching Kodi and tinyMediaManager conventions.
+    /// </summary>
+    internal static IReadOnlyList<string> GetMovieFolderCandidateFileNames(string setName, ImageType type)
+    {
+        var baseNames = GetMovieFolderBaseNames(setName, type);
+        if (baseNames.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var results = new List<string>(baseNames.Count * ImageExtensions.Length);
+        foreach (var baseName in baseNames)
+        {
+            foreach (var ext in ImageExtensions)
+            {
+                results.Add(baseName + ext);
+            }
+        }
+
+        return results;
+    }
+
+    private static IReadOnlyList<string> GetMovieFolderBaseNames(string setName, ImageType type)
+    {
+        var nameVariants = string.IsNullOrWhiteSpace(setName)
+            ? []
+            : SetNfoParser.GetFolderNameCandidates(setName);
+
+        var list = new List<string>();
+
+        void AddWithVariants(string genericPrefix, string suffix)
+        {
+            list.Add($"{genericPrefix}-{suffix}");
+            foreach (var variant in nameVariants)
+            {
+                var candidate = $"{variant}-{suffix}";
+                if (!list.Contains(candidate, StringComparer.OrdinalIgnoreCase))
+                {
+                    list.Add(candidate);
+                }
+            }
+        }
+
+        switch (type)
+        {
+            case ImageType.Primary:
+                AddWithVariants("movieset", "poster");
+                AddWithVariants("movieset", "folder");
+                break;
+            case ImageType.Backdrop:
+                AddWithVariants("movieset", "fanart");
+                AddWithVariants("movieset", "backdrop");
+                break;
+            case ImageType.Logo:
+                AddWithVariants("movieset", "clearlogo");
+                AddWithVariants("movieset", "logo");
+                break;
+            case ImageType.Thumb:
+                AddWithVariants("movieset", "thumb");
+                AddWithVariants("movieset", "landscape");
+                break;
+            case ImageType.Art:
+                AddWithVariants("movieset", "clearart");
+                break;
+            case ImageType.Banner:
+                AddWithVariants("movieset", "banner");
+                break;
+            case ImageType.Disc:
+                AddWithVariants("movieset", "disc");
+                AddWithVariants("movieset", "discart");
+                break;
+        }
+
+        return list;
+    }
+
+    /// <summary>
     /// Resolves the set artwork folder for a BoxSet item, or <c>null</c> when
     /// no set data folder is configured or the folder does not exist.
     /// </summary>
     private static string? GetArtworkFolderForItem(BaseItem item)
     {
-        // Jellyfin probes providers with a nameless dummy item when building
-        // the library options UI (/Libraries/AvailableOptions); a null name
-        // must not throw or the whole endpoint 500s.
         if (string.IsNullOrWhiteSpace(item.Name))
         {
             return null;
@@ -146,7 +292,7 @@ public class BoxSetImageProvider : IDynamicImageProvider
         return SetNfoParser.ResolveArtworkFolder(config.SetDataFolder, item.Name, config.NfoNaming);
     }
 
-    private static string? FindFirstExistingFile(string folder, string[] fileNames)
+    internal static string? FindFirstExistingFile(string folder, IEnumerable<string> fileNames)
     {
         foreach (var fileName in fileNames)
         {

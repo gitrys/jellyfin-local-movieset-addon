@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -19,9 +19,16 @@
                     <h2 class="sectionTitle">Local Movie Sets</h2>
                 </div>
 
-                <!-- ── Sync Status ── -->
-                <div id="SyncStatusPanel" style="background: rgba(255, 255, 255, 0.06); border: 1px solid #333; border-radius: 8px; padding: 1em 1.25em; margin-bottom: 1.5em; font-size: 0.95em; line-height: 1.6;">
-                    <h3 style="margin: 0 0 0.4em 0; font-size: 1em; color: #00a4dc;">Sync Status</h3>
+                <!-- ── Sync Status & Metrics Dashboard ── -->
+                <div id="SyncStatusPanel" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; padding: 1.25em 1.5em; margin-bottom: 2em; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8em; flex-wrap: wrap; gap: 0.8em;">
+                        <div style="display: flex; align-items: center; gap: 0.6em;">
+                            <span style="font-size: 1.3em;">📊</span>
+                            <h3 style="margin: 0; font-size: 1.15em; color: #00a4dc; font-weight: bold;">Sync Status &amp; Metrics</h3>
+                        </div>
+                        <div id="SyncStatusBadgeContainer"></div>
+                    </div>
+                    <div id="SyncStatusSubheader" style="color: #aaa; font-size: 0.9em; margin-bottom: 1.2em;"></div>
                     <div id="SyncStatusContent" style="color: #ccc;">Loading…</div>
                 </div>
 
@@ -177,6 +184,20 @@
                         When enabled, artwork from the TMM set folder is re-copied
                         on every sync, replacing any existing images on the collection.
                         When disabled, only collections with no artwork are updated.
+                    </div>
+                </div>
+
+                <!-- ── Movie Folder Artwork Fallback ─────────────────────────── -->
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label class="emby-checkbox-label">
+                        <input id="EnableMovieFolderArtworkFallback"
+                               type="checkbox"
+                               is="emby-checkbox"
+                        />
+                        <span>Suche nach Set-Artwork in Filmordnern (Fallback)</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        Wenn aktiviert, sucht das Plugin nach Set-Artwork (z.&nbsp;B. <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code>) direkt in den Ordnern der enthaltenen Filme, falls kein zentraler Ordner konfiguriert ist oder dort kein Bild gefunden wird.
                     </div>
                 </div>
 
@@ -366,8 +387,18 @@
                 });
             }
 
-            /* ── Sync Status panel ── */
+            /* ── Sync Status & Metrics Dashboard ── */
             let statusPollTimer = null;
+
+            function escapeHtml(str) {
+                if (!str) return '';
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
 
             function formatUtc(iso) {
                 if (!iso) return 'unknown';
@@ -375,56 +406,214 @@
                 return isNaN(d.getTime()) ? 'unknown' : d.toLocaleString();
             }
 
-            function renderSyncStatus(page, s) {
-                const el = page.querySelector('#SyncStatusContent');
-                if (!el) return;
-                el.textContent = '';
+            function formatDuration(sec) {
+                if (sec === null || sec === undefined || isNaN(sec)) return '-';
+                sec = Math.round(sec);
+                if (sec < 60) return sec + 's';
+                const m = Math.floor(sec / 60);
+                const s = sec % 60;
+                return m + 'm ' + (s < 10 ? '0' : '') + s + 's';
+            }
 
-                function addLine(text, color) {
-                    const div = document.createElement('div');
-                    div.textContent = text;
-                    if (color) div.style.color = color;
-                    el.appendChild(div);
+            function timeAgo(iso) {
+                if (!iso) return '';
+                const d = new Date(iso);
+                if (isNaN(d.getTime())) return '';
+                const diffSec = Math.round((Date.now() - d.getTime()) / 1000);
+                if (diffSec < 60) return 'just now';
+                const min = Math.floor(diffSec / 60);
+                if (min < 60) return min + ' min. ago';
+                const hours = Math.floor(min / 60);
+                if (hours < 24) return hours + ' hr' + (hours > 1 ? 's' : '') + ' ago';
+                const days = Math.floor(hours / 24);
+                return days + ' day' + (days > 1 ? 's' : '') + ' ago';
+            }
+
+            function renderSyncStatus(page, s) {
+                const badgeContainer = page.querySelector('#SyncStatusBadgeContainer');
+                const subheader = page.querySelector('#SyncStatusSubheader');
+                const content = page.querySelector('#SyncStatusContent');
+                if (!content) return;
+
+                if (badgeContainer) badgeContainer.innerHTML = '';
+                if (subheader) subheader.textContent = '';
+                content.innerHTML = '';
+
+                const outcomeConfig = {
+                    Success: { label: '✓ Success', bg: 'rgba(76, 175, 80, 0.2)', color: '#4CAF50', border: '#4CAF50' },
+                    Failed: { label: '✕ Failed', bg: 'rgba(244, 67, 54, 0.2)', color: '#F44336', border: '#F44336' },
+                    Cancelled: { label: '⏹ Cancelled', bg: 'rgba(255, 152, 0, 0.2)', color: '#FF9800', border: '#FF9800' },
+                    MountGuardAborted: { label: '⚠️ Mount Guard Aborted', bg: 'rgba(255, 152, 0, 0.2)', color: '#FF9800', border: '#FF9800' },
+                    Running: { label: '⏳ Running…', bg: 'rgba(0, 164, 220, 0.2)', color: '#00a4dc', border: '#00a4dc' },
+                    NeverRan: { label: '⚪ Idle', bg: 'rgba(255, 255, 255, 0.1)', color: '#aaa', border: '#555' }
+                };
+
+                const currentOutcome = s.IsRunning ? 'Running' : (s.LastRunOutcome || 'NeverRan');
+                const conf = outcomeConfig[currentOutcome] || { label: currentOutcome, bg: 'rgba(255,255,255,0.1)', color: '#ccc', border: '#555' };
+
+                if (badgeContainer) {
+                    const badge = document.createElement('span');
+                    badge.style.cssText = 'background: ' + conf.bg + '; color: ' + conf.color + '; border: 1px solid ' + conf.border + '; padding: 3px 10px; border-radius: 12px; font-weight: bold; font-size: 0.85em; display: inline-flex; align-items: center; gap: 0.3em;';
+                    badge.textContent = conf.label;
+                    badgeContainer.appendChild(badge);
                 }
 
                 if (s.IsRunning) {
-                    addLine('A sync is currently running' + (s.LastRunStartedUtc ? ' (started ' + formatUtc(s.LastRunStartedUtc) + ')' : '') + '…', '#00a4dc');
+                    if (subheader) subheader.textContent = 'Sync in progress' + (s.LastRunStartedUtc ? ' (started ' + formatUtc(s.LastRunStartedUtc) + ' — ' + timeAgo(s.LastRunStartedUtc) + ')' : '') + '…';
+                    content.innerHTML = '<div style="background: rgba(0, 164, 220, 0.12); border: 1px solid #00a4dc; border-radius: 8px; padding: 1em; color: #eee; display: flex; align-items: center; gap: 0.8em;">' +
+                        '<div style="font-size: 1.5em;">⏳</div>' +
+                        '<div>' +
+                            '<div style="font-weight: bold; color: #00a4dc;">A sync task is actively running.</div>' +
+                            '<div style="font-size: 0.9em; color: #ccc;">Scanning libraries, updating metadata, and syncing movie sets. This panel will update automatically.</div>' +
+                        '</div>' +
+                    '</div>';
                     return;
                 }
 
-                if (s.LastRunOutcome === 'NeverRan' || !s.LastRunStartedUtc) {
-                    addLine('No sync since the server started. Statistics reset on restart.');
+                if (s.LastRunOutcome === 'NeverRan' && (!s.History || s.History.length === 0)) {
+                    if (subheader) subheader.textContent = 'No sync has been executed yet.';
+                    content.innerHTML = '<div style="color: #888; font-style: italic;">Click "Sync Now" below to run your first library sync.</div>';
                     return;
                 }
 
-                const outcomeLabels = {
-                    Success: ['Success', '#4CAF50'],
-                    Failed: ['Failed', '#F44336'],
-                    Cancelled: ['Cancelled', '#FF9800'],
-                    MountGuardAborted: ['Aborted by Mount Guard (library path offline or empty)', '#FF9800'],
-                    Running: ['Running', '#00a4dc']
-                };
-                const [label, color] = outcomeLabels[s.LastRunOutcome] || [s.LastRunOutcome, '#ccc'];
-
-                addLine('Last sync: ' + formatUtc(s.LastRunCompletedUtc || s.LastRunStartedUtc) + ' — ' + label, color);
-
-                if (s.LastRunOutcome === 'Success' || s.LastRunOutcome === 'Cancelled') {
-                    addLine(
-                        s.MoviesScanned + ' movies scanned · ' + s.MoviesInSets + ' in sets · ' + s.SetsFound + ' sets found');
-                    addLine(
-                        s.CollectionsCreated + ' collection(s) created · ' + s.CollectionsUpdated + ' updated · ' + s.CollectionsDeleted + ' deleted');
+                const completedDate = s.LastRunCompletedUtc || s.LastRunStartedUtc;
+                if (subheader) {
+                    subheader.textContent = 'Last run: ' + formatUtc(completedDate) + ' (' + timeAgo(completedDate) + ') · Duration: ' + formatDuration(s.DurationSeconds);
                 }
 
-                if (s.NfoParseErrors > 0) {
-                    addLine(s.NfoParseErrors + ' NFO file(s) could not be parsed — see server log.', '#FF9800');
-                }
+                // ── KPI Grid ──
+                const moviesScanned = (s.MoviesScanned || 0).toLocaleString();
+                const moviesInSets = (s.MoviesInSets || 0).toLocaleString();
+                const setsFound = (s.SetsFound || 0).toLocaleString();
+                const collCreated = s.CollectionsCreated || 0;
+                const collUpdated = s.CollectionsUpdated || 0;
+                const collDeleted = s.CollectionsDeleted || 0;
+                const parseErrors = (s.NfoParseErrors > 0) ? s.NfoParseErrors : 0;
+                const parseColor = (s.NfoParseErrors > 0 || s.LastErrorMessage) ? '#FF9800' : '#4CAF50';
+                const parseStatusText = (s.NfoParseErrors > 0) ? 'NFO errors logged' : 'Healthy';
 
-                if (s.DuplicateCollectionNames && s.DuplicateCollectionNames.length > 0) {
-                    addLine('Duplicate collection names detected: ' + s.DuplicateCollectionNames.join(', '), '#FF9800');
-                }
+                const kpiHtml = [
+                    '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.85em; margin-bottom: 1em;">',
+                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.85em 1em; text-align: center;">',
+                    '    <div style="font-size: 1.55em; font-weight: bold; color: #fff;">' + moviesScanned + '</div>',
+                    '    <div style="font-size: 0.82em; color: #888; margin-top: 0.2em;">Movies Scanned</div>',
+                    '    <div style="font-size: 0.78em; color: #00a4dc; margin-top: 0.2em;">' + moviesInSets + ' in sets</div>',
+                    '  </div>',
+                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.85em 1em; text-align: center;">',
+                    '    <div style="font-size: 1.55em; font-weight: bold; color: #fff;">' + setsFound + '</div>',
+                    '    <div style="font-size: 0.82em; color: #888; margin-top: 0.2em;">Movie Sets Found</div>',
+                    '    <div style="font-size: 0.78em; color: #aaa; margin-top: 0.2em;">distinct groups</div>',
+                    '  </div>',
+                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.85em 1em; text-align: center;">',
+                    '    <div style="font-size: 1.35em; font-weight: bold; color: #4CAF50;">',
+                    '      +' + collCreated,
+                    '      <span style="font-size:0.8em; color:#666;">/</span>',
+                    '      <span style="color:#2196F3;">~' + collUpdated + '</span>',
+                    '      <span style="font-size:0.8em; color:#666;">/</span>',
+                    '      <span style="color:#F44336;">-' + collDeleted + '</span>',
+                    '    </div>',
+                    '    <div style="font-size: 0.82em; color: #888; margin-top: 0.2em;">Collections</div>',
+                    '    <div style="font-size: 0.78em; color: #aaa; margin-top: 0.2em;">Created / Updated / Deleted</div>',
+                    '  </div>',
+                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.85em 1em; text-align: center;">',
+                    '    <div style="font-size: 1.55em; font-weight: bold; color: ' + parseColor + ';">' + parseErrors + '</div>',
+                    '    <div style="font-size: 0.82em; color: #888; margin-top: 0.2em;">Parse Errors</div>',
+                    '    <div style="font-size: 0.78em; color: ' + parseColor + '; margin-top: 0.2em;">' + parseStatusText + '</div>',
+                    '  </div>',
+                    '</div>'
+                ].join('\n');
 
+                // ── Diagnostic alerts ──
+                let alertsHtml = '';
                 if (s.LastErrorMessage) {
-                    addLine('Error: ' + s.LastErrorMessage, '#F44336');
+                    alertsHtml += '<div style="background: rgba(244, 67, 54, 0.15); border: 1px solid #f44336; border-radius: 6px; padding: 0.75em 1em; margin-bottom: 0.8em; color: #ff8a80; font-size: 0.9em;">' +
+                        '<strong>Error:</strong> ' + escapeHtml(s.LastErrorMessage) +
+                    '</div>';
+                }
+                if (s.DuplicateCollectionNames && s.DuplicateCollectionNames.length > 0) {
+                    alertsHtml += '<div style="background: rgba(255, 152, 0, 0.15); border: 1px solid #ff9800; border-radius: 6px; padding: 0.75em 1em; margin-bottom: 0.8em; color: #ffcc80; font-size: 0.9em;">' +
+                        '<strong>Duplicate collection names detected:</strong> ' + escapeHtml(s.DuplicateCollectionNames.join(', ')) +
+                    '</div>';
+                }
+
+                // ── History table ──
+                let historyHtml = '';
+                const historyList = s.History || [];
+                if (historyList.length > 0) {
+                    let rowsHtml = '';
+                    historyList.forEach((h, index) => {
+                        const hOutcome = outcomeConfig[h.LastRunOutcome] || { label: h.LastRunOutcome, color: '#ccc' };
+                        const hTime = formatUtc(h.LastRunCompletedUtc || h.LastRunStartedUtc);
+                        const hDur = formatDuration(h.DurationSeconds);
+                        const issues = (h.NfoParseErrors > 0)
+                            ? ('<span style="color:#FF9800;">' + h.NfoParseErrors + ' parse err</span>')
+                            : (h.LastErrorMessage ? '<span style="color:#F44336;">Failed</span>' : '<span style="color:#4CAF50;">OK</span>');
+                        const isLatest = (index === 0);
+
+                        rowsHtml += [
+                            '<tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.06);' + (isLatest ? ' background: rgba(255,255,255,0.02);' : '') + '">',
+                            '  <td style="padding: 6px 8px; white-space: nowrap;">' + hTime + (isLatest ? ' <span style="color:#00a4dc; font-size:0.8em;">(Latest)</span>' : '') + '</td>',
+                            '  <td style="padding: 6px 8px;"><span style="color: ' + hOutcome.color + '; font-weight: 500;">' + hOutcome.label + '</span></td>',
+                            '  <td style="padding: 6px 8px;">' + hDur + '</td>',
+                            '  <td style="padding: 6px 8px;">' + (h.MoviesScanned || 0).toLocaleString() + '</td>',
+                            '  <td style="padding: 6px 8px;">' + (h.SetsFound || 0).toLocaleString() + '</td>',
+                            '  <td style="padding: 6px 8px;"><span style="color:#4CAF50;">+' + (h.CollectionsCreated || 0) + '</span> / <span style="color:#2196F3;">~' + (h.CollectionsUpdated || 0) + '</span> / <span style="color:#F44336;">-' + (h.CollectionsDeleted || 0) + '</span></td>',
+                            '  <td style="padding: 6px 8px;">' + issues + '</td>',
+                            '</tr>'
+                        ].join('\n');
+                    });
+
+                    const runCountLabel = historyList.length + ' run' + (historyList.length > 1 ? 's' : '');
+                    historyHtml = [
+                        '<details style="margin-top: 1.25em; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 0.8em;">',
+                        '  <summary style="cursor: pointer; color: #00a4dc; font-weight: 600; outline: none; display: flex; align-items: center; justify-content: space-between;">',
+                        '    <span>Recent Sync History (' + runCountLabel + ')</span>',
+                        '    <span style="font-size: 0.85em; color: #888;">(click to toggle)</span>',
+                        '  </summary>',
+                        '  <div style="overflow-x: auto; margin-top: 0.8em;">',
+                        '    <table style="width: 100%; border-collapse: collapse; font-size: 0.88em; text-align: left;">',
+                        '      <thead>',
+                        '        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.15); color: #aaa;">',
+                        '          <th style="padding: 6px 8px;">Date &amp; Time</th>',
+                        '          <th style="padding: 6px 8px;">Status</th>',
+                        '          <th style="padding: 6px 8px;">Duration</th>',
+                        '          <th style="padding: 6px 8px;">Scanned</th>',
+                        '          <th style="padding: 6px 8px;">Sets</th>',
+                        '          <th style="padding: 6px 8px;">Created / Upd / Del</th>',
+                        '          <th style="padding: 6px 8px;">Issues</th>',
+                        '        </tr>',
+                        '      </thead>',
+                        '      <tbody>',
+                        rowsHtml,
+                        '      </tbody>',
+                        '    </table>',
+                        '  </div>',
+                        '  <div style="margin-top: 0.8em; text-align: right;">',
+                        '    <button is="emby-button" type="button" class="raised emby-button" id="BtnClearHistory" style="font-size: 0.8em; padding: 4px 10px; background: rgba(255, 255, 255, 0.08);">',
+                        '      <span>Clear History</span>',
+                        '    </button>',
+                        '  </div>',
+                        '</details>'
+                    ].join('\n');
+                }
+
+                content.innerHTML = kpiHtml + alertsHtml + historyHtml;
+
+                // Hook up clear history button if rendered
+                const btnClear = content.querySelector('#BtnClearHistory');
+                if (btnClear) {
+                    btnClear.addEventListener('click', function () {
+                        if (confirm('Clear the sync execution history?')) {
+                            ApiClient.ajax({
+                                type: 'POST',
+                                url: ApiClient.getUrl('LocalMovieSets/ClearHistory')
+                            }).then(function () {
+                                loadSyncStatus(page);
+                            }).catch(function (err) {
+                                console.error('Failed to clear history:', err);
+                            });
+                        }
+                    });
                 }
             }
 
@@ -559,6 +748,7 @@
                     page.querySelector('#DeleteOrphanedSets').checked = config.DeleteOrphanedSets === true;
                     page.querySelector('#DeleteSetsWithProviderId').checked = config.DeleteSetsWithProviderId === true;
                     page.querySelector('#UpdateExistingArtwork').checked = config.UpdateExistingArtwork === true;
+                    page.querySelector('#EnableMovieFolderArtworkFallback').checked = config.EnableMovieFolderArtworkFallback !== false;
                     page.querySelector('#EnableMountGuard').checked = config.EnableMountGuard !== false;
                     page.querySelector('#AggregateRatings').checked = config.AggregateRatings === true;
                     page.querySelector('#AggregateTags').checked = config.AggregateTags === true;
@@ -583,6 +773,7 @@
                     config.DeleteOrphanedSets   = page.querySelector('#DeleteOrphanedSets').checked;
                     config.DeleteSetsWithProviderId = page.querySelector('#DeleteSetsWithProviderId').checked;
                     config.UpdateExistingArtwork = page.querySelector('#UpdateExistingArtwork').checked;
+                    config.EnableMovieFolderArtworkFallback = page.querySelector('#EnableMovieFolderArtworkFallback').checked;
                     config.EnableMountGuard     = page.querySelector('#EnableMountGuard').checked;
                     config.AggregateRatings     = page.querySelector('#AggregateRatings').checked;
                     config.AggregateTags        = page.querySelector('#AggregateTags').checked;
