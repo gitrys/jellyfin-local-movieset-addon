@@ -6,11 +6,11 @@
     "description": "Creates movie collections (box sets) from local NFO metadata produced by tinyMediaManager.",
     "owner": "gitrys",
     "imageUrl": "https://raw.githubusercontent.com/gitrys/jellyfin-local-movieset-addon/main/images/local_movie_sets_logo.png",
-    "overview": "A Jellyfin plugin that creates and manages movie collections (box sets) from local metadata only \u2014 no TMDB or external API calls. Data is read from movie .nfo files and optionally a tinyMediaManager Movie Set Data Folder.",
+    "overview": "A Jellyfin plugin that creates and manages movie collections (box sets) from local metadata only — no TMDB or external API calls. Data is read from movie .nfo files and optionally a tinyMediaManager Movie Set Data Folder.",
     "versions": [
       {
         "version": "1.0.31.0",
-        "changelog": "Release 1.0.31.0",
+        "changelog": "- Jellyfin 12 & .NET 10 Unterstützung (Target ABI: 12.0.0.0)\n- Relationaler Datenbank-Fallback für Sammlungs-Kinder (LinkedChildren)\n- Reflection-Hacks für Personen/Cast entfernt",
         "targetAbi": "12.0.0.0",
         "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.31.0/Jellyfin.Plugin.LocalMovieSets_1.0.31.0.zip",
         "checksum": "a2aa768054fa61162d0bcc6f2d3a7eec",
@@ -18,95 +18,23 @@
       },
       {
         "version": "1.0.30.0",
-        "changelog": "Release 1.0.30.0",
+        "changelog": "- Provider-Pipeline-Refactoring (behebt Race Conditions bei collection.xml)\n- Sammlungs-Artwork als Stream & alternatives tinyMediaManager-Ordner-Matching\n- Stabilitäts- und Cross-Platform-Verbesserungen",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.30.0/Jellyfin.Plugin.LocalMovieSets_1.0.30.0.zip",
         "checksum": "fef21d98d8d714795c009dce7cbcd5a6",
         "timestamp": "2026-07-02T01:16:03Z"
       },
       {
-        "version": "1.0.29.0",
-        "changelog": "Release 1.0.29.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.29.0/Jellyfin.Plugin.LocalMovieSets_1.0.29.0.zip",
-        "checksum": "836b9a16ac0a32e6aaebfb0caa128dde",
-        "timestamp": "2026-07-02T00:47:52Z"
-      },
-      {
-        "version": "1.0.28.0",
-        "changelog": "Release 1.0.28.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.28.0/Jellyfin.Plugin.LocalMovieSets_1.0.28.0.zip",
-        "checksum": "041ee8121d477577051281ab71ecb962",
-        "timestamp": "2026-07-02T00:16:36Z"
-      },
-      {
-        "version": "1.0.27.0",
-        "changelog": "Release 1.0.27.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.27.0/Jellyfin.Plugin.LocalMovieSets_1.0.27.0.zip",
-        "checksum": "739d3d2b52f9d109f31ea02150a067e9",
-        "timestamp": "2026-07-01T23:55:55Z"
-      },
-      {
-        "version": "1.0.26.0",
-        "changelog": "Release 1.0.26.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.26.0/Jellyfin.Plugin.LocalMovieSets_1.0.26.0.zip",
-        "checksum": "242f4edd85a502a07099b23ae305ade6",
-        "timestamp": "2026-07-01T23:21:32Z"
-      },
-      {
-        "version": "1.0.25.0",
-        "changelog": "Release 1.0.25.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.25.0/Jellyfin.Plugin.LocalMovieSets_1.0.25.0.zip",
-        "checksum": "3ed658297a0b30cb646daf9c4e49b6d2",
-        "timestamp": "2026-07-01T23:02:34Z"
-      },
-      {
-        "version": "1.0.24.0",
-        "changelog": "Release 1.0.24.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.24.0/Jellyfin.Plugin.LocalMovieSets_1.0.24.0.zip",
-        "checksum": "7da228dcfdfdf49e094f28eaca5c6f2e",
-        "timestamp": "2026-07-01T22:59:58Z"
-      },
-      {
         "version": "1.0.23.0",
-        "changelog": "Release 1.0.23.0",
+        "changelog": "- Vorschau-Modus (Dry-Run / Preview) & Sync-Status im Dashboard\n- Verwaiste [boxset]-Ordner auf der Festplatte beim Löschen von Sammlungen entfernen\n- Robustere NFO-Parser-Fehlerbehandlung",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.23.0/Jellyfin.Plugin.LocalMovieSets_1.0.23.0.zip",
         "checksum": "cc729fa5eba55b862c197c3f446ae957",
         "timestamp": "2026-07-01T22:22:35Z"
       },
       {
-        "version": "1.0.22.0",
-        "changelog": "Release 1.0.22.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.22.0/Jellyfin.Plugin.LocalMovieSets_1.0.22.0.zip",
-        "checksum": "68f54575c7131cdfab506804f0416d4f",
-        "timestamp": "2026-06-24T13:49:17Z"
-      },
-      {
-        "version": "1.0.21.0",
-        "changelog": "Release 1.0.21.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.21.0/Jellyfin.Plugin.LocalMovieSets_1.0.21.0.zip",
-        "checksum": "2f2940f5ecf3717a12755fbfa1fa9574",
-        "timestamp": "2026-06-24T13:45:17Z"
-      },
-      {
-        "version": "1.0.20.0",
-        "changelog": "Release 1.0.20.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.20.0/Jellyfin.Plugin.LocalMovieSets_1.0.20.0.zip",
-        "checksum": "440269419d714c86c5d830d7d2230eb6",
-        "timestamp": "2026-06-24T13:32:09Z"
-      },
-      {
         "version": "1.0.19.0",
-        "changelog": "Release 1.0.19.0",
+        "changelog": "- Metadaten-Aggregation: Bewertungen, Tags und Cast/Crew von Filmen auf Sammlungen übertragen\n- Dynamische API-Kompatibilität für ältere Jellyfin 10.x Builds",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.19.0/Jellyfin.Plugin.LocalMovieSets_1.0.19.0.zip",
         "checksum": "fa2abb24f92290702efc317f41e2b356",
@@ -114,83 +42,19 @@
       },
       {
         "version": "1.0.18.0",
-        "changelog": "Release 1.0.18.0",
+        "changelog": "- Mount-Guard: Löschschutz bei ungemounteten oder offline Netzlaufwerken\n- Force-Rebuild-Modus & Retry-Logik bei Dateisperren",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.18.0/Jellyfin.Plugin.LocalMovieSets_1.0.18.0.zip",
         "checksum": "dcb3256b99741eb7a5b65ee082ca494c",
         "timestamp": "2026-06-24T12:49:12Z"
       },
       {
-        "version": "1.0.17.0",
-        "changelog": "Release 1.0.17.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.17.0/Jellyfin.Plugin.LocalMovieSets_1.0.17.0.zip",
-        "checksum": "128e04409c59761b9225410a29b361a0",
-        "timestamp": "2026-06-24T09:48:01Z"
-      },
-      {
         "version": "1.0.16.0",
-        "changelog": "Release 1.0.16.0",
+        "changelog": "- Chronologische Berechnung von PremiereDate & ProductionYear basierend auf dem ältesten Film\n- Sicherheitshärtung und Pfadvalidierung",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.16.0/Jellyfin.Plugin.LocalMovieSets_1.0.16.0.zip",
         "checksum": "8787f83f927d9fe26ecb591f7305bfda",
         "timestamp": "2026-06-24T09:24:25Z"
-      },
-      {
-        "version": "1.0.15.0",
-        "changelog": "Release 1.0.15.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.15.0/Jellyfin.Plugin.LocalMovieSets_1.0.15.0.zip",
-        "checksum": "78abd4a141955c3109845420e865eb97",
-        "timestamp": "2026-06-24T08:37:57Z"
-      },
-      {
-        "version": "1.0.14.0",
-        "changelog": "Release 1.0.14.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.14.0/Jellyfin.Plugin.LocalMovieSets_1.0.14.0.zip",
-        "checksum": "e58d01df99527ac157de80829cafb891",
-        "timestamp": "2026-06-23T23:20:03Z"
-      },
-      {
-        "version": "1.0.13.0",
-        "changelog": "Release 1.0.13.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.13.0/Jellyfin.Plugin.LocalMovieSets_1.0.13.0.zip",
-        "checksum": "a463a3b9d5fe8275a4e8a2ed14f88b5d",
-        "timestamp": "2026-06-23T22:30:27Z"
-      },
-      {
-        "version": "1.0.12.0",
-        "changelog": "Release 1.0.12.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.12.0/Jellyfin.Plugin.LocalMovieSets_1.0.12.0.zip",
-        "checksum": "262419991d20ab2a5c532ded4bd8abe3",
-        "timestamp": "2026-06-23T22:16:18Z"
-      },
-      {
-        "version": "1.0.11.0",
-        "changelog": "Release 1.0.11.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.11.0/Jellyfin.Plugin.LocalMovieSets_1.0.11.0.zip",
-        "checksum": "e5cdd2c87ae7a6bac74f37904c9877d9",
-        "timestamp": "2026-06-23T21:58:48Z"
-      },
-      {
-        "version": "1.0.10.0",
-        "changelog": "Release 1.0.10.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.10.0/Jellyfin.Plugin.LocalMovieSets_1.0.10.0.zip",
-        "checksum": "862516b202b1b324a27c21a7dc2a5c18",
-        "timestamp": "2026-06-23T21:52:42Z"
-      },
-      {
-        "version": "1.0.9.0",
-        "changelog": "Release 1.0.9.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.9.0/Jellyfin.Plugin.LocalMovieSets_1.0.9.0.zip",
-        "checksum": "4d0574906b254a66a519e2d1f9ad9f7c",
-        "timestamp": "2026-06-22T23:23:19Z"
       }
     ]
   }
