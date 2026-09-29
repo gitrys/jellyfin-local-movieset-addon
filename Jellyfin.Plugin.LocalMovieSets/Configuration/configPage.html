@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -330,6 +330,12 @@
                         <span>Preview Changes</span>
                     </button>
                     <button is="emby-button"
+                            id="BtnValidate"
+                            type="button"
+                            class="raised block emby-button">
+                        <span>🔍 Check NFOs &amp; Artwork</span>
+                    </button>
+                    <button is="emby-button"
                             id="BtnForceRebuild"
                             type="button"
                             class="raised block emby-button"
@@ -346,6 +352,23 @@
                 <!-- Preview results -->
                 <div id="PreviewResultPanel"
                      style="display: none; margin-top: 1.5em; background: rgba(255, 255, 255, 0.06); border: 1px solid #333; border-radius: 8px; padding: 1em 1.25em; font-size: 0.95em; line-height: 1.6;">
+                </div>
+
+                <!-- Validation diagnostics results panel -->
+                <div id="ValidationResultPanel"
+                     style="display: none; margin-top: 1.5em; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; padding: 1.25em 1.5em; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1em; flex-wrap: wrap; gap: 0.8em;">
+                        <div style="display: flex; align-items: center; gap: 0.6em;">
+                            <span style="font-size: 1.3em;">🩺</span>
+                            <h3 style="margin: 0; font-size: 1.15em; color: #00a4dc; font-weight: bold;">Local NFO &amp; Artwork Diagnostics</h3>
+                        </div>
+                        <button is="emby-button" type="button" class="raised emby-button" id="BtnCloseValidation" style="font-size: 0.8em; padding: 4px 10px; background: rgba(255, 255, 255, 0.08);">
+                            <span>✕ Close</span>
+                        </button>
+                    </div>
+                    <div id="ValidationSummaryArea"></div>
+                    <div id="ValidationFilterButtons" style="display: none; gap: 0.5em; margin: 1em 0; flex-wrap: wrap;"></div>
+                    <div id="ValidationDetailsArea"></div>
                 </div>
 
             </form>
@@ -737,6 +760,195 @@
                     console.error('Failed to compute preview:', err);
                     showStatus('Failed to compute preview. Check server logs.', true);
                 });
+            }
+
+            /* ── Validate NFOs & Artwork ── */
+            let currentValidationReport = null;
+            let currentValidationFilter = 'all';
+
+            function validateNfos(page) {
+                const btn = page.querySelector('#BtnValidate');
+                const panel = page.querySelector('#ValidationResultPanel');
+                const summaryArea = page.querySelector('#ValidationSummaryArea');
+                const detailsArea = page.querySelector('#ValidationDetailsArea');
+                const filterArea = page.querySelector('#ValidationFilterButtons');
+
+                if (!panel) return;
+                panel.style.display = 'block';
+                summaryArea.innerHTML = '<div style="color: #00a4dc; font-weight: 500;">⏳ Scanning Movie Set Data Folder and running deep diagnostics… Please wait.</div>';
+                detailsArea.innerHTML = '';
+                if (filterArea) filterArea.style.display = 'none';
+
+                const originalBtnText = btn ? btn.innerHTML : '';
+                if (btn) {
+                    btn.innerHTML = '<span>Scanning...</span>';
+                    btn.disabled = true;
+                }
+
+                const folderInput = page.querySelector('#SetDataFolder');
+                const folderVal = folderInput ? folderInput.value.trim() : '';
+                const queryParams = folderVal ? { folderPath: folderVal } : {};
+                const url = ApiClient.getUrl('LocalMovieSets/Validate', queryParams);
+
+                ApiClient.getJSON(url).then(function (report) {
+                    if (btn) {
+                        btn.innerHTML = originalBtnText;
+                        btn.disabled = false;
+                    }
+                    currentValidationReport = report;
+                    currentValidationFilter = 'all';
+                    renderValidation(page, report, 'all');
+                }).catch(function (err) {
+                    if (btn) {
+                        btn.innerHTML = originalBtnText;
+                        btn.disabled = false;
+                    }
+                    console.error('Validation failed:', err);
+                    summaryArea.innerHTML = '<div style="color: #f44336; font-weight: bold;">✕ Validation request failed. Check server logs or verify that the folder exists.</div>';
+                });
+            }
+
+            function renderValidation(page, report, filter) {
+                const summaryArea = page.querySelector('#ValidationSummaryArea');
+                const detailsArea = page.querySelector('#ValidationDetailsArea');
+                const filterArea = page.querySelector('#ValidationFilterButtons');
+                if (!summaryArea || !detailsArea) return;
+
+                const scanned = report.ScannedSetsCount || 0;
+                const healthy = report.HealthySetsCount || 0;
+                const errors = report.ErrorCount || 0;
+                const warnings = report.WarningCount || 0;
+                const infos = report.InfoCount || 0;
+                const timeMs = report.ExecutionTimeMs || 0;
+
+                const summaryHtml = [
+                    '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.85em; margin-bottom: 1em;">',
+                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75em 1em; text-align: center;">',
+                    '    <div style="font-size: 1.45em; font-weight: bold; color: #fff;">' + scanned + '</div>',
+                    '    <div style="font-size: 0.8em; color: #aaa; margin-top: 0.2em;">Sets / Folders Scanned</div>',
+                    '    <div style="font-size: 0.75em; color: #888; margin-top: 0.2em;">in ' + timeMs + ' ms</div>',
+                    '  </div>',
+                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75em 1em; text-align: center;">',
+                    '    <div style="font-size: 1.45em; font-weight: bold; color: #4CAF50;">' + healthy + '</div>',
+                    '    <div style="font-size: 0.8em; color: #aaa; margin-top: 0.2em;">Healthy Sets</div>',
+                    '    <div style="font-size: 0.75em; color: #4CAF50; margin-top: 0.2em;">100% Valid</div>',
+                    '  </div>',
+                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75em 1em; text-align: center;">',
+                    '    <div style="font-size: 1.45em; font-weight: bold; color: ' + (errors > 0 ? '#F44336' : '#888') + ';">' + errors + '</div>',
+                    '    <div style="font-size: 0.8em; color: #aaa; margin-top: 0.2em;">Errors (🔴)</div>',
+                    '    <div style="font-size: 0.75em; color: ' + (errors > 0 ? '#F44336' : '#888') + '; margin-top: 0.2em;">' + (errors > 0 ? 'Action required' : 'None') + '</div>',
+                    '  </div>',
+                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75em 1em; text-align: center;">',
+                    '    <div style="font-size: 1.45em; font-weight: bold; color: ' + (warnings > 0 ? '#FF9800' : '#888') + ';">' + warnings + '</div>',
+                    '    <div style="font-size: 0.8em; color: #aaa; margin-top: 0.2em;">Warnings (🟡)</div>',
+                    '    <div style="font-size: 0.75em; color: ' + (warnings > 0 ? '#FF9800' : '#888') + '; margin-top: 0.2em;">' + (warnings > 0 ? 'Artwork/Metadata' : 'None') + '</div>',
+                    '  </div>',
+                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75em 1em; text-align: center;">',
+                    '    <div style="font-size: 1.45em; font-weight: bold; color: ' + (infos > 0 ? '#2196F3' : '#888') + ';">' + infos + '</div>',
+                    '    <div style="font-size: 0.8em; color: #aaa; margin-top: 0.2em;">Infos (🔵)</div>',
+                    '    <div style="font-size: 0.75em; color: ' + (infos > 0 ? '#2196F3' : '#888') + '; margin-top: 0.2em;">' + (infos > 0 ? 'Tips & Naming' : 'None') + '</div>',
+                    '  </div>',
+                    '</div>'
+                ].join('\n');
+
+                summaryArea.innerHTML = summaryHtml;
+
+                const issues = report.Issues || [];
+                if (filterArea) {
+                    if (issues.length > 0) {
+                        filterArea.style.display = 'flex';
+                        filterArea.innerHTML = [
+                            '<button type="button" class="raised emby-button" data-valfilter="all" style="font-size: 0.82em; padding: 4px 12px; background: ' + (filter === 'all' ? '#00a4dc' : 'rgba(255,255,255,0.08)') + '; color: #fff;">All (' + issues.length + ')</button>',
+                            '<button type="button" class="raised emby-button" data-valfilter="errors" style="font-size: 0.82em; padding: 4px 12px; background: ' + (filter === 'errors' ? '#F44336' : 'rgba(244, 67, 54, 0.15)') + '; color: ' + (filter === 'errors' ? '#fff' : '#f44336') + '; border: 1px solid #f44336;">Errors (' + errors + ')</button>',
+                            '<button type="button" class="raised emby-button" data-valfilter="warnings" style="font-size: 0.82em; padding: 4px 12px; background: ' + (filter === 'warnings' ? '#FF9800' : 'rgba(255, 152, 0, 0.15)') + '; color: ' + (filter === 'warnings' ? '#fff' : '#ff9800') + '; border: 1px solid #ff9800;">Warnings (' + warnings + ')</button>',
+                            '<button type="button" class="raised emby-button" data-valfilter="infos" style="font-size: 0.82em; padding: 4px 12px; background: ' + (filter === 'infos' ? '#2196F3' : 'rgba(33, 150, 243, 0.15)') + '; color: ' + (filter === 'infos' ? '#fff' : '#2196f3') + '; border: 1px solid #2196f3;">Infos (' + infos + ')</button>'
+                        ].join('\n');
+
+                        filterArea.querySelectorAll('button[data-valfilter]').forEach(function (btn) {
+                            btn.addEventListener('click', function () {
+                                const f = btn.getAttribute('data-valfilter');
+                                currentValidationFilter = f;
+                                renderValidation(page, currentValidationReport, f);
+                            });
+                        });
+                    } else {
+                        filterArea.style.display = 'none';
+                    }
+                }
+
+                if (issues.length === 0) {
+                    detailsArea.innerHTML = '<div style="background: rgba(76, 175, 80, 0.15); border: 1px solid #4CAF50; border-radius: 8px; padding: 1em; color: #a5d6a7; display: flex; align-items: center; gap: 0.8em; margin-top: 0.5em;">' +
+                        '<div style="font-size: 1.5em;">✓</div>' +
+                        '<div>' +
+                            '<div style="font-weight: bold; color: #4CAF50;">All scanned sets and artwork files are healthy and valid!</div>' +
+                            '<div style="font-size: 0.9em; color: #ccc;">No XML syntax errors, no missing posters, and no malformed files were found.</div>' +
+                        '</div>' +
+                    '</div>';
+                    return;
+                }
+
+                // Filter issues
+                let filtered = issues;
+                if (filter === 'errors') {
+                    filtered = issues.filter(function (i) { return i.Severity === 0 || i.Severity === 'Error'; });
+                } else if (filter === 'warnings') {
+                    filtered = issues.filter(function (i) { return i.Severity === 1 || i.Severity === 'Warning'; });
+                } else if (filter === 'infos') {
+                    filtered = issues.filter(function (i) { return i.Severity === 2 || i.Severity === 'Info'; });
+                }
+
+                if (filtered.length === 0) {
+                    detailsArea.innerHTML = '<div style="color: #aaa; font-style: italic; padding: 1em 0;">No items in this category.</div>';
+                    return;
+                }
+
+                let rowsHtml = '';
+                filtered.forEach(function (issue) {
+                    const isError = (issue.Severity === 0 || issue.Severity === 'Error');
+                    const isWarning = (issue.Severity === 1 || issue.Severity === 'Warning');
+                    const badgeBg = isError ? 'rgba(244, 67, 54, 0.2)' : (isWarning ? 'rgba(255, 152, 0, 0.2)' : 'rgba(33, 150, 243, 0.2)');
+                    const badgeColor = isError ? '#F44336' : (isWarning ? '#FF9800' : '#2196F3');
+                    const badgeBorder = isError ? '#F44336' : (isWarning ? '#FF9800' : '#2196F3');
+                    const badgeLabel = isError ? '🔴 Error' : (isWarning ? '🟡 Warning' : '🔵 Info');
+
+                    const collectionText = escapeHtml(issue.CollectionName || '—');
+                    const fileText = escapeHtml(issue.FilePath ? issue.FilePath.split(/[\\/]/).pop() : (issue.FolderPath ? issue.FolderPath.split(/[\\/]/).pop() : '—'));
+                    const fullPathTooltip = escapeHtml(issue.FilePath || issue.FolderPath || '');
+                    const messageText = escapeHtml(issue.Message || '');
+                    const suggestionText = escapeHtml(issue.Suggestion || '');
+
+                    rowsHtml += [
+                        '<tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.06); vertical-align: top;">',
+                        '  <td style="padding: 8px 10px; white-space: nowrap;">',
+                        '    <span style="background: ' + badgeBg + '; color: ' + badgeColor + '; border: 1px solid ' + badgeBorder + '; padding: 2px 8px; border-radius: 10px; font-weight: bold; font-size: 0.82em; display: inline-block;">' + badgeLabel + '</span>',
+                        '  </td>',
+                        '  <td style="padding: 8px 10px; font-weight: 600; color: #fff; max-width: 180px; word-break: break-word;">' + collectionText + '</td>',
+                        '  <td style="padding: 8px 10px; color: #ccc;">',
+                        '    <div style="font-weight: 500; color: #eee; margin-bottom: 0.25em;">' + messageText + '</div>',
+                        '    <div style="font-size: 0.85em; color: #81c784;"><strong>Suggestion:</strong> ' + suggestionText + '</div>',
+                        '  </td>',
+                        '  <td style="padding: 8px 10px; font-size: 0.82em; color: #aaa; max-width: 150px; word-break: break-all;" title="' + fullPathTooltip + '">' + fileText + '</td>',
+                        '</tr>'
+                    ].join('\n');
+                });
+
+                detailsArea.innerHTML = [
+                    '<div style="overflow-x: auto; margin-top: 0.5em;">',
+                    '  <table style="width: 100%; border-collapse: collapse; font-size: 0.88em; text-align: left;">',
+                    '    <thead>',
+                    '      <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.15); color: #aaa;">',
+                    '        <th style="padding: 8px 10px;">Severity</th>',
+                    '        <th style="padding: 8px 10px;">Collection</th>',
+                    '        <th style="padding: 8px 10px;">Issue &amp; Suggestion</th>',
+                    '        <th style="padding: 8px 10px;">File / Folder</th>',
+                    '      </tr>',
+                    '    </thead>',
+                    '    <tbody>',
+                    rowsHtml,
+                    '    </tbody>',
+                    '  </table>',
+                    '</div>'
+                ].join('\n');
             }
 
             /* ── Load config ── */
@@ -1138,6 +1350,23 @@
                 btnDetect.removeEventListener('click', btnDetect._clickHandler);
                 btnDetect._clickHandler = () => detectNamingConvention(page);
                 btnDetect.addEventListener('click', btnDetect._clickHandler);
+
+                const btnValidate = page.querySelector('#BtnValidate');
+                if (btnValidate) {
+                    btnValidate.removeEventListener('click', btnValidate._clickHandler);
+                    btnValidate._clickHandler = () => validateNfos(page);
+                    btnValidate.addEventListener('click', btnValidate._clickHandler);
+                }
+
+                const btnCloseVal = page.querySelector('#BtnCloseValidation');
+                if (btnCloseVal) {
+                    btnCloseVal.removeEventListener('click', btnCloseVal._clickHandler);
+                    btnCloseVal._clickHandler = function () {
+                        const panel = page.querySelector('#ValidationResultPanel');
+                        if (panel) panel.style.display = 'none';
+                    };
+                    btnCloseVal.addEventListener('click', btnCloseVal._clickHandler);
+                }
             });
 
             document.addEventListener('pagehide', function (e) {

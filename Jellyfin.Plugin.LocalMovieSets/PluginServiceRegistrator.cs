@@ -17,9 +17,10 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     /// <inheritdoc />
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
-        // Parsers — stateless, singleton is appropriate
+        // Parsers & Validators — stateless, singleton is appropriate
         serviceCollection.AddSingleton<MovieNfoParser>();
         serviceCollection.AddSingleton<SetNfoParser>();
+        serviceCollection.AddSingleton<Jellyfin.Plugin.LocalMovieSets.Services.Validation.NfoValidator>();
 
         // Note: BoxSetMetadataProvider and BoxSetImageProvider are NOT registered
         // here. Jellyfin discovers IMetadataProvider/IImageProvider implementations

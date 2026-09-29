@@ -23,6 +23,7 @@ public class LocalMovieSetsController : ControllerBase
 {
     private readonly ILibraryManager _libraryManager;
     private readonly LocalMovieSetManager _manager;
+    private readonly Jellyfin.Plugin.LocalMovieSets.Services.Validation.NfoValidator _validator;
     private readonly ILogger<LocalMovieSetsController> _logger;
 
     /// <summary>
@@ -30,14 +31,17 @@ public class LocalMovieSetsController : ControllerBase
     /// </summary>
     /// <param name="libraryManager">Jellyfin library manager (injected).</param>
     /// <param name="manager">LocalMovieSetManager instance (injected).</param>
+    /// <param name="validator">NFO and artwork validator instance (injected).</param>
     /// <param name="logger">Logger instance (injected).</param>
     public LocalMovieSetsController(
         ILibraryManager libraryManager,
         LocalMovieSetManager manager,
+        Jellyfin.Plugin.LocalMovieSets.Services.Validation.NfoValidator validator,
         ILogger<LocalMovieSetsController> logger)
     {
         _libraryManager = libraryManager;
         _manager = manager;
+        _validator = validator;
         _logger = logger;
     }
 
@@ -60,6 +64,26 @@ public class LocalMovieSetsController : ControllerBase
     {
         _manager.ClearSyncHistory();
         return NoContent();
+    }
+
+    /// <summary>
+    /// Scans the Movie Set Data Folder and runs diagnostic validation on NFO files and artwork.
+    /// </summary>
+    /// <param name="folderPath">Optional override folder path. If omitted, uses the configured SetDataFolder.</param>
+    /// <returns>Validation report containing all diagnostic findings.</returns>
+    [HttpGet("Validate")]
+    public ActionResult<Jellyfin.Plugin.LocalMovieSets.Services.Validation.ValidationReportDto> Validate([FromQuery] string? folderPath = null)
+    {
+        try
+        {
+            var report = _validator.Validate(folderPath);
+            return Ok(report);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during NFO and artwork validation scan");
+            return StatusCode(500, new { Error = ex.Message });
+        }
     }
 
     /// <summary>
