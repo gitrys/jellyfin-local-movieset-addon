@@ -2,9 +2,13 @@
 [Bb]in/
 [Oo]bj/
 [Dd]ist/
+publish/
+*.zip
 
 # Local .NET SDK
 .dotnet-sdk/
+.dotnet/
+.nuget/
 
 # IDE/Editor specific
 .vs/

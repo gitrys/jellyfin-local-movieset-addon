@@ -447,17 +447,40 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     }
 
     /// <summary>
+    /// Returns the member movies of a box set.
+    /// In Jellyfin 12, collection children are stored in the relational LinkedChildren table,
+    /// so boxSet.GetLinkedChildren() may return empty if not yet loaded in-memory.
+    /// This method falls back to querying the library manager by descendant ID.
+    /// </summary>
+    public List<Movie> GetBoxSetMovies(BoxSet boxSet)
+    {
+        var movies = boxSet.GetLinkedChildren().OfType<Movie>().ToList();
+        if (movies.Count > 0)
+        {
+            return movies;
+        }
+
+        return _libraryManager
+            .GetItemsResult(new InternalItemsQuery
+            {
+                DescendantOfId = boxSet.Id,
+                IncludeItemTypes = [BaseItemKind.Movie],
+                IsVirtualItem = false
+            })
+            .Items
+            .OfType<Movie>()
+            .ToList();
+    }
+
+    /// <summary>
     /// Computes the membership difference between a collection's current linked
     /// movies and the target movie list.
     /// </summary>
-    private static (Guid[] ToAdd, Guid[] ToRemove, List<Movie> ExistingMovies) ComputeMembershipDiff(
+    private (Guid[] ToAdd, Guid[] ToRemove, List<Movie> ExistingMovies) ComputeMembershipDiff(
         BoxSet boxSet,
         List<Movie> targetMovies)
     {
-        var existingMovieItems = boxSet
-            .GetLinkedChildren()
-            .OfType<Movie>()
-            .ToList();
+        var existingMovieItems = GetBoxSetMovies(boxSet);
 
         var existingMovieIds = existingMovieItems
             .Select(c => c.Id)

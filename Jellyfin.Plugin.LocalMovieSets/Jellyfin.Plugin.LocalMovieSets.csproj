@@ -1,14 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>Jellyfin.Plugin.LocalMovieSets</AssemblyName>
     <RootNamespace>Jellyfin.Plugin.LocalMovieSets</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <Version>1.0.30.0</Version>
+    <Version>1.0.31.0</Version>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
@@ -20,11 +20,11 @@
       ExcludeAssets=runtime prevents the runtime dlls from being included.
       Update the Version to match your Jellyfin server version.
     -->
-    <PackageReference Include="Jellyfin.Controller" Version="10.10.3">
+    <PackageReference Include="Jellyfin.Controller" Version="12.0.0">
       <PrivateAssets>all</PrivateAssets>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
-    <PackageReference Include="Jellyfin.Model" Version="10.10.3">
+    <PackageReference Include="Jellyfin.Model" Version="12.0.0">
       <PrivateAssets>all</PrivateAssets>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>

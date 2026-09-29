@@ -31,12 +31,6 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
     private readonly SetNfoParser _setNfoParser;
     private readonly ILogger<BoxSetMetadataProvider> _logger;
 
-    // Reflection lookups for people APIs whose signatures differ across
-    // Jellyfin 10.x releases.
-    private readonly System.Reflection.MethodInfo? _updatePeopleAsyncMethod;
-    private readonly System.Reflection.MethodInfo? _updatePeopleMethod;
-    private readonly System.Reflection.MethodInfo? _getPeopleMethod;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="BoxSetMetadataProvider"/> class.
     /// </summary>
@@ -50,15 +44,6 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
         _setManager = setManager;
         _setNfoParser = setNfoParser;
         _logger = logger;
-
-        _updatePeopleAsyncMethod = typeof(ILibraryManager).GetMethods()
-            .FirstOrDefault(m => m.Name == "UpdatePeopleAsync" && m.GetParameters().Length == 3);
-
-        _updatePeopleMethod = typeof(ILibraryManager).GetMethods()
-            .FirstOrDefault(m => m.Name == "UpdatePeople" && m.GetParameters().Length == 2);
-
-        _getPeopleMethod = typeof(ILibraryManager).GetMethods()
-            .FirstOrDefault(m => m.Name == "GetPeople" && m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(BaseItem));
     }
 
     /// <inheritdoc />
@@ -80,7 +65,7 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
             return ItemUpdateType.None;
         }
 
-        var movies = item.GetLinkedChildren().OfType<Movie>().ToList();
+        var movies = _setManager.GetBoxSetMovies(item);
 
         var changed = ApplyDisplayOrder(item, config);
         changed |= ApplySetMetadata(item, item.Name, movies, config);
@@ -367,22 +352,8 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
 
         try
         {
-            if (_updatePeopleAsyncMethod != null)
-            {
-                var task = (Task?)_updatePeopleAsyncMethod.Invoke(_libraryManager, new object[] { collection, aggregatedPeople, cancellationToken });
-                if (task != null)
-                {
-                    await task.ConfigureAwait(false);
-                }
-            }
-            else if (_updatePeopleMethod != null)
-            {
-                _updatePeopleMethod.Invoke(_libraryManager, new object[] { collection, aggregatedPeople });
-            }
-            else
-            {
-                _logger.LogError("No UpdatePeople or UpdatePeopleAsync method found on ILibraryManager.");
-            }
+            await _libraryManager.UpdatePeopleAsync(collection, aggregatedPeople, cancellationToken)
+                .ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -392,30 +363,14 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
 
     private IReadOnlyList<PersonInfo> GetPeopleSafe(BaseItem item)
     {
-        if (_getPeopleMethod != null)
+        try
         {
-            try
-            {
-                var result = _getPeopleMethod.Invoke(_libraryManager, new object[] { item });
-                if (result is IReadOnlyList<PersonInfo> readOnlyList)
-                {
-                    return readOnlyList;
-                }
-                if (result is System.Collections.IEnumerable enumerable)
-                {
-                    return enumerable.Cast<PersonInfo>().ToList();
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error invoking GetPeople via reflection for item '{ItemName}'", item.Name);
-            }
+            return _libraryManager.GetPeople(item);
         }
-        else
+        catch (Exception ex)
         {
-            _logger.LogError("GetPeople method not found on ILibraryManager via reflection.");
+            _logger.LogError(ex, "Error getting people for item '{ItemName}'", item.Name);
+            return Array.Empty<PersonInfo>();
         }
-
-        return Array.Empty<PersonInfo>();
     }
 }
