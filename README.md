@@ -32,8 +32,13 @@ If you curate your media collection using [tinyMediaManager (TMM)](https://www.t
 3. **Movie-Folder Fallback:** Searches individual movie folders for `movieset-poster.jpg` and `movieset-fanart.jpg` when no centralized set folder exists.
 
 <div align="center">
-  <img src="images/collection_details.png" width="750" alt="Jellyfin Collection View with Local Metadata" />
-  <p><em>Example: Collection in Jellyfin with plot, rating, tags, and metadata populated entirely from local files.</em></p>
+  <img src="images/collections_grid.png" width="800" alt="Jellyfin Collections Grid" />
+  <p><em>Movie collections generated automatically from local metadata in Jellyfin.</em></p>
+</div>
+
+<div align="center">
+  <img src="images/collection_details.png" width="800" alt="Alien Collection View in Jellyfin" />
+  <p><em>Example: Alien Collection with plot, rating, tags, logo, and member movies populated entirely from local files.</em></p>
 </div>
 
 ---
@@ -48,6 +53,16 @@ If you curate your media collection using [tinyMediaManager (TMM)](https://www.t
 - 🔄 **Automatic Background Sync:** Hooks into Jellyfin's library events to automatically sync movie sets whenever a library scan finishes (with a 30-second debounce).
 - 🕒 **Oldest-Movie Release Year:** Automatically dates each collection box set by its oldest movie, enabling perfect chronological sorting in your library view.
 - 🔒 **Privacy-Safe Bug Report Export:** Includes an export dialog that strips sensitive file paths and library names so you can safely file GitHub issues.
+
+<div align="center">
+  <img src="images/plugin_dashboard.png" width="800" alt="Local Movie Sets Dashboard" />
+  <p><em>Plugin Dashboard showing live KPI metrics, sync duration, and status persisted across restarts.</em></p>
+</div>
+
+<div align="center">
+  <img src="images/diagnostics_tools.png" width="800" alt="Local Movie Sets Diagnostics & Validator" />
+  <p><em>Local NFO &amp; Artwork Diagnostics scanner with status filters and detailed issue suggestions.</em></p>
+</div>
 
 ---
 
@@ -77,7 +92,7 @@ If you curate your media collection using [tinyMediaManager (TMM)](https://www.t
 
 ---
 
-## Configuration & Setup Guide
+## Configuration & Best Practices
 
 ### 1. Essential: Prevent TMDB Auto-Collection Conflicts
 
@@ -97,22 +112,17 @@ To make movies collapse under their collection banner in your movie library:
 2. Check:
    >  **Group movies into collections**
 
-### 3. tinyMediaManager (TMM) Recommended Settings
+### 3. Folder Structure & Naming Conventions
 
-In tinyMediaManager under **Settings → Movies → Movie Sets**:
+Match the plugin's **NFO File Naming Convention** setting to your file structure:
 
-<div align="center">
-  <img src="images/tmm_set_settings.png" width="650" alt="tinyMediaManager Movie Set Settings" />
-</div>
+| NFO Naming Option | Expected Path Pattern | Example |
+|---|---|---|
+| **Set Subfolder** *(recommended)* | `<SetFolder>/<SetName>/<SetName>.nfo` | `_sets/Alien Collection/Alien Collection.nfo` |
+| **Flat File** | `<SetFolder>/<SetName>.nfo` | `_sets/Alien Collection.nfo` |
+| **collection.nfo** | `<SetFolder>/<SetName>/collection.nfo` | `_sets/Alien Collection/collection.nfo` |
 
-- **Movie set data folder:** Point this to a shared directory (e.g. `/srv/shares/media/_sets`).
-- **NFO file naming:** Choose `<movie set name>/<movie set name>.nfo` (*Set Subfolder*).
-
-Under **Artwork Settings**:
-
-<div align="center">
-  <img src="images/tmm_artwork_settings.png" width="650" alt="tinyMediaManager Artwork Settings" />
-</div>
+**Artwork files:** Place `poster.jpg` (or `folder.jpg`) and `fanart.jpg` (or `backdrop.jpg`) directly in the collection folder. If using movie-folder fallback, name them `movieset-poster.jpg` and `movieset-fanart.jpg` inside the member movie folders.
 
 ---
 
@@ -122,7 +132,7 @@ Under **Artwork Settings**:
 You likely have Jellyfin's native **"Automatically add to collection"** option enabled on one or more libraries. This causes TMDB to generate online box sets alongside your local ones. Disable this option in your library settings and run **⚠️ Force Rebuild** in the plugin's Diagnostics tab.
 
 ### Where should I store my collection artwork?
-Either in a dedicated movie set data folder (e.g. `_sets/Avatar Collection/poster.jpg`), or directly in each movie's folder (e.g. `movieset-poster.jpg`). If you use the latter, make sure to enable **Movie Folder Fallback** in the plugin settings.
+Either in a dedicated movie set data folder (e.g. `_sets/Alien Collection/poster.jpg`), or directly in each movie's folder (e.g. `movieset-poster.jpg`). If you use the latter, make sure to enable **Movie Folder Fallback** in the plugin settings.
 
 ### Will my collections disappear if my network drive unmounts?
 No. The **Mount Guard** verifies that library roots are online and non-empty before starting any sync. If a share is unreachable, the sync safely aborts and keeps your existing collections untouched.
