@@ -1,0 +1,57 @@
+name: "🐛 Bug Report"
+description: "Report a bug or problem with Jellyfin Local Movie Sets"
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue!
+        
+        > [!TIP]
+        > You can easily generate and copy all required system & diagnostics information in your Jellyfin Dashboard:
+        > Go to **Plugins → Local Movie Sets → Diagnostics & Tools → System Info & Bug Report** and click **Copy to Clipboard**.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Problem Description"
+      description: "A clear and concise description of what went wrong."
+      placeholder: "e.g., Collections are not being created for sets with missing fanart..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "Steps to Reproduce"
+      description: "Describe how to reproduce the issue step by step."
+      placeholder: |
+        1. Open tinyMediaManager and create set 'XYZ'
+        2. In Jellyfin, open Local Movie Sets
+        3. Click 'Sync Now'
+        4. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: system_info
+    attributes:
+      label: "System Info & Diagnostics Export"
+      description: "Paste the text from the plugin's 'System Info & Bug Report' dialog here (it automatically anonymizes sensitive paths and titles)."
+      render: markdown
+      placeholder: |
+        ### Environment
+        - Jellyfin Version: ...
+        - Plugin Version: ...
+        ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: "Additional Context / Screenshots / Logs"
+      description: "Add any other context, NFO snippets, or screenshots about the problem here."
+    validations:
+      required: false

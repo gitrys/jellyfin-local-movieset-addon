@@ -1,189 +1,157 @@
+<div align="center">
+
+<img src="images/local_movie_sets_logo.png" width="128" height="128" alt="Local Movie Sets Logo" />
+
 # Jellyfin Local Movie Sets Plugin
 
-A Jellyfin plugin that creates and manages movie **collections (box sets)** from **local metadata only** — no TMDB or external API calls.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-orange.svg?style=flat&logo=buy-me-a-coffee)](https://buymeacoffee.com/gitrys)
+[![Jellyfin Compatibility](https://img.shields.io/badge/Jellyfin-10.10%2B%20%7C%2012.x-00a4dc.svg?style=flat&logo=jellyfin)](https://jellyfin.org)
 
-Data is read from:
-1. **Movie `.nfo` files** — the standard Kodi `<set><name>` tag inside each movie's NFO
-2. **TMM Set Data Folder** — the dedicated folder configured in tinyMediaManager for set-level NFO files, posters, and fanart
+**Creates and manages movie collections (box sets) in Jellyfin using 100% local metadata and artwork produced by tinyMediaManager or Kodi.**  
+*Zero external API calls. Zero cloud telemetry. Completely offline and private.*
 
----
-
-## Requirements
-
-| Component | Version |
-|---|---|
-| Jellyfin Server | 10.10.x |
-| .NET SDK | 9.0+ |
-| tinyMediaManager | 4.x (optional, for set folder) |
+</div>
 
 ---
 
-## Building
-
-```powershell
-cd Jellyfin.Plugin.LocalMovieSets
-
-# Restore dependencies
-dotnet restore
-
-# Build (Debug)
-dotnet build
-
-# Build (Release)
-dotnet publish -c Release -o ../dist
-```
-
-The compiled plugin is a single DLL: `Jellyfin.Plugin.LocalMovieSets.dll`
+> [!NOTE]  
+> **Vibe-Coded Project Notice**  
+> This project is proudly **vibe-coded** — designed and developed through iterative AI-assisted pair programming between a human maintainer and an AI agent. It is crafted with love, rigorously validated against real-world media libraries containing hundreds of movie sets, and specifically engineered to solve genuine community needs that native Jellyfin metadata scrapers leave unaddressed.
 
 ---
 
-## Deployment & Testing (Server)
+## Overview
 
-Für schnelles Testen und Aktualisieren auf dem Server (`ondemand`) steht ein automatisiertes, portables Skript bereit:
+If you curate your media collection using [tinyMediaManager (TMM)](https://www.tinymediamanager.org/), Kodi, or hand-crafted `.nfo` files, you probably know the frustration: Jellyfin's default collection builder relies on online TMDB lookups, often creating mismatched sets, duplicate franchises, or ignoring your custom artwork and plots.
 
-- **Windows (Doppelklick oder CMD):**
-  ```cmd
-  deploy.bat
-  ```
-- **PowerShell:**
-  ```powershell
-  .\deploy-to-server.ps1 -ServerHost "ondemand"
-  ```
-- **Linux / Git Bash / WSL:**
-  ```bash
-  ./deploy.sh ondemand
-  ```
+**Local Movie Sets** solves this permanently by reading the metadata already sitting on your hard drives:
 
-**Was das Skript automatisch tut:**
-1. Führt `dotnet build -c Release` aus.
-2. Überträgt die gebaute DLL per SCP auf den Server nach `/tmp/`.
-3. Erstellt auf dem Server ein Backup der bisherigen DLL mit Zeitstempel (`...dll.bak_<timestamp>`).
-4. Kopiert die neue DLL in das aktive Plugin-Verzeichnis (`/var/lib/jellyfin/plugins/Local Movie Sets_*/`).
-5. Setzt die Dateiberechtigungen (`chown jellyfin:jellyfin` und `chmod 644`).
-6. Startet den Jellyfin-Dienst neu (`sudo systemctl restart jellyfin`) und überprüft den Status.
+1. **Movie `.nfo` files:** Reads the standard `<set><name>` tags inside each movie's NFO.
+2. **Centralized Set Data Folder:** Reads set-level `.nfo` files (with titles, overviews/plots, studios, and genres) alongside collection posters and fanart.
+3. **Movie-Folder Fallback:** Searches individual movie folders for `movieset-poster.jpg` and `movieset-fanart.jpg` when no centralized set folder exists.
+
+<div align="center">
+  <img src="images/collection_details.png" width="750" alt="Jellyfin Collection View with Local Metadata" />
+  <p><em>Example: Collection in Jellyfin with plot, rating, tags, and metadata populated entirely from local files.</em></p>
+</div>
+
+---
+
+## Key Features
+
+- ⚡ **100% Local & Offline:** Never makes outbound calls to TMDB, TVDb, or external servers. Your media collection stays private and works during internet outages.
+- 📊 **Rich Dashboard & Metrics:** Real-time KPI cards display scanned movies, sets detected, collections created/updated/deleted, and NFO errors — persisted across Jellyfin server restarts.
+- 🩺 **Local NFO & Artwork Validator:** Scans your set folder and highlights XML syntax issues, missing posters, or missing fanart with actionable suggestions.
+- 🛡️ **Mount Guard Protection:** Prevents collections from being emptied or deleted if your NAS, NFS share, or external hard drive is temporarily unmounted or offline.
+- 📁 **Selective Library Filter:** Select exactly which movie libraries to scan via convenient checkboxes in the settings UI.
+- 🔄 **Automatic Background Sync:** Hooks into Jellyfin's library events to automatically sync movie sets whenever a library scan finishes (with a 30-second debounce).
+- 🕒 **Oldest-Movie Release Year:** Automatically dates each collection box set by its oldest movie, enabling perfect chronological sorting in your library view.
+- 🔒 **Privacy-Safe Bug Report Export:** Includes an export dialog that strips sensitive file paths and library names so you can safely file GitHub issues.
 
 ---
 
 ## Installation
 
-1. Build the plugin (see above)
-2. Copy `Jellyfin.Plugin.LocalMovieSets.dll` to your Jellyfin plugins directory:
-   - **Linux:** `~/.local/share/jellyfin/plugins/LocalMovieSets_1.0.0.0/`
-   - **Windows:** `%APPDATA%\Jellyfin\plugins\LocalMovieSets_1.0.0.0\`
-   - **Docker:** mount into `/config/data/plugins/LocalMovieSets_1.0.0.0/`
-3. Restart Jellyfin
+### Method A: Via Jellyfin Plugin Repository (Recommended)
+
+1. Open your Jellyfin Web Interface as an administrator.
+2. Navigate to **Dashboard → Plugins → Repositories**.
+3. Click the **`+`** (Add) button and enter:
+   - **Repository Name:** `Local Movie Sets`
+   - **Repository URL:**
+     ```text
+     https://raw.githubusercontent.com/gitrys/jellyfin-local-movieset-addon/main/manifest.json
+     ```
+4. Click **Save**, then switch to the **Catalog** tab.
+5. Locate **Local Movie Sets**, click **Install**, and restart your Jellyfin server.
+
+### Method B: Manual Installation
+
+1. Download the latest `Jellyfin.Plugin.LocalMovieSets_<version>.zip` from [GitHub Releases](https://github.com/gitrys/jellyfin-local-movieset-addon/releases).
+2. Extract the archive into your Jellyfin plugins directory:
+   - **Linux / Docker:** `/var/lib/jellyfin/plugins/Local Movie Sets/`
+   - **Windows:** `%ProgramData%\Jellyfin\Server\plugins\Local Movie Sets\`
+3. Ensure file ownership is set to the `jellyfin` user (`chown -R jellyfin:jellyfin ...`).
+4. Restart the Jellyfin service.
 
 ---
 
-## Configuration
+## Configuration & Setup Guide
 
-Navigate to **Dashboard → Plugins → Local Movie Sets** to configure:
+### 1. Essential: Prevent TMDB Auto-Collection Conflicts
 
-| Setting | Description |
-|---|---|
-| **Movie Set Data Folder** | Path to tinyMediaManager's "Movie Set Data Folder". Leave blank to only use `<set>` tags from individual movie NFOs. |
-| **NFO File Naming** | Must match your TMM setting: `SetSubfolder` (default), `FlatFile`, or `collection.nfo` |
-| **Minimum Movies** | Minimum number of movies in your library needed to create a collection (default: 1) |
-| **Delete Orphaned Sets** | Remove collections that no longer have any matching NFO data (only deletes collections without TMDB/IMDB IDs) |
-| **Overwrite Existing Artwork** | Re-copy artwork from the TMM set folder on every sync |
+Jellyfin has a native setting that automatically creates collections from TMDB metadata upon scanning. To avoid duplicated or conflicted box sets:
 
-> **Note on renaming sets:** if you rename a set in your NFOs, a new collection is created under the new name, but the old collection is only removed automatically when **Delete Orphaned Sets** is enabled. Otherwise the movies remain members of both collections until you delete the old one manually.
+1. Go to **Dashboard → Libraries**.
+2. For each movie library, click the **`...`** menu → **Manage Library**.
+3. Under **Metadata settings**, uncheck:
+   > ❌ **Automatically add to collection**
+4. Click **Save**.
+
+### 2. Group Movies into Collections in Jellyfin
+
+To make movies collapse under their collection banner in your movie library:
+
+1. Go to **Dashboard → Libraries → Display**.
+2. Check:
+   >  **Group movies into collections**
+
+### 3. tinyMediaManager (TMM) Recommended Settings
+
+In tinyMediaManager under **Settings → Movies → Movie Sets**:
+
+<div align="center">
+  <img src="images/tmm_set_settings.png" width="650" alt="tinyMediaManager Movie Set Settings" />
+</div>
+
+- **Movie set data folder:** Point this to a shared directory (e.g. `/srv/shares/media/_sets`).
+- **NFO file naming:** Choose `<movie set name>/<movie set name>.nfo` (*Set Subfolder*).
+
+Under **Artwork Settings**:
+
+<div align="center">
+  <img src="images/tmm_artwork_settings.png" width="650" alt="tinyMediaManager Artwork Settings" />
+</div>
 
 ---
 
-## How It Works
+## FAQ & Troubleshooting
 
-### Movie NFO format (required)
+### Why do I see duplicate collections?
+You likely have Jellyfin's native **"Automatically add to collection"** option enabled on one or more libraries. This causes TMDB to generate online box sets alongside your local ones. Disable this option in your library settings and run **⚠️ Force Rebuild** in the plugin's Diagnostics tab.
 
-Each movie that belongs to a set must have a `<set>` tag in its `.nfo` file:
+### Where should I store my collection artwork?
+Either in a dedicated movie set data folder (e.g. `_sets/Avatar Collection/poster.jpg`), or directly in each movie's folder (e.g. `movieset-poster.jpg`). If you use the latter, make sure to enable **Movie Folder Fallback** in the plugin settings.
 
-```xml
-<!-- Iron Man (2008)/Iron Man (2008).nfo -->
-<movie>
-  <title>Iron Man</title>
-  <set>
-    <name>Iron Man Collection</name>
-    <overview>The Iron Man trilogy...</overview>
-  </set>
-</movie>
+### Will my collections disappear if my network drive unmounts?
+No. The **Mount Guard** verifies that library roots are online and non-empty before starting any sync. If a share is unreachable, the sync safely aborts and keeps your existing collections untouched.
+
+### Does this plugin modify any of my media files?
+**Never.** Local Movie Sets operates in strict **read-only mode** with respect to your physical files. It never edits, renames, or writes to your `.nfo`, video, or image files on disk.
+
+---
+
+## Building from Source
+
+```bash
+git clone https://github.com/gitrys/jellyfin-local-movieset-addon.git
+cd jellyfin-local-movieset-addon
+
+# Build Release DLL
+dotnet build -c Release
 ```
 
-tinyMediaManager writes this automatically when you assign a movie to a set.
-
-### Dedicated Set Folder (optional, recommended)
-
-If you configure a Movie Set Data Folder in both TMM and this plugin, richer metadata and artwork is read from it:
-
-```
-/moviesets/
-  Iron Man Collection/
-    Iron Man Collection.nfo     ← set overview, title
-    poster.jpg                   ← collection poster
-    fanart.jpg                   ← collection backdrop
-    logo.png                     ← optional logo
-    landscape.jpg                ← optional landscape/thumb
-```
-
-The NFO file format:
-```xml
-<set>
-  <title>Iron Man Collection</title>
-  <originaltitle>Iron Man Collection</originaltitle>
-  <overview>The complete Iron Man film series.</overview>
-</set>
-```
-
-### Supported artwork filenames
-
-| Image Type | Filenames tried (in order) |
-|---|---|
-| Poster (Primary) | `poster.jpg`, `poster.png`, `folder.jpg`, `folder.png` |
-| Backdrop (Fanart) | `fanart.jpg`, `fanart.png`, `backdrop.jpg`, `backdrop.png` |
-| Logo | `logo.png`, `logo.jpg`, `clearlogo.png` |
-| Thumb/Landscape | `landscape.jpg`, `landscape.png`, `thumb.jpg` |
-| ClearArt | `clearart.png`, `clearart.jpg` |
-| Banner | `banner.jpg`, `banner.png` |
-| Disc | `disc.png`, `disc.jpg`, `discart.png` |
-
 ---
 
-## Important: Disable TMDB Auto-Collections
+## Support & Buy Me a Coffee
 
-To avoid conflicts with Jellyfin's built-in TMDB collection feature:
+If this plugin saves you time and keeps your movie collections organized, feel free to support development:
 
-1. Go to **Dashboard → Libraries → [Your Movie Library] → Manage Library**
-2. **Disable** "Automatically add to collection"
-3. Save
-
----
-
-## Syncing
-
-Collections are synced:
-- **Automatically** — 30 seconds after a movie is added or updated in the library
-- **On schedule** — every 24 hours (configurable in Dashboard → Scheduled Tasks)
-- **Manually** — click "Sync Now" on the plugin config page, or trigger the "Sync Local Movie Sets" scheduled task
-
----
-
-## NFO Naming Conventions
-
-Match this setting to your tinyMediaManager configuration:
-
-| Plugin Setting | TMM Setting | File Path |
-|---|---|---|
-| `Set Subfolder` *(default)* | `<movieset>/<movieset>.nfo` | `MovieSets/Iron Man Collection/Iron Man Collection.nfo` |
-| `Flat File` | `<movieset>.nfo` | `MovieSets/Iron Man Collection.nfo` |
-| `collection.nfo` | `<movieset>/collection.nfo` | `MovieSets/Iron Man Collection/collection.nfo` |
-
----
-
-## Upgrading Jellyfin
-
-If you upgrade Jellyfin, update the `Version` attribute in `Jellyfin.Plugin.LocalMovieSets.csproj` to match your new server version and rebuild.
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-orange.svg?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/gitrys)
 
 ---
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.

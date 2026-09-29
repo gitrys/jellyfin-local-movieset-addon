@@ -5,6 +5,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.32.0] - 2026-09-30
+### Added
+- **Modern Tabbed Interface:** Redesigned plugin configuration page with fixed layout navigation (`Dashboard & History`, `Settings`, `Diagnostics & Tools`, `Setup Guide`) eliminating layout shifts.
+- **Local NFO & Artwork Validator:** Built-in scanner for set folders with an isolated scrollable report showing XML issues and missing artwork.
+- **Selective Movie Library Scanning:** Configurable library filter with live path previews to choose which movie libraries are scanned.
+- **Automatic Library Change Sync:** Background event hook to automatically resync movie sets after library scans or updates (with 30s debounce).
+- **Persistent Metrics & Sync History:** Sync metrics, run duration, counters, and execution logs now reliably survive Jellyfin server restarts and reboots.
+- **Privacy-Safe Diagnostics Export:** Single-click bug report modal with interactive anonymization toggles (mask file paths, mask titles) and direct GitHub Issues link.
+- **Docker & Volume Permissions Validator:** In-page path validator with proactive guidance for Docker volume mounts and PUID/PGID access permissions.
+- **Sponsorship Support:** Added Buy Me a Coffee support badge and links in README and configuration footer.
+
+### Changed
+- **Artwork Diagnostics:** Downgraded missing fanart from Warning to Info so movie sets without backdrops are counted as 100% healthy.
+- **Complete English Localization:** All UI cards, buttons, tabs, diagnostics, and setup guides unified to professional English.
+
+---
+
 ## [1.0.31.0] - 2026-09-29
 ### Added
 - **Jellyfin 12 & .NET 10 Support:** Upgraded target framework to `net10.0` and dependencies to Jellyfin 12.0.0 (`targetAbi: 12.0.0.0`).

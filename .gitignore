@@ -6,10 +6,12 @@ publish/
 *.zip
 release_notes.md
 
-# Local .NET SDK & CLI
+# Local .NET SDK & CLI & caches
 .dotnet-sdk/
 .dotnet/
 .dotnet-cli/
+.dotnet_temp/
+.tmp_dotnet/
 .nuget/
 
 # Deployment scripts & tools (local/server)
@@ -18,8 +20,18 @@ deploy-to-server.ps1
 deploy.sh
 scripts/
 
-# Test media
+# Test media & data
 testdateien/
+exampleNfos/
+
+# Logs & temp
+*.log
+*.bak*
+jlogs/
+.system_generated/
+
+# Project & local task tracking
+todo
 
 # IDE / Editor specific
 .vs/
@@ -33,7 +45,3 @@ testdateien/
 # OS specific
 .DS_Store
 Thumbs.db
-
-jlogs/
-exampleNfos/
-todo
