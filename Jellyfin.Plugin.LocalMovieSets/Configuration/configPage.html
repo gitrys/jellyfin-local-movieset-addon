@@ -52,6 +52,41 @@
         .lms-tab-pane.active {
             display: block;
         }
+        .lms-table-container {
+            max-height: 480px;
+            overflow-y: auto;
+            overflow-x: auto;
+            margin-top: 0.5em;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overscroll-behavior: contain;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        .lms-table-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .lms-table-container::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 4px;
+        }
+        .lms-table-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 4px;
+        }
+        .lms-table-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+        .lms-sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        .lms-sticky-header th {
+            background: #1e1e20;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 10px;
+        }
     </style>
 
     <div data-role="content">
@@ -1121,14 +1156,14 @@
                 });
 
                 detailsArea.innerHTML = [
-                    '<div style="overflow-x: auto; margin-top: 0.5em;">',
+                    '<div class="lms-table-container">',
                     '  <table style="width: 100%; border-collapse: collapse; font-size: 0.88em; text-align: left;">',
-                    '    <thead>',
-                    '      <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.15); color: #aaa;">',
-                    '        <th style="padding: 8px 10px;">Severity</th>',
-                    '        <th style="padding: 8px 10px;">Collection</th>',
-                    '        <th style="padding: 8px 10px;">Issue &amp; Suggestion</th>',
-                    '        <th style="padding: 8px 10px;">File / Folder</th>',
+                    '    <thead class="lms-sticky-header">',
+                    '      <tr style="color: #aaa;">',
+                    '        <th style="padding: 10px; background: #1e1e20;">Severity</th>',
+                    '        <th style="padding: 10px; background: #1e1e20;">Collection</th>',
+                    '        <th style="padding: 10px; background: #1e1e20;">Issue &amp; Suggestion</th>',
+                    '        <th style="padding: 10px; background: #1e1e20;">File / Folder</th>',
                     '      </tr>',
                     '    </thead>',
                     '    <tbody>',
