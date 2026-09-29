@@ -10,365 +10,492 @@
      class="page type-interior pluginConfigurationPage"
      data-require="emby-input,emby-button,emby-select,emby-checkbox">
 
+    <style>
+        .lms-tab-bar {
+            display: flex;
+            gap: 0.35em;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.12);
+            margin: 1.2em 0 1.8em 0;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .lms-tab-btn {
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #aaa;
+            font-size: 0.98em;
+            font-weight: 500;
+            padding: 0.75em 1.2em;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5em;
+            transition: all 0.2s ease;
+            outline: none;
+            white-space: nowrap;
+            border-radius: 4px 4px 0 0;
+        }
+        .lms-tab-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .lms-tab-btn.active {
+            color: #00a4dc;
+            border-bottom-color: #00a4dc;
+            font-weight: 600;
+            background: rgba(0, 164, 220, 0.08);
+        }
+        .lms-tab-pane {
+            display: none;
+        }
+        .lms-tab-pane.active {
+            display: block;
+        }
+    </style>
+
     <div data-role="content">
         <div class="content-primary">
 
+            <div class="sectionTitleContainer flex align-items-center" style="margin-bottom: 0.5em;">
+                <h2 class="sectionTitle">Local Movie Sets</h2>
+            </div>
+
+            <!-- ── Tab Navigation Bar ── -->
+            <div class="lms-tab-bar" role="tablist">
+                <button type="button" class="lms-tab-btn active" data-tab="TabDashboard" role="tab" aria-selected="true">
+                    <span>📊</span> <span>Dashboard &amp; Verlauf</span>
+                </button>
+                <button type="button" class="lms-tab-btn" data-tab="TabSettings" role="tab" aria-selected="false">
+                    <span>⚙️</span> <span>Einstellungen</span>
+                </button>
+                <button type="button" class="lms-tab-btn" data-tab="TabDiagnostics" role="tab" aria-selected="false">
+                    <span>🩺</span> <span>Diagnose &amp; Tools</span>
+                </button>
+                <button type="button" class="lms-tab-btn" data-tab="TabGuide" role="tab" aria-selected="false">
+                    <span>💡</span> <span>Setup-Guide</span>
+                </button>
+            </div>
+
+            <!-- ── Global Status Notification ── -->
+            <div id="StatusMsg" style="margin: -0.6em 0 1.4em 0; padding: 0.75em 1em; border-radius: 6px; font-weight: 500; font-size: 0.95em; display: none;"></div>
+
             <form id="LocalMovieSetsConfigForm">
 
-                <div class="sectionTitleContainer flex align-items-center">
-                    <h2 class="sectionTitle">Local Movie Sets</h2>
-                </div>
-
-                <!-- ── Sync Status & Metrics Dashboard ── -->
-                <div id="SyncStatusPanel" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; padding: 1.25em 1.5em; margin-bottom: 2em; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8em; flex-wrap: wrap; gap: 0.8em;">
-                        <div style="display: flex; align-items: center; gap: 0.6em;">
-                            <span style="font-size: 1.3em;">📊</span>
-                            <h3 style="margin: 0; font-size: 1.15em; color: #00a4dc; font-weight: bold;">Sync Status &amp; Metrics</h3>
+                <!-- ════════════════════════════════════════════════════════════════
+                     TAB 1: 📊 Dashboard & Verlauf
+                     ════════════════════════════════════════════════════════════════ -->
+                <div id="TabDashboard" class="lms-tab-pane active" role="tabpanel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2em; flex-wrap: wrap; gap: 0.8em;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.15em; color: #fff;">Status &amp; Sammlungs-Metriken</h3>
+                            <div style="font-size: 0.85em; color: #888;">Echtzeit-Statistiken über lokale Filme und Sets</div>
                         </div>
-                        <div id="SyncStatusBadgeContainer"></div>
+                        <button is="emby-button"
+                                id="BtnSyncNow"
+                                type="button"
+                                class="raised block emby-button"
+                                style="margin: 0; background: #00a4dc; color: #fff; font-weight: 600; padding: 0.6em 1.4em;">
+                            <span>&#9654; Sync Now</span>
+                        </button>
                     </div>
-                    <div id="SyncStatusSubheader" style="color: #aaa; font-size: 0.9em; margin-bottom: 1.2em;"></div>
-                    <div id="SyncStatusContent" style="color: #ccc;">Loading…</div>
+
+                    <!-- ── Sync Status & Metrics Dashboard ── -->
+                    <div id="SyncStatusPanel" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; padding: 1.25em 1.5em; margin-bottom: 2em; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8em; flex-wrap: wrap; gap: 0.8em;">
+                            <div style="display: flex; align-items: center; gap: 0.6em;">
+                                <span style="font-size: 1.3em;">📊</span>
+                                <h3 style="margin: 0; font-size: 1.15em; color: #00a4dc; font-weight: bold;">Sync Status &amp; Metrics</h3>
+                            </div>
+                            <div id="SyncStatusBadgeContainer"></div>
+                        </div>
+                        <div id="SyncStatusSubheader" style="color: #aaa; font-size: 0.9em; margin-bottom: 1.2em;"></div>
+                        <div id="SyncStatusContent" style="color: #ccc;">Loading…</div>
+                    </div>
                 </div>
 
-                <!-- ── Conflict Warning ── -->
-                <div id="ConflictWarningBox" style="display: none; background: rgba(244, 67, 54, 0.15); border: 1px solid #f44336; border-radius: 8px; padding: 1.25em; margin-bottom: 2em; font-size: 0.95em; line-height: 1.5;">
-                    <h3 style="margin-top: 0; margin-bottom: 0.5em; color: #f44336; display: flex; align-items: center; gap: 0.5em; font-weight: bold;">
-                        <span style="font-size: 1.2em;">⚠️</span> Warning: Native Collection Auto-Add is Active
-                    </h3>
-                    <p style="margin: 0 0 0.8em 0; color: #eee;">
-                        The native Jellyfin option <strong>"Automatically add to collection"</strong> is currently enabled on the following libraries:
-                        <span id="ConflictLibNames" style="color: #ff9800; font-weight: bold;"></span>
-                    </p>
-                    <p style="margin: 0; color: #ccc; font-size: 0.9em;">
-                        To prevent TMDB from conflicting with tinyMediaManager metadata (creating duplicated collections or mixing up items), please disable this option in 
-                        <strong>Dashboard &rarr; Libraries &rarr; (select library) &rarr; Metadata settings</strong>.
-                    </p>
-                </div>
+                <!-- ════════════════════════════════════════════════════════════════
+                     TAB 2: ⚙️ Einstellungen
+                     ════════════════════════════════════════════════════════════════ -->
+                <div id="TabSettings" class="lms-tab-pane" role="tabpanel">
 
-                <div style="background: rgba(0, 164, 220, 0.1); border: 1px solid #00a4dc; border-radius: 8px; padding: 1.25em; margin-bottom: 2em; font-size: 0.95em; line-height: 1.5;">
-                    <h3 style="margin-top: 0; margin-bottom: 0.5em; color: #00a4dc; display: flex; align-items: center; gap: 0.4em;">
-                        <span>💡</span> Setup Guide &amp; Best Practices
-                    </h3>
-                    <ul style="margin: 0; padding-left: 1.2em; color: #ccc;">
-                        <li style="margin-bottom: 0.6em;">
-                            <strong>Before Sync (Avoid Conflicts):</strong> Make sure the option 
-                            <em>"Automatically add to collection"</em> is <strong>disabled</strong> in your library metadata settings (Dashboard &rarr; Libraries &rarr; click your library) to prevent TMDB from interfering.
-                        </li>
-                        <li style="margin-bottom: 0.6em;">
-                            <strong>After Sync (Group Movies):</strong> To group movies under their collection cards within the main movie library view, you must enable 
-                            <em>"Group movies into collections"</em> under 
-                            <a href="#/dashboard/libraries/display" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Dashboard &rarr; Libraries &rarr; Display</a>.
-                        </li>
-                    </ul>
-                </div>
+                    <!-- ── Conflict Warning ── -->
+                    <div id="ConflictWarningBox" style="display: none; background: rgba(244, 67, 54, 0.15); border: 1px solid #f44336; border-radius: 8px; padding: 1.25em; margin-bottom: 2em; font-size: 0.95em; line-height: 1.5;">
+                        <h3 style="margin-top: 0; margin-bottom: 0.5em; color: #f44336; display: flex; align-items: center; gap: 0.5em; font-weight: bold;">
+                            <span style="font-size: 1.2em;">⚠️</span> Warning: Native Collection Auto-Add is Active
+                        </h3>
+                        <p style="margin: 0 0 0.8em 0; color: #eee;">
+                            The native Jellyfin option <strong>"Automatically add to collection"</strong> is currently enabled on the following libraries:
+                            <span id="ConflictLibNames" style="color: #ff9800; font-weight: bold;"></span>
+                        </p>
+                        <p style="margin: 0; color: #ccc; font-size: 0.9em;">
+                            To prevent TMDB from conflicting with tinyMediaManager metadata (creating duplicated collections or mixing up items), please disable this option in 
+                            <strong>Dashboard &rarr; Libraries &rarr; (select library) &rarr; Metadata settings</strong>.
+                        </p>
+                    </div>
 
-                <!-- ── Set Data Folder ───────────────────────────────────────── -->
-                <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="SetDataFolder">
-                        Movie Set Data Folder
-                    </label>
-                    <div style="display: flex; gap: 0.5em; align-items: center;">
-                        <input id="SetDataFolder"
-                               type="text"
+                    <!-- ── Set Data Folder ───────────────────────────────────────── -->
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="SetDataFolder">
+                            Movie Set Data Folder
+                        </label>
+                        <div style="display: flex; gap: 0.5em; align-items: center;">
+                            <input id="SetDataFolder"
+                                   type="text"
+                                   class="emby-input"
+                                   style="flex-grow: 1; margin: 0;"
+                                   placeholder="/mnt/nas/moviesets  (leave empty to skip dedicated set NFOs)"
+                            />
+                            <button is="emby-button"
+                                    id="BtnBrowseFolder"
+                                    type="button"
+                                    class="raised block emby-button"
+                                    style="margin: 0; padding: 0.5em 1em; font-size: 0.9em; height: 38px;">
+                                <span>Browse...</span>
+                            </button>
+                        </div>
+                        <div class="fieldDescription">
+                            Path to tinyMediaManager's "Movie Set Data Folder" setting.
+                            This folder contains per-set NFO files and artwork.
+                            Leave blank if you only use the &lt;set&gt; tag in individual movie NFOs.
+                        </div>
+                    </div>
+
+                    <!-- ── NFO Naming Convention ─────────────────────────────────── -->
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="NfoNaming">
+                            NFO File Naming Convention
+                        </label>
+                        <div style="display: flex; gap: 0.5em; align-items: center; margin-bottom: 0.4em;">
+                            <select id="NfoNaming" is="emby-select" class="emby-select-withcolor emby-select" style="flex-grow: 1; margin: 0;">
+                                <option value="SetSubfolder">Set Subfolder  — &lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</option>
+                                <option value="FlatFile">Flat File      — &lt;SetFolder&gt;/&lt;SetName&gt;.nfo</option>
+                                <option value="CollectionNfo">collection.nfo — &lt;SetFolder&gt;/&lt;SetName&gt;/collection.nfo</option>
+                            </select>
+                            <button is="emby-button"
+                                    id="BtnDetectNaming"
+                                    type="button"
+                                    class="raised block emby-button"
+                                    style="margin: 0; padding: 0.5em 1em; font-size: 0.9em; height: 38px;">
+                                <span>Auto-Detect</span>
+                            </button>
+                        </div>
+                        <div id="DetectNamingStatus" style="font-size: 0.95em; margin-bottom: 0.6em; font-weight: bold; display: none;"></div>
+                        <div class="fieldDescription">
+                            Must match the "NFO file naming" option configured in
+                            tinyMediaManager → Settings → Movies → Movie Sets.
+                        </div>
+                    </div>
+
+                    <!-- ── Minimum Movies ────────────────────────────────────────── -->
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="MinimumMovies">
+                            Minimum Movies per Collection
+                        </label>
+                        <input id="MinimumMovies"
+                               type="number"
                                class="emby-input"
-                               style="flex-grow: 1; margin: 0;"
-                               placeholder="/mnt/nas/moviesets  (leave empty to skip dedicated set NFOs)"
+                               min="1"
+                               max="20"
+                               value="1"
                         />
-                        <button is="emby-button"
-                                id="BtnBrowseFolder"
-                                type="button"
-                                class="raised block emby-button"
-                                style="margin: 0; padding: 0.5em 1em; font-size: 0.9em; height: 38px;">
-                            <span>Browse...</span>
-                        </button>
-                    </div>
-                    <div class="fieldDescription">
-                        Path to tinyMediaManager's "Movie Set Data Folder" setting.
-                        This folder contains per-set NFO files and artwork.
-                        Leave blank if you only use the &lt;set&gt; tag in individual movie NFOs.
-                    </div>
-                </div>
-
-                <!-- ── NFO Naming Convention ─────────────────────────────────── -->
-                <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="NfoNaming">
-                        NFO File Naming Convention
-                    </label>
-                    <div style="display: flex; gap: 0.5em; align-items: center; margin-bottom: 0.4em;">
-                        <select id="NfoNaming" is="emby-select" class="emby-select-withcolor emby-select" style="flex-grow: 1; margin: 0;">
-                            <option value="SetSubfolder">Set Subfolder  — &lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</option>
-                            <option value="FlatFile">Flat File      — &lt;SetFolder&gt;/&lt;SetName&gt;.nfo</option>
-                            <option value="CollectionNfo">collection.nfo — &lt;SetFolder&gt;/&lt;SetName&gt;/collection.nfo</option>
-                        </select>
-                        <button is="emby-button"
-                                id="BtnDetectNaming"
-                                type="button"
-                                class="raised block emby-button"
-                                style="margin: 0; padding: 0.5em 1em; font-size: 0.9em; height: 38px;">
-                            <span>Auto-Detect</span>
-                        </button>
-                    </div>
-                    <div id="DetectNamingStatus" style="font-size: 0.95em; margin-bottom: 0.6em; font-weight: bold; display: none;"></div>
-                    <div class="fieldDescription">
-                        Must match the "NFO file naming" option configured in
-                        tinyMediaManager → Settings → Movies → Movie Sets.
-                    </div>
-                </div>
-
-                <!-- ── Minimum Movies ────────────────────────────────────────── -->
-                <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="MinimumMovies">
-                        Minimum Movies per Collection
-                    </label>
-                    <input id="MinimumMovies"
-                           type="number"
-                           class="emby-input"
-                           min="1"
-                           max="20"
-                           value="1"
-                    />
-                    <div class="fieldDescription">
-                        A collection is only created if at least this many movies in your
-                        library belong to the set. Default: 1.
-                    </div>
-                </div>
-
-                <!-- ── Delete Orphaned Sets ──────────────────────────────────── -->
-                <div class="checkboxContainer checkboxContainer-withDescription">
-                    <label class="emby-checkbox-label">
-                        <input id="DeleteOrphanedSets"
-                               type="checkbox"
-                               is="emby-checkbox"
-                        />
-                        <span>Delete orphaned collections</span>
-                    </label>
-                    <div class="fieldDescription checkboxFieldDescription">
-                        Remove Jellyfin collections that no longer have any movies
-                        with a matching &lt;set&gt; tag. By default, collections with
-                        a TMDB or IMDb provider ID are kept as a safety guard.
-                        Note: when this is disabled and a set is renamed in your NFOs,
-                        the old collection is left untouched — movies may then appear
-                        in both the old and the new collection until you remove the
-                        old one manually (or enable this option).
-                    </div>
-                </div>
-
-                <!-- ── Delete Sets With Provider ID ───────────────────────────── -->
-                <div class="checkboxContainer checkboxContainer-withDescription" style="margin-left: 2em;">
-                    <label class="emby-checkbox-label">
-                        <input id="DeleteSetsWithProviderId"
-                               type="checkbox"
-                               is="emby-checkbox"
-                        />
-                        <span>Also delete orphaned collections with provider IDs</span>
-                    </label>
-                    <div class="fieldDescription checkboxFieldDescription">
-                        When enabled, orphaned collections are deleted even if they
-                        have a TMDB or IMDb provider ID. Use this if your set NFOs
-                        contain &lt;tmdbid&gt; tags and you want full automatic cleanup.
-                    </div>
-                </div>
-
-                <!-- ── Update Existing Artwork ───────────────────────────────── -->
-                <div class="checkboxContainer checkboxContainer-withDescription">
-                    <label class="emby-checkbox-label">
-                        <input id="UpdateExistingArtwork"
-                               type="checkbox"
-                               is="emby-checkbox"
-                        />
-                        <span>Overwrite existing collection artwork</span>
-                    </label>
-                    <div class="fieldDescription checkboxFieldDescription">
-                        When enabled, artwork from the TMM set folder is re-copied
-                        on every sync, replacing any existing images on the collection.
-                        When disabled, only collections with no artwork are updated.
-                    </div>
-                </div>
-
-                <!-- ── Movie Folder Artwork Fallback ─────────────────────────── -->
-                <div class="checkboxContainer checkboxContainer-withDescription">
-                    <label class="emby-checkbox-label">
-                        <input id="EnableMovieFolderArtworkFallback"
-                               type="checkbox"
-                               is="emby-checkbox"
-                        />
-                        <span>Suche nach Set-Artwork in Filmordnern (Fallback)</span>
-                    </label>
-                    <div class="fieldDescription checkboxFieldDescription">
-                        Wenn aktiviert, sucht das Plugin nach Set-Artwork (z.&nbsp;B. <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code>) direkt in den Ordnern der enthaltenen Filme, falls kein zentraler Ordner konfiguriert ist oder dort kein Bild gefunden wird.
-                    </div>
-                </div>
-
-                <!-- ── Enable Mount Guard ────────────────────────────────────── -->
-                <div class="checkboxContainer checkboxContainer-withDescription">
-                    <label class="emby-checkbox-label">
-                        <input id="EnableMountGuard"
-                               type="checkbox"
-                               is="emby-checkbox"
-                        />
-                        <span>Enable Mount Guard</span>
-                    </label>
-                    <div class="fieldDescription checkboxFieldDescription">
-                        When enabled, the plugin checks if all configured movie library folders
-                        are online and not empty before syncing. If a folder goes offline or becomes
-                        empty (e.g. network share drops), the sync is aborted to prevent collections from losing their members.
-                    </div>
-                </div>
-
-                <!-- ── Aggregate Community Ratings ────────────────────────────── -->
-                <div class="checkboxContainer checkboxContainer-withDescription">
-                    <label class="emby-checkbox-label">
-                        <input id="AggregateRatings"
-                               type="checkbox"
-                               is="emby-checkbox"
-                        />
-                        <span>Aggregate community ratings</span>
-                    </label>
-                    <div class="fieldDescription checkboxFieldDescription">
-                        When enabled, calculates and sets the collection's community rating as the average of the ratings of its member movies.
-                    </div>
-                </div>
-
-                <!-- ── Aggregate Tags ────────────────────────────────────────── -->
-                <div class="checkboxContainer checkboxContainer-withDescription">
-                    <label class="emby-checkbox-label">
-                        <input id="AggregateTags"
-                               type="checkbox"
-                               is="emby-checkbox"
-                        />
-                        <span>Aggregate tags</span>
-                    </label>
-                    <div class="fieldDescription checkboxFieldDescription">
-                        When enabled, aggregates all unique tags from member movies and applies them to the collection.
-                    </div>
-                </div>
-
-                <!-- ── Aggregate Cast and Crew ───────────────────────────────── -->
-                <div class="checkboxContainer checkboxContainer-withDescription">
-                    <label class="emby-checkbox-label">
-                        <input id="AggregatePeople"
-                               type="checkbox"
-                               is="emby-checkbox"
-                        />
-                        <span>Aggregate cast and crew</span>
-                    </label>
-                    <div class="fieldDescription checkboxFieldDescription">
-                        When enabled, aggregates unique directors and writers, and the first 10 actors from each member movie, and displays them on the collection card.
-                    </div>
-                </div>
-
-
-                <!-- ── Default Collection Sort By ─────────────────────────────────── -->
-                <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="CollectionSortBy">
-                        Default Collection Sort By
-                    </label>
-                    <select id="CollectionSortBy" is="emby-select" class="emby-select-withcolor emby-select">
-                        <option value="Default">Creation Order (Release Date)</option>
-                        <option value="PremiereDate">Release Date</option>
-                        <option value="SortName">Sort Name</option>
-                    </select>
-                    <div class="fieldDescription">
-                        Display order applied to collections. Jellyfin natively supports only
-                        "Release Date" and "Sort Name"; "Creation Order" keeps the order in which
-                        the plugin linked the movies (sorted by release date when created).
-                        You can still manually override this for individual collections by clicking
-                        "Edit Metadata" on the collection's details page in Jellyfin.
-                    </div>
-                </div>
-
-                <!-- ── Default Collection Sort Order ─────────────────────────────────── -->
-                <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="CollectionSortOrder">
-                        Default Collection Sort Order
-                    </label>
-                    <select id="CollectionSortOrder" is="emby-select" class="emby-select-withcolor emby-select">
-                        <option value="Ascending">Ascending</option>
-                        <option value="Descending">Descending</option>
-                    </select>
-                    <div class="fieldDescription">
-                        Sorting direction for the order in which movies are linked into a collection.
-                        Only affects "Creation Order" mode — Jellyfin's native "Release Date" and
-                        "Sort Name" display orders are always ascending.
-                    </div>
-                </div>
-
-                <!-- ── Release Date Calculation ────────────────────────────────────── -->
-                <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="CollectionReleaseDate">
-                        Release Date Calculation
-                    </label>
-                    <select id="CollectionReleaseDate" is="emby-select" class="emby-select-withcolor emby-select">
-                        <option value="DoNotCalculate">Do not calculate</option>
-                        <option value="AlwaysOverwrite">Always overwrite</option>
-                        <option value="SetOnlyIfEmpty">Set only if empty</option>
-                    </select>
-                    <div class="fieldDescription">
-                        Automatically calculate the collection's release date based on the oldest movie in it.
-                    </div>
-                </div>
-
-                <!-- ── Actions ───────────────────────────────────────────────── -->
-                <div style="display:flex; gap: 1em; margin-top: 1.5em; flex-wrap: wrap;">
-                    <button is="emby-button"
-                            type="submit"
-                            class="raised button-submit block emby-button">
-                        <span>Save</span>
-                    </button>
-                    <button is="emby-button"
-                            id="BtnSyncNow"
-                            type="button"
-                            class="raised block emby-button">
-                        <span>&#9654; Sync Now</span>
-                    </button>
-                    <button is="emby-button"
-                            id="BtnPreview"
-                            type="button"
-                            class="raised block emby-button">
-                        <span>Preview Changes</span>
-                    </button>
-                    <button is="emby-button"
-                            id="BtnValidate"
-                            type="button"
-                            class="raised block emby-button">
-                        <span>🔍 Check NFOs &amp; Artwork</span>
-                    </button>
-                    <button is="emby-button"
-                            id="BtnForceRebuild"
-                            type="button"
-                            class="raised block emby-button"
-                            style="background: #e53935; color: #fff;">
-                        <span>⚠️ Force Rebuild</span>
-                    </button>
-                </div>
-
-                <!-- Status message -->
-                <div id="StatusMsg"
-                     style="margin-top: 1em; color: #4CAF50; display:none;">
-                </div>
-
-                <!-- Preview results -->
-                <div id="PreviewResultPanel"
-                     style="display: none; margin-top: 1.5em; background: rgba(255, 255, 255, 0.06); border: 1px solid #333; border-radius: 8px; padding: 1em 1.25em; font-size: 0.95em; line-height: 1.6;">
-                </div>
-
-                <!-- Validation diagnostics results panel -->
-                <div id="ValidationResultPanel"
-                     style="display: none; margin-top: 1.5em; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; padding: 1.25em 1.5em; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1em; flex-wrap: wrap; gap: 0.8em;">
-                        <div style="display: flex; align-items: center; gap: 0.6em;">
-                            <span style="font-size: 1.3em;">🩺</span>
-                            <h3 style="margin: 0; font-size: 1.15em; color: #00a4dc; font-weight: bold;">Local NFO &amp; Artwork Diagnostics</h3>
+                        <div class="fieldDescription">
+                            A collection is only created if at least this many movies in your
+                            library belong to the set. Default: 1.
                         </div>
-                        <button is="emby-button" type="button" class="raised emby-button" id="BtnCloseValidation" style="font-size: 0.8em; padding: 4px 10px; background: rgba(255, 255, 255, 0.08);">
-                            <span>✕ Close</span>
+                    </div>
+
+                    <!-- ── Delete Orphaned Sets ──────────────────────────────────── -->
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="DeleteOrphanedSets"
+                                   type="checkbox"
+                                   is="emby-checkbox"
+                            />
+                            <span>Delete orphaned collections</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            Remove Jellyfin collections that no longer have any movies
+                            with a matching &lt;set&gt; tag. By default, collections with
+                            a TMDB or IMDb provider ID are kept as a safety guard.
+                            Note: when this is disabled and a set is renamed in your NFOs,
+                            the old collection is left untouched — movies may then appear
+                            in both the old and the new collection until you remove the
+                            old one manually (or enable this option).
+                        </div>
+                    </div>
+
+                    <!-- ── Delete Sets With Provider ID ───────────────────────────── -->
+                    <div class="checkboxContainer checkboxContainer-withDescription" style="margin-left: 2em;">
+                        <label class="emby-checkbox-label">
+                            <input id="DeleteSetsWithProviderId"
+                                   type="checkbox"
+                                   is="emby-checkbox"
+                            />
+                            <span>Also delete orphaned collections with provider IDs</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            When enabled, orphaned collections are deleted even if they
+                            have a TMDB or IMDb provider ID. Use this if your set NFOs
+                            contain &lt;tmdbid&gt; tags and you want full automatic cleanup.
+                        </div>
+                    </div>
+
+                    <!-- ── Update Existing Artwork ───────────────────────────────── -->
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="UpdateExistingArtwork"
+                                   type="checkbox"
+                                   is="emby-checkbox"
+                            />
+                            <span>Overwrite existing collection artwork</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            When enabled, artwork from the TMM set folder is re-copied
+                            on every sync, replacing any existing images on the collection.
+                            When disabled, only collections with no artwork are updated.
+                        </div>
+                    </div>
+
+                    <!-- ── Movie Folder Artwork Fallback ─────────────────────────── -->
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="EnableMovieFolderArtworkFallback"
+                                   type="checkbox"
+                                   is="emby-checkbox"
+                            />
+                            <span>Suche nach Set-Artwork in Filmordnern (Fallback)</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            Wenn aktiviert, sucht das Plugin nach Set-Artwork (z.&nbsp;B. <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code>) direkt in den Ordnern der enthaltenen Filme, falls kein zentraler Ordner konfiguriert ist oder dort kein Bild gefunden wird.
+                        </div>
+                    </div>
+
+                    <!-- ── Enable Mount Guard ────────────────────────────────────── -->
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="EnableMountGuard"
+                                   type="checkbox"
+                                   is="emby-checkbox"
+                            />
+                            <span>Enable Mount Guard</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            When enabled, the plugin checks if all configured movie library folders
+                            are online and not empty before syncing. If a folder goes offline or becomes
+                            empty (e.g. network share drops), the sync is aborted to prevent collections from losing their members.
+                        </div>
+                    </div>
+
+                    <!-- ── Aggregate Community Ratings ────────────────────────────── -->
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="AggregateRatings"
+                                   type="checkbox"
+                                   is="emby-checkbox"
+                            />
+                            <span>Aggregate community ratings</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            When enabled, calculates and sets the collection's community rating as the average of the ratings of its member movies.
+                        </div>
+                    </div>
+
+                    <!-- ── Aggregate Tags ────────────────────────────────────────── -->
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="AggregateTags"
+                                   type="checkbox"
+                                   is="emby-checkbox"
+                            />
+                            <span>Aggregate tags</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            When enabled, aggregates all unique tags from member movies and applies them to the collection.
+                        </div>
+                    </div>
+
+                    <!-- ── Aggregate Cast and Crew ───────────────────────────────── -->
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="AggregatePeople"
+                                   type="checkbox"
+                                   is="emby-checkbox"
+                            />
+                            <span>Aggregate cast and crew</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            When enabled, aggregates unique directors and writers, and the first 10 actors from each member movie, and displays them on the collection card.
+                        </div>
+                    </div>
+
+                    <!-- ── Default Collection Sort By ─────────────────────────────────── -->
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="CollectionSortBy">
+                            Default Collection Sort By
+                        </label>
+                        <select id="CollectionSortBy" is="emby-select" class="emby-select-withcolor emby-select">
+                            <option value="Default">Creation Order (Release Date)</option>
+                            <option value="PremiereDate">Release Date</option>
+                            <option value="SortName">Sort Name</option>
+                        </select>
+                        <div class="fieldDescription">
+                            Display order applied to collections. Jellyfin natively supports only
+                            "Release Date" and "Sort Name"; "Creation Order" keeps the order in which
+                            the plugin linked the movies (sorted by release date when created).
+                            You can still manually override this for individual collections by clicking
+                            "Edit Metadata" on the collection's details page in Jellyfin.
+                        </div>
+                    </div>
+
+                    <!-- ── Default Collection Sort Order ─────────────────────────────────── -->
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="CollectionSortOrder">
+                            Default Collection Sort Order
+                        </label>
+                        <select id="CollectionSortOrder" is="emby-select" class="emby-select-withcolor emby-select">
+                            <option value="Ascending">Ascending</option>
+                            <option value="Descending">Descending</option>
+                        </select>
+                        <div class="fieldDescription">
+                            Sorting direction for the order in which movies are linked into a collection.
+                            Only affects "Creation Order" mode — Jellyfin's native "Release Date" and
+                            "Sort Name" display orders are always ascending.
+                        </div>
+                    </div>
+
+                    <!-- ── Release Date Calculation ────────────────────────────────────── -->
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="CollectionReleaseDate">
+                            Release Date Calculation
+                        </label>
+                        <select id="CollectionReleaseDate" is="emby-select" class="emby-select-withcolor emby-select">
+                            <option value="DoNotCalculate">Do not calculate</option>
+                            <option value="AlwaysOverwrite">Always overwrite</option>
+                            <option value="SetOnlyIfEmpty">Set only if empty</option>
+                        </select>
+                        <div class="fieldDescription">
+                            Automatically calculate the collection's release date based on the oldest movie in it.
+                        </div>
+                    </div>
+
+                    <!-- ── Settings Save Action ──────────────────────────────────────── -->
+                    <div style="display:flex; gap: 1em; margin-top: 2em; flex-wrap: wrap; align-items: center;">
+                        <button is="emby-button"
+                                type="submit"
+                                class="raised button-submit block emby-button"
+                                style="background: #00a4dc; color: #fff; font-weight: 600; padding: 0.6em 2em;">
+                            <span>Save Settings</span>
                         </button>
                     </div>
-                    <div id="ValidationSummaryArea"></div>
-                    <div id="ValidationFilterButtons" style="display: none; gap: 0.5em; margin: 1em 0; flex-wrap: wrap;"></div>
-                    <div id="ValidationDetailsArea"></div>
+
+                </div>
+
+                <!-- ════════════════════════════════════════════════════════════════
+                     TAB 3: 🩺 Diagnose & Tools
+                     ════════════════════════════════════════════════════════════════ -->
+                <div id="TabDiagnostics" class="lms-tab-pane" role="tabpanel">
+
+                    <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 1.25em 1.5em; margin-bottom: 1.5em;">
+                        <h3 style="margin: 0 0 0.4em 0; font-size: 1.1em; color: #00a4dc; font-weight: 600;">Diagnosewerkzeuge &amp; Wartung</h3>
+                        <p style="margin: 0 0 1.2em 0; color: #ccc; font-size: 0.9em; line-height: 1.5;">
+                            Prüfe deine lokalen NFO- und Bilddateien auf Formatfehler oder fehlende Grafiken, führe einen Trockenlauf des Syncs durch oder setze bei Bedarf alle Collections zurück.
+                        </p>
+                        <div style="display: flex; gap: 0.8em; flex-wrap: wrap; align-items: center;">
+                            <button is="emby-button"
+                                    id="BtnValidate"
+                                    type="button"
+                                    class="raised block emby-button"
+                                    style="background: #00a4dc; color: #fff; font-weight: 500;">
+                                <span>🔍 Check NFOs &amp; Artwork</span>
+                            </button>
+                            <button is="emby-button"
+                                    id="BtnPreview"
+                                    type="button"
+                                    class="raised block emby-button">
+                                <span>Preview Changes</span>
+                            </button>
+                            <button is="emby-button"
+                                    id="BtnForceRebuild"
+                                    type="button"
+                                    class="raised block emby-button"
+                                    style="background: #e53935; color: #fff; margin-left: auto;">
+                                <span>⚠️ Force Rebuild</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Preview results -->
+                    <div id="PreviewResultPanel"
+                         style="display: none; margin-top: 1.5em; background: rgba(255, 255, 255, 0.06); border: 1px solid #333; border-radius: 8px; padding: 1em 1.25em; font-size: 0.95em; line-height: 1.6;">
+                    </div>
+
+                    <!-- Validation diagnostics results panel -->
+                    <div id="ValidationResultPanel"
+                         style="display: none; margin-top: 1.5em; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; padding: 1.25em 1.5em; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1em; flex-wrap: wrap; gap: 0.8em;">
+                            <div style="display: flex; align-items: center; gap: 0.6em;">
+                                <span style="font-size: 1.3em;">🩺</span>
+                                <h3 style="margin: 0; font-size: 1.15em; color: #00a4dc; font-weight: bold;">Local NFO &amp; Artwork Diagnostics</h3>
+                            </div>
+                            <button is="emby-button" type="button" class="raised emby-button" id="BtnCloseValidation" style="font-size: 0.8em; padding: 4px 10px; background: rgba(255, 255, 255, 0.08);">
+                                <span>✕ Close</span>
+                            </button>
+                        </div>
+                        <div id="ValidationSummaryArea"></div>
+                        <div id="ValidationFilterButtons" style="display: none; gap: 0.5em; margin: 1em 0; flex-wrap: wrap;"></div>
+                        <div id="ValidationDetailsArea"></div>
+                    </div>
+
+                </div>
+
+                <!-- ════════════════════════════════════════════════════════════════
+                     TAB 4: 💡 Setup-Guide
+                     ════════════════════════════════════════════════════════════════ -->
+                <div id="TabGuide" class="lms-tab-pane" role="tabpanel">
+
+                    <div style="background: rgba(0, 164, 220, 0.08); border: 1px solid rgba(0, 164, 220, 0.4); border-radius: 8px; padding: 1.5em; margin-bottom: 2em; font-size: 0.95em; line-height: 1.6;">
+                        <h3 style="margin-top: 0; margin-bottom: 1em; color: #00a4dc; display: flex; align-items: center; gap: 0.5em; font-size: 1.2em;">
+                            <span>💡</span> Setup Guide &amp; Best Practices
+                        </h3>
+                        
+                        <div style="margin-bottom: 1.5em;">
+                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">1. Vor der Synchronisation (Konflikte vermeiden)</h4>
+                            <p style="margin: 0; color: #ccc;">
+                                Stelle sicher, dass die Option <em>"Automatisch zu Sammlung hinzufügen"</em> (bzw. <em>"Automatically add to collection"</em>) in deinen Jellyfin-Bibliothekseinstellungen <strong>deaktiviert</strong> ist 
+                                (unter <strong>Dashboard &rarr; Bibliotheken &rarr; [deine Filmbibliothek] &rarr; Metadaten-Einstellungen</strong>), um automatische TMDB-Kollisionen zu verhindern.
+                            </p>
+                        </div>
+
+                        <div style="margin-bottom: 1.5em;">
+                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">2. Nach der Synchronisation (Filme gruppieren)</h4>
+                            <p style="margin: 0; color: #ccc;">
+                                Damit Filme in der Haupt-Filmübersicht unter ihrer Collection-Kachel zusammengefasst werden, aktiviere 
+                                <em>"Filme in Sammlungen gruppieren"</em> unter 
+                                <a href="#/dashboard/libraries/display" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Dashboard &rarr; Bibliotheken &rarr; Anzeige</a>.
+                            </p>
+                        </div>
+
+                        <div style="margin-bottom: 1.5em;">
+                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">3. Ordnerstruktur &amp; Naming-Muster</h4>
+                            <p style="margin: 0 0 0.5em 0; color: #ccc;">
+                                tinyMediaManager verwaltet Movie Sets entweder in einem zentralen Set-Ordner (empfohlen: <code>&lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</code>) oder direkt in den Filmordnern.
+                            </p>
+                            <ul style="margin: 0; padding-left: 1.2em; color: #bbb;">
+                                <li><strong>Set Subfolder:</strong> <code>.../_sets/Avatar Collection/Avatar Collection.nfo</code></li>
+                                <li><strong>Flat File:</strong> <code>.../_sets/Avatar Collection.nfo</code></li>
+                                <li><strong>collection.nfo:</strong> <code>.../_sets/Avatar Collection/collection.nfo</code></li>
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">4. Fallback für Filmordner-Artwork</h4>
+                            <p style="margin: 0; color: #ccc;">
+                                Liegt für eine Filmreihe kein zentraler Set-Ordner vor (wie z. B. bei einzelnen Reihen oder gemischten Bibliotheken), sucht das Plugin bei aktivierter Fallback-Option automatisch in den Ordnern der Mitgliedsfilme nach <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code> etc.
+                            </p>
+                        </div>
+                    </div>
+
                 </div>
 
             </form>
@@ -385,12 +512,73 @@
             const PLUGIN_ID   = 'd3e4f5a6-b7c8-9012-def0-123456789abc';
             const TASK_KEY    = 'LocalMovieSets_Sync';
 
+            /* ── Tab Navigation & State ── */
+            function initTabs(page) {
+                const tabBtns = page.querySelectorAll('.lms-tab-btn');
+                const tabPanes = page.querySelectorAll('.lms-tab-pane');
+                if (!tabBtns || tabBtns.length === 0) return;
+
+                function switchTab(targetTabId) {
+                    let found = false;
+                    tabBtns.forEach(function (btn) {
+                        const isMatch = btn.getAttribute('data-tab') === targetTabId;
+                        if (isMatch) {
+                            btn.classList.add('active');
+                            btn.setAttribute('aria-selected', 'true');
+                            found = true;
+                        } else {
+                            btn.classList.remove('active');
+                            btn.setAttribute('aria-selected', 'false');
+                        }
+                    });
+
+                    if (!found && tabBtns.length > 0) {
+                        targetTabId = tabBtns[0].getAttribute('data-tab');
+                        tabBtns[0].classList.add('active');
+                        tabBtns[0].setAttribute('aria-selected', 'true');
+                    }
+
+                    tabPanes.forEach(function (pane) {
+                        if (pane.id === targetTabId) {
+                            pane.classList.add('active');
+                            pane.style.display = 'block';
+                        } else {
+                            pane.classList.remove('active');
+                            pane.style.display = 'none';
+                        }
+                    });
+
+                    try {
+                        sessionStorage.setItem('lms_active_tab', targetTabId);
+                    } catch (e) {
+                        // ignore storage errors
+                    }
+                }
+
+                tabBtns.forEach(function (btn) {
+                    btn.onclick = function () {
+                        const targetId = btn.getAttribute('data-tab');
+                        switchTab(targetId);
+                    };
+                });
+
+                let savedTab = 'TabDashboard';
+                try {
+                    savedTab = sessionStorage.getItem('lms_active_tab') || 'TabDashboard';
+                } catch (e) {}
+
+                switchTab(savedTab);
+            }
+
             function showStatus(msg, isError) {
                 const el = document.getElementById('StatusMsg');
+                if (!el) return;
                 el.textContent = msg;
+                el.style.background = isError ? 'rgba(244, 67, 54, 0.15)' : 'rgba(76, 175, 80, 0.15)';
+                el.style.border = isError ? '1px solid #f44336' : '1px solid #4CAF50';
                 el.style.color = isError ? '#F44336' : '#4CAF50';
                 el.style.display = 'block';
-                setTimeout(() => { el.style.display = 'none'; }, 5000);
+                setTimeout(function () { el.style.display = 'none'; }, 6000);
             }
 
             /* ── Check Conflicts ── */
@@ -1317,6 +1505,7 @@
                 const page = e.target;
                 if (!page.id || page.id !== 'LocalMovieSetsConfigPage') return;
 
+                initTabs(page);
                 loadConfig(page);
                 checkConflicts(page);
                 loadSyncStatus(page);
