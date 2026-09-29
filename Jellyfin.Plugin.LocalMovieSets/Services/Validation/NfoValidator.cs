@@ -104,9 +104,12 @@ public class NfoValidator
             totalSetsScanned++;
             var dirName = Path.GetFileName(subdir);
             var folderIssues = ValidateDirectory(subdir, dirName, definedCollections);
-            if (folderIssues.Count > 0)
+            if (folderIssues.Any(i => i.Severity != ValidationSeverity.Info))
             {
                 setsWithIssues.Add(dirName);
+            }
+            if (folderIssues.Count > 0)
+            {
                 report.Issues.AddRange(folderIssues);
             }
         }
@@ -125,9 +128,12 @@ public class NfoValidator
                 var artworkIssues = ValidateSiblingArtwork(folder, setBaseName);
                 nfoIssues.AddRange(artworkIssues);
 
-                if (nfoIssues.Count > 0)
+                if (nfoIssues.Any(i => i.Severity != ValidationSeverity.Info))
                 {
                     setsWithIssues.Add(setBaseName);
+                }
+                if (nfoIssues.Count > 0)
+                {
                     report.Issues.AddRange(nfoIssues);
                 }
             }
@@ -428,7 +434,7 @@ public class NfoValidator
         {
             issues.Add(new ValidationIssueDto
             {
-                Severity = ValidationSeverity.Warning,
+                Severity = ValidationSeverity.Info,
                 Category = ValidationCategory.MissingArtwork,
                 CollectionName = collectionName,
                 FolderPath = directoryPath,
@@ -473,7 +479,7 @@ public class NfoValidator
         {
             issues.Add(new ValidationIssueDto
             {
-                Severity = ValidationSeverity.Warning,
+                Severity = ValidationSeverity.Info,
                 Category = ValidationCategory.MissingArtwork,
                 CollectionName = setBaseName,
                 FolderPath = folderPath,

@@ -43,8 +43,8 @@
         .lms-tab-btn.active {
             color: #00a4dc;
             border-bottom-color: #00a4dc;
-            font-weight: 600;
-            background: rgba(0, 164, 220, 0.08);
+            font-weight: 500;
+            background: rgba(0, 164, 220, 0.1);
         }
         .lms-tab-pane {
             display: none;
@@ -64,32 +64,47 @@
             <!-- ── Tab Navigation Bar ── -->
             <div class="lms-tab-bar" role="tablist">
                 <button type="button" class="lms-tab-btn active" data-tab="TabDashboard" role="tab" aria-selected="true">
-                    <span>📊</span> <span>Dashboard &amp; Verlauf</span>
+                    <span>📊</span> <span>Dashboard &amp; History</span>
                 </button>
                 <button type="button" class="lms-tab-btn" data-tab="TabSettings" role="tab" aria-selected="false">
-                    <span>⚙️</span> <span>Einstellungen</span>
+                    <span>⚙️</span> <span>Settings</span>
                 </button>
                 <button type="button" class="lms-tab-btn" data-tab="TabDiagnostics" role="tab" aria-selected="false">
-                    <span>🩺</span> <span>Diagnose &amp; Tools</span>
+                    <span>🩺</span> <span>Diagnostics &amp; Tools</span>
                 </button>
                 <button type="button" class="lms-tab-btn" data-tab="TabGuide" role="tab" aria-selected="false">
-                    <span>💡</span> <span>Setup-Guide</span>
+                    <span>💡</span> <span>Setup Guide</span>
                 </button>
             </div>
 
             <!-- ── Global Status Notification ── -->
             <div id="StatusMsg" style="margin: -0.6em 0 1.4em 0; padding: 0.75em 1em; border-radius: 6px; font-weight: 500; font-size: 0.95em; display: none;"></div>
 
+            <!-- ── Global Conflict Warning (visible across all tabs) ── -->
+            <div id="ConflictWarningBox" style="display: none; background: rgba(244, 67, 54, 0.15); border: 1px solid #f44336; border-radius: 8px; padding: 1.25em; margin-bottom: 1.5em; font-size: 0.95em; line-height: 1.5;">
+                <h3 style="margin-top: 0; margin-bottom: 0.5em; color: #f44336; display: flex; align-items: center; gap: 0.5em; font-weight: bold;">
+                    <span style="font-size: 1.2em;">⚠️</span> Warning: Native Collection Auto-Add is Active
+                </h3>
+                <p style="margin: 0 0 0.8em 0; color: #eee;">
+                    The native Jellyfin option <strong>"Automatically add to collection"</strong> is currently enabled on the following libraries:
+                    <span id="ConflictLibNames" style="color: #ff9800; font-weight: bold;"></span>
+                </p>
+                <p style="margin: 0; color: #ccc; font-size: 0.9em;">
+                    To prevent TMDB from conflicting with tinyMediaManager metadata (creating duplicated collections or mixing up items), please disable this option in 
+                    <strong>Dashboard &rarr; Libraries &rarr; (select library) &rarr; Metadata settings</strong>.
+                </p>
+            </div>
+
             <form id="LocalMovieSetsConfigForm">
 
                 <!-- ════════════════════════════════════════════════════════════════
-                     TAB 1: 📊 Dashboard & Verlauf
+                     TAB 1: 📊 Dashboard & History
                      ════════════════════════════════════════════════════════════════ -->
                 <div id="TabDashboard" class="lms-tab-pane active" role="tabpanel">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2em; flex-wrap: wrap; gap: 0.8em;">
                         <div>
-                            <h3 style="margin: 0; font-size: 1.15em; color: #fff;">Status &amp; Sammlungs-Metriken</h3>
-                            <div style="font-size: 0.85em; color: #888;">Echtzeit-Statistiken über lokale Filme und Sets</div>
+                            <h3 style="margin: 0; font-size: 1.15em; color: #fff;">Status &amp; Collection Metrics</h3>
+                            <div style="font-size: 0.85em; color: #888;">Real-time statistics for local movies and sets</div>
                         </div>
                         <button is="emby-button"
                                 id="BtnSyncNow"
@@ -115,24 +130,9 @@
                 </div>
 
                 <!-- ════════════════════════════════════════════════════════════════
-                     TAB 2: ⚙️ Einstellungen
+                     TAB 2: ⚙️ Settings
                      ════════════════════════════════════════════════════════════════ -->
                 <div id="TabSettings" class="lms-tab-pane" role="tabpanel">
-
-                    <!-- ── Conflict Warning ── -->
-                    <div id="ConflictWarningBox" style="display: none; background: rgba(244, 67, 54, 0.15); border: 1px solid #f44336; border-radius: 8px; padding: 1.25em; margin-bottom: 2em; font-size: 0.95em; line-height: 1.5;">
-                        <h3 style="margin-top: 0; margin-bottom: 0.5em; color: #f44336; display: flex; align-items: center; gap: 0.5em; font-weight: bold;">
-                            <span style="font-size: 1.2em;">⚠️</span> Warning: Native Collection Auto-Add is Active
-                        </h3>
-                        <p style="margin: 0 0 0.8em 0; color: #eee;">
-                            The native Jellyfin option <strong>"Automatically add to collection"</strong> is currently enabled on the following libraries:
-                            <span id="ConflictLibNames" style="color: #ff9800; font-weight: bold;"></span>
-                        </p>
-                        <p style="margin: 0; color: #ccc; font-size: 0.9em;">
-                            To prevent TMDB from conflicting with tinyMediaManager metadata (creating duplicated collections or mixing up items), please disable this option in 
-                            <strong>Dashboard &rarr; Libraries &rarr; (select library) &rarr; Metadata settings</strong>.
-                        </p>
-                    </div>
 
                     <!-- ── Set Data Folder ───────────────────────────────────────── -->
                     <div class="inputContainer">
@@ -264,10 +264,10 @@
                                    type="checkbox"
                                    is="emby-checkbox"
                             />
-                            <span>Suche nach Set-Artwork in Filmordnern (Fallback)</span>
+                            <span>Search movie folders for set artwork (fallback)</span>
                         </label>
                         <div class="fieldDescription checkboxFieldDescription">
-                            Wenn aktiviert, sucht das Plugin nach Set-Artwork (z.&nbsp;B. <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code>) direkt in den Ordnern der enthaltenen Filme, falls kein zentraler Ordner konfiguriert ist oder dort kein Bild gefunden wird.
+                            When enabled, the plugin searches for set artwork (e.g. <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code>) directly inside member movie folders if no dedicated set data folder is configured or if no image was found there.
                         </div>
                     </div>
 
@@ -392,14 +392,14 @@
                 </div>
 
                 <!-- ════════════════════════════════════════════════════════════════
-                     TAB 3: 🩺 Diagnose & Tools
+                     TAB 3: 🩺 Diagnostics & Tools
                      ════════════════════════════════════════════════════════════════ -->
                 <div id="TabDiagnostics" class="lms-tab-pane" role="tabpanel">
 
                     <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 1.25em 1.5em; margin-bottom: 1.5em;">
-                        <h3 style="margin: 0 0 0.4em 0; font-size: 1.1em; color: #00a4dc; font-weight: 600;">Diagnosewerkzeuge &amp; Wartung</h3>
+                        <h3 style="margin: 0 0 0.4em 0; font-size: 1.1em; color: #00a4dc; font-weight: 600;">Diagnostic Tools &amp; Maintenance</h3>
                         <p style="margin: 0 0 1.2em 0; color: #ccc; font-size: 0.9em; line-height: 1.5;">
-                            Prüfe deine lokalen NFO- und Bilddateien auf Formatfehler oder fehlende Grafiken, führe einen Trockenlauf des Syncs durch oder setze bei Bedarf alle Collections zurück.
+                            Inspect your local NFO and artwork files for format errors or missing graphics, perform a dry run of the sync, or force rebuild all collections if needed.
                         </p>
                         <div style="display: flex; gap: 0.8em; flex-wrap: wrap; align-items: center;">
                             <button is="emby-button"
@@ -450,7 +450,7 @@
                 </div>
 
                 <!-- ════════════════════════════════════════════════════════════════
-                     TAB 4: 💡 Setup-Guide
+                     TAB 4: 💡 Setup Guide
                      ════════════════════════════════════════════════════════════════ -->
                 <div id="TabGuide" class="lms-tab-pane" role="tabpanel">
 
@@ -460,26 +460,26 @@
                         </h3>
                         
                         <div style="margin-bottom: 1.5em;">
-                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">1. Vor der Synchronisation (Konflikte vermeiden)</h4>
+                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">1. Before Syncing (Avoid Metadata Conflicts)</h4>
                             <p style="margin: 0; color: #ccc;">
-                                Stelle sicher, dass die Option <em>"Automatisch zu Sammlung hinzufügen"</em> (bzw. <em>"Automatically add to collection"</em>) in deinen Jellyfin-Bibliothekseinstellungen <strong>deaktiviert</strong> ist 
-                                (unter <strong>Dashboard &rarr; Bibliotheken &rarr; [deine Filmbibliothek] &rarr; Metadaten-Einstellungen</strong>), um automatische TMDB-Kollisionen zu verhindern.
+                                Ensure that <em>"Automatically add to collection"</em> is <strong>disabled</strong> in your Jellyfin library settings 
+                                (under <strong>Dashboard &rarr; Libraries &rarr; [your movie library] &rarr; Metadata settings</strong>) to prevent conflicts with TMDB auto-collections.
                             </p>
                         </div>
 
                         <div style="margin-bottom: 1.5em;">
-                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">2. Nach der Synchronisation (Filme gruppieren)</h4>
+                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">2. Display Settings (Group Movies into Collections)</h4>
                             <p style="margin: 0; color: #ccc;">
-                                Damit Filme in der Haupt-Filmübersicht unter ihrer Collection-Kachel zusammengefasst werden, aktiviere 
-                                <em>"Filme in Sammlungen gruppieren"</em> unter 
-                                <a href="#/dashboard/libraries/display" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Dashboard &rarr; Bibliotheken &rarr; Anzeige</a>.
+                                To group member movies under their collection poster in the main movie library view, enable 
+                                <em>"Group movies into collections"</em> under 
+                                <a href="#/dashboard/libraries/display" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Dashboard &rarr; Libraries &rarr; Display</a>.
                             </p>
                         </div>
 
                         <div style="margin-bottom: 1.5em;">
-                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">3. Ordnerstruktur &amp; Naming-Muster</h4>
+                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">3. Folder Structure &amp; Naming Conventions</h4>
                             <p style="margin: 0 0 0.5em 0; color: #ccc;">
-                                tinyMediaManager verwaltet Movie Sets entweder in einem zentralen Set-Ordner (empfohlen: <code>&lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</code>) oder direkt in den Filmordnern.
+                                tinyMediaManager manages movie sets either in a dedicated set folder (recommended: <code>&lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</code>) or directly in movie folders.
                             </p>
                             <ul style="margin: 0; padding-left: 1.2em; color: #bbb;">
                                 <li><strong>Set Subfolder:</strong> <code>.../_sets/Avatar Collection/Avatar Collection.nfo</code></li>
@@ -489,9 +489,9 @@
                         </div>
 
                         <div>
-                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">4. Fallback für Filmordner-Artwork</h4>
+                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">4. Movie Folder Artwork Fallback</h4>
                             <p style="margin: 0; color: #ccc;">
-                                Liegt für eine Filmreihe kein zentraler Set-Ordner vor (wie z. B. bei einzelnen Reihen oder gemischten Bibliotheken), sucht das Plugin bei aktivierter Fallback-Option automatisch in den Ordnern der Mitgliedsfilme nach <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code> etc.
+                                If a movie set has no dedicated folder in the Set Data Folder (or if you don't use a central set folder), enabling the fallback option allows the plugin to search the member movies' folders for <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code>, etc.
                             </p>
                         </div>
                     </div>
