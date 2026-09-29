@@ -33,7 +33,31 @@ def get_target_abi():
     except Exception as e:
         print(f"Warning: Could not parse target ABI from csproj: {e}")
         
-    return "10.10.0.0"
+def get_changelog(version):
+    """
+    Extracts the changelog section for the specified version from CHANGELOG.md.
+    If CHANGELOG.md does not exist or the section is not found, falls back to 'Release {version}'.
+    """
+    changelog_path = "CHANGELOG.md"
+    if not os.path.exists(changelog_path):
+        return f"Release {version}"
+    
+    try:
+        with open(changelog_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            
+        escaped_version = re.escape(version)
+        pattern = rf"^##\s+\[?{escaped_version}\]?(?:[^\n]*)\n([\s\S]*?)(?=^##\s+|\Z)"
+        match = re.search(pattern, content, re.MULTILINE)
+        if match:
+            raw_text = match.group(1).strip()
+            cleaned = re.sub(r"\n---\s*$", "", raw_text).strip()
+            if cleaned:
+                return cleaned
+    except Exception as e:
+        print(f"Warning: Could not extract changelog from CHANGELOG.md: {e}")
+        
+    return f"Release {version}"
 
 def main():
     if len(sys.argv) < 5:
@@ -54,6 +78,16 @@ def main():
     checksum = get_md5(zip_path)
     target_abi = get_target_abi()
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    changelog = get_changelog(version)
+    
+    # Write release notes file so GitHub Actions release step can use it as release body
+    for notes_path in ["release_notes.md", "/tmp/release_notes.md"]:
+        try:
+            with open(notes_path, "w", encoding="utf-8") as f:
+                f.write(changelog + "\n")
+            print(f"Successfully generated {notes_path}")
+        except Exception:
+            pass
     
     # URL to download the release asset
     zip_filename = os.path.basename(zip_path)
@@ -97,7 +131,7 @@ def main():
     version_exists = False
     new_version_info = {
         "version": version,
-        "changelog": f"Release {version}",
+        "changelog": changelog,
         "targetAbi": target_abi,
         "sourceUrl": source_url,
         "checksum": checksum,
