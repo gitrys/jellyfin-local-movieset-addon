@@ -87,12 +87,16 @@ public class SyncStatusInfo
     /// <summary>Gets or sets recent historical sync runs (newest first).</summary>
     public IReadOnlyList<SyncStatusInfo> History { get; set; } = Array.Empty<SyncStatusInfo>();
 
+    /// <summary>Gets or sets recent log messages from sync executions.</summary>
+    public IReadOnlyList<string> RecentLogs { get; set; } = Array.Empty<string>();
+
     /// <summary>Creates a shallow copy of this snapshot.</summary>
     /// <returns>A copy safe to hand out to API consumers.</returns>
     public SyncStatusInfo Clone()
     {
         var copy = (SyncStatusInfo)MemberwiseClone();
         copy.History = new List<SyncStatusInfo>(History);
+        copy.RecentLogs = new List<string>(RecentLogs);
         return copy;
     }
 }

@@ -189,6 +189,7 @@
                                 <span>Browse...</span>
                             </button>
                         </div>
+                        <div id="SetDataFolderStatus" style="font-size: 0.9em; margin-top: 0.5em; font-weight: 500; display: none;"></div>
                         <div class="fieldDescription">
                             Path to tinyMediaManager's "Movie Set Data Folder" setting.
                             This folder contains per-set NFO files and artwork.
@@ -219,6 +220,20 @@
                         <div class="fieldDescription">
                             Must match the "NFO file naming" option configured in
                             tinyMediaManager → Settings → Movies → Movie Sets.
+                        </div>
+                    </div>
+
+                    <!-- ── Movie Libraries Selection ─────────────────────────────── -->
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused">
+                            Movie Libraries to Scan
+                        </label>
+                        <div id="LibrarySelectionContainer" style="display: flex; flex-direction: column; gap: 0.5em; margin: 0.6em 0; padding: 0.8em 1em; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px;">
+                            <div style="color: #888; font-style: italic;">Loading libraries…</div>
+                        </div>
+                        <div class="fieldDescription">
+                            Select which movie libraries will be scanned for local movie sets.
+                            Leave all checked to scan your entire movie collection.
                         </div>
                     </div>
 
@@ -319,6 +334,20 @@
                             When enabled, the plugin checks if all configured movie library folders
                             are online and not empty before syncing. If a folder goes offline or becomes
                             empty (e.g. network share drops), the sync is aborted to prevent collections from losing their members.
+                        </div>
+                    </div>
+
+                    <!-- ── Enable Auto Sync on Library Updates ──────────────────── -->
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="EnableAutoSyncOnLibraryChange"
+                                   type="checkbox"
+                                   is="emby-checkbox"
+                            />
+                            <span>Automatically sync after library scans and updates</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            When enabled, automatically triggers a collection sync 30 seconds after movies are added, updated, or scanned in your library.
                         </div>
                     </div>
 
@@ -449,6 +478,13 @@
                                     type="button"
                                     class="raised block emby-button">
                                 <span>Preview Changes</span>
+                            </button>
+                            <button is="emby-button"
+                                    id="BtnSystemInfo"
+                                    type="button"
+                                    class="raised block emby-button"
+                                    style="background: rgba(255, 255, 255, 0.08); color: #fff;">
+                                <span>📋 Copy System Info for Bug Report</span>
                             </button>
                             <button is="emby-button"
                                     id="BtnForceRebuild"
@@ -1185,6 +1221,7 @@
                     page.querySelector('#UpdateExistingArtwork').checked = config.UpdateExistingArtwork === true;
                     page.querySelector('#EnableMovieFolderArtworkFallback').checked = config.EnableMovieFolderArtworkFallback !== false;
                     page.querySelector('#EnableMountGuard').checked = config.EnableMountGuard !== false;
+                    page.querySelector('#EnableAutoSyncOnLibraryChange').checked = config.EnableAutoSyncOnLibraryChange !== false;
                     page.querySelector('#AggregateRatings').checked = config.AggregateRatings === true;
                     page.querySelector('#AggregateTags').checked = config.AggregateTags === true;
                     page.querySelector('#AggregatePeople').checked = config.AggregatePeople === true;
@@ -1195,6 +1232,9 @@
                     page.querySelector('#CollectionSortBy').value = validSortBy.includes(sortBy) ? sortBy : 'Default';
                     page.querySelector('#CollectionSortOrder').value = config.CollectionSortOrder || 'Ascending';
                     page.querySelector('#CollectionReleaseDate').value = config.CollectionReleaseDate || 'DoNotCalculate';
+
+                    validateSetDataFolderPath(page);
+                    loadLibrarySelection(page, config.IncludedLibraryIds);
                 });
             }
 
@@ -1210,12 +1250,18 @@
                     config.UpdateExistingArtwork = page.querySelector('#UpdateExistingArtwork').checked;
                     config.EnableMovieFolderArtworkFallback = page.querySelector('#EnableMovieFolderArtworkFallback').checked;
                     config.EnableMountGuard     = page.querySelector('#EnableMountGuard').checked;
+                    config.EnableAutoSyncOnLibraryChange = page.querySelector('#EnableAutoSyncOnLibraryChange').checked;
                     config.AggregateRatings     = page.querySelector('#AggregateRatings').checked;
                     config.AggregateTags        = page.querySelector('#AggregateTags').checked;
                     config.AggregatePeople      = page.querySelector('#AggregatePeople').checked;
                     config.CollectionSortBy     = page.querySelector('#CollectionSortBy').value;
                     config.CollectionSortOrder  = page.querySelector('#CollectionSortOrder').value;
                     config.CollectionReleaseDate = page.querySelector('#CollectionReleaseDate').value;
+                    
+                    const checkedLibs = Array.from(page.querySelectorAll('.lms-lib-checkbox:checked')).map(function (cb) { return cb.value; });
+                    const allLibCheckboxes = page.querySelectorAll('.lms-lib-checkbox');
+                    // If all are checked or none are checked, store empty array (means all included)
+                    config.IncludedLibraryIds = (checkedLibs.length === allLibCheckboxes.length) ? [] : checkedLibs;
 
                     ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function () {
                         showStatus('Settings saved.', false);
@@ -1261,6 +1307,312 @@
                 }).catch(function (err) {
                     console.error('Failed to start force rebuild:', err);
                     showStatus('Failed to start force rebuild (is a sync already running?). Check server logs.', true);
+                });
+            }
+
+            /* ── Validate Set Data Folder Path & Permissions ── */
+            function validateSetDataFolderPath(page) {
+                const inputEl = page.querySelector('#SetDataFolder');
+                const statusEl = page.querySelector('#SetDataFolderStatus');
+                if (!inputEl || !statusEl) return;
+
+                const path = inputEl.value.trim();
+                if (!path) {
+                    statusEl.style.display = 'none';
+                    statusEl.textContent = '';
+                    return;
+                }
+
+                statusEl.style.display = 'block';
+                statusEl.style.color = '#aaa';
+                statusEl.textContent = 'Checking path accessibility…';
+
+                const url = ApiClient.getUrl('LocalMovieSets/ValidatePath', { path: path });
+                ApiClient.getJSON(url).then(function (res) {
+                    if (res && res.IsValid) {
+                        statusEl.style.color = '#4CAF50';
+                        statusEl.innerHTML = '<span>✓ ' + escapeHtml(res.Message) + '</span>';
+                    } else {
+                        statusEl.style.color = '#FF9800';
+                        const msg = (res && res.Message) ? res.Message : 'Path is inaccessible.';
+                        statusEl.innerHTML = '<span>⚠️ ' + escapeHtml(msg) + '</span>';
+                    }
+                }).catch(function (err) {
+                    statusEl.style.color = '#F44336';
+                    statusEl.textContent = '✕ Error connecting to path validation endpoint.';
+                    console.error('Failed to validate path:', err);
+                });
+            }
+
+            /* ── System Info Export Modal with Interactive Privacy Toggles & Full Diagnostics ── */
+            function openSystemInfoModal(page) {
+                const folderInput = page.querySelector('#SetDataFolder');
+                const folderPath = folderInput ? folderInput.value.trim() : '';
+
+                const sysInfoUrl = ApiClient.getUrl('LocalMovieSets/SystemInfo');
+                const valUrl = ApiClient.getUrl('LocalMovieSets/Validate', { path: folderPath });
+
+                const infoReq = ApiClient.getJSON(sysInfoUrl);
+                const valReq = (currentValidationReport && currentValidationReport.Issues)
+                    ? Promise.resolve(currentValidationReport)
+                    : (folderPath ? ApiClient.getJSON(valUrl).catch(function () { return null; }) : Promise.resolve(null));
+
+                Promise.all([infoReq, valReq]).then(function (results) {
+                    const info = results[0];
+                    if (results[1]) {
+                        currentValidationReport = results[1];
+                    }
+                    if (!info) return;
+
+                    let maskPaths = true;
+                    let maskTitles = false;
+                    let includeErrors = true;
+
+                    function sanitizePath(str) {
+                        if (!str) return '';
+                        if (!maskPaths) return str;
+                        // Mask Windows absolute paths (e.g. C:\path\... -> ...\file)
+                        let res = str.replace(/([a-zA-Z]:\\[^\s'"<>]+)/g, function (match) {
+                            const parts = match.split(/[\\/]/).filter(Boolean);
+                            return '.../' + (parts.length > 0 ? parts[parts.length - 1] : 'file');
+                        });
+                        // Mask Unix absolute paths (e.g. /srv/shares/... -> .../file)
+                        res = res.replace(/((\/[a-zA-Z0-9_\.\-]+){2,})/g, function (match) {
+                            const parts = match.split('/').filter(Boolean);
+                            return '.../' + (parts.length > 0 ? parts[parts.length - 1] : 'file');
+                        });
+                        return res;
+                    }
+
+                    function sanitizeTitle(str) {
+                        if (!str) return '';
+                        if (!maskTitles) return str;
+                        return str.replace(/([A-Z0-9a-z\s\-_]+)( Collection| Movie| Set)/g, '[Collection]');
+                    }
+
+                    function generateMarkdown() {
+                        const mdLines = [
+                            '### Environment',
+                            '- **Jellyfin Version:** ' + (info.ServerVersion || 'Unknown'),
+                            '- **Plugin Version:** ' + (info.PluginVersion || 'Unknown'),
+                            '- **Operating System:** ' + (info.OperatingSystem || 'Unknown'),
+                            '- **Architecture:** ' + (info.Architecture || 'Unknown'),
+                            '- **.NET Runtime:** ' + (info.DotNetVersion || 'Unknown'),
+                            '',
+                            '### Configuration',
+                            '- **NFO Naming:** ' + (info.NfoNamingConvention || 'Unknown'),
+                            '- **Minimum Movies:** ' + (info.MinimumMovies !== undefined ? info.MinimumMovies : 1),
+                            '- **Mount Guard:** ' + (info.MountGuardEnabled ? 'Enabled' : 'Disabled'),
+                            '- **Movie Folder Fallback:** ' + (info.MovieFolderFallbackEnabled ? 'Enabled' : 'Disabled'),
+                            '- **Delete Orphaned Sets:** ' + (info.DeleteOrphanedSets ? 'Enabled' : 'Disabled'),
+                            '- **Sort By:** ' + (info.CollectionSortBy || 'Default'),
+                            '',
+                            '### Last Sync Metrics',
+                            '- **Last Run Outcome:** ' + (info.LastRunOutcome || 'None'),
+                            '- **Duration:** ' + (info.DurationSeconds !== null && info.DurationSeconds !== undefined ? info.DurationSeconds + 's' : 'N/A'),
+                            '- **Movies Scanned:** ' + (info.ScannedMoviesCount || 0) + ' (' + (info.MoviesInSetsCount || 0) + ' in sets)',
+                            '- **Sets Found:** ' + (info.SetsFoundCount || 0),
+                            '- **Collections:** +' + (info.CollectionsCreatedCount || 0) + ' / ~' + (info.CollectionsUpdatedCount || 0) + ' / -' + (info.CollectionsDeletedCount || 0),
+                            '- **NFO Parse Errors:** ' + (info.NfoParseErrorsCount || 0)
+                        ];
+
+                        if (includeErrors) {
+                            mdLines.push('');
+                            mdLines.push('### Diagnostics & Errors');
+                            if (info.LastErrorMessage) {
+                                let errMsg = info.LastErrorMessage;
+                                if (maskPaths) errMsg = sanitizePath(errMsg);
+                                if (maskTitles) errMsg = sanitizeTitle(errMsg);
+                                mdLines.push('- **Last Sync Error:** `' + errMsg + '`');
+                            } else {
+                                mdLines.push('- **Last Sync Error:** None');
+                            }
+
+                            // Full Validator Diagnostics (100% complete, zero truncation)
+                            if (currentValidationReport && currentValidationReport.Issues && currentValidationReport.Issues.length > 0) {
+                                mdLines.push('');
+                                mdLines.push('### Validator Diagnostics (' + currentValidationReport.Issues.length + ' total: ' + (currentValidationReport.ErrorCount || 0) + ' errors, ' + (currentValidationReport.WarningCount || 0) + ' warnings, ' + (currentValidationReport.InfoCount || 0) + ' infos)');
+                                currentValidationReport.Issues.forEach(function (issue, idx) {
+                                    let colName = issue.CollectionName || 'Unknown';
+                                    let filePath = issue.FilePath || '';
+                                    let desc = issue.Issue || '';
+                                    let sugg = issue.Suggestion || '';
+                                    if (maskTitles) colName = '[Collection #' + (idx + 1) + ']';
+                                    if (maskPaths) filePath = sanitizePath(filePath);
+                                    let itemStr = '- [' + (issue.Severity || 'Issue') + '] **' + colName + '**: ' + desc;
+                                    if (filePath) itemStr += ' (File/Folder: `' + filePath + '`)';
+                                    if (sugg) itemStr += ' &rarr; *' + sugg + '*';
+                                    mdLines.push(itemStr);
+                                });
+                            }
+
+                            // Recent Sync Execution Logs
+                            if (info.RecentLogs && info.RecentLogs.length > 0) {
+                                mdLines.push('');
+                                mdLines.push('### Recent Sync Execution Logs (' + info.RecentLogs.length + ' lines)');
+                                mdLines.push('```');
+                                info.RecentLogs.forEach(function (logLine) {
+                                    let l = logLine;
+                                    if (maskPaths) l = sanitizePath(l);
+                                    if (maskTitles) l = sanitizeTitle(l);
+                                    mdLines.push(l);
+                                });
+                                mdLines.push('```');
+                            }
+                        }
+
+                        return mdLines.join('\n');
+                    }
+
+                    const modal = document.createElement('div');
+                    modal.id = 'SystemInfoModal';
+                    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 99999; font-family: inherit;';
+
+                    const modalContent = document.createElement('div');
+                    modalContent.style.cssText = 'background: #1c1c1e; border: 1px solid #2c2c2e; border-radius: 12px; width: 92%; max-width: 780px; max-height: 88%; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); overflow: hidden;';
+
+                    const header = document.createElement('div');
+                    header.style.cssText = 'padding: 1em 1.25em; border-bottom: 1px solid #2c2c2e; display: flex; justify-content: space-between; align-items: center; background: #252528;';
+
+                    const title = document.createElement('h3');
+                    title.textContent = 'System Diagnostics & Bug Report Export';
+                    title.style.cssText = 'margin: 0; font-size: 1.1em; color: #fff; display: flex; align-items: center; gap: 0.5em;';
+                    header.appendChild(title);
+
+                    const btnClose = document.createElement('button');
+                    btnClose.innerHTML = '&times;';
+                    btnClose.style.cssText = 'background: none; border: none; color: #aaa; font-size: 1.5em; cursor: pointer; padding: 0; line-height: 1;';
+                    btnClose.onclick = function () { document.body.removeChild(modal); };
+                    header.appendChild(btnClose);
+                    modalContent.appendChild(header);
+
+                    // Privacy Controls Toolbar
+                    const toolbar = document.createElement('div');
+                    toolbar.style.cssText = 'padding: 0.85em 1.25em; background: rgba(255, 255, 255, 0.04); border-bottom: 1px solid rgba(255, 255, 255, 0.08);';
+                    toolbar.innerHTML = [
+                        '<div style="font-size: 0.8em; color: #888; margin-bottom: 0.45em; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Interactive Privacy &amp; Data Filters:</div>',
+                        '<div style="display: flex; gap: 1.2em; flex-wrap: wrap;">',
+                        '  <label style="display: inline-flex; align-items: center; gap: 0.45em; cursor: pointer; font-size: 0.88em; color: #eee;">',
+                        '    <input type="checkbox" id="LmsMaskPaths" checked style="margin: 0; cursor: pointer;" />',
+                        '    <span>📁 Mask File Paths</span>',
+                        '  </label>',
+                        '  <label style="display: inline-flex; align-items: center; gap: 0.45em; cursor: pointer; font-size: 0.88em; color: #eee;">',
+                        '    <input type="checkbox" id="LmsMaskTitles" style="margin: 0; cursor: pointer;" />',
+                        '    <span>🎬 Mask Set &amp; Movie Titles</span>',
+                        '  </label>',
+                        '  <label style="display: inline-flex; align-items: center; gap: 0.45em; cursor: pointer; font-size: 0.88em; color: #eee;">',
+                        '    <input type="checkbox" id="LmsIncludeErrors" checked style="margin: 0; cursor: pointer;" />',
+                        '    <span>⚠️ Include Diagnostics &amp; Logs</span>',
+                        '  </label>',
+                        '</div>'
+                    ].join('\n');
+                    modalContent.appendChild(toolbar);
+
+                    const body = document.createElement('div');
+                    body.style.cssText = 'padding: 1.25em; flex-grow: 1; display: flex; flex-direction: column;';
+
+                    const textarea = document.createElement('textarea');
+                    textarea.readOnly = true;
+                    textarea.value = generateMarkdown();
+                    textarea.style.cssText = 'width: 100%; height: 360px; box-sizing: border-box; background: #141416; color: #eee; border: 1px solid #333; border-radius: 6px; padding: 0.75em; font-family: monospace; font-size: 0.88em; line-height: 1.45; resize: none; outline: none;';
+                    body.appendChild(textarea);
+                    modalContent.appendChild(body);
+
+                    function updateText() {
+                        textarea.value = generateMarkdown();
+                    }
+
+                    const chkPaths = toolbar.querySelector('#LmsMaskPaths');
+                    const chkTitles = toolbar.querySelector('#LmsMaskTitles');
+                    const chkErrors = toolbar.querySelector('#LmsIncludeErrors');
+
+                    chkPaths.onchange = function () {
+                        maskPaths = chkPaths.checked;
+                        updateText();
+                    };
+                    chkTitles.onchange = function () {
+                        maskTitles = chkTitles.checked;
+                        updateText();
+                    };
+                    chkErrors.onchange = function () {
+                        includeErrors = chkErrors.checked;
+                        updateText();
+                    };
+
+                    const footer = document.createElement('div');
+                    footer.style.cssText = 'padding: 0.85em 1.25em; border-top: 1px solid #2c2c2e; display: flex; justify-content: space-between; align-items: center; background: #252528;';
+
+                    const hint = document.createElement('div');
+                    hint.style.cssText = 'font-size: 0.8em; color: #888;';
+                    hint.textContent = '🔒 100% offline & zero telemetry';
+                    footer.appendChild(hint);
+
+                    const btnCopy = document.createElement('button');
+                    btnCopy.className = 'raised button-submit block emby-button';
+                    btnCopy.innerHTML = '<span>📋 Copy to Clipboard</span>';
+                    btnCopy.style.cssText = 'margin: 0; padding: 0.5em 1.2em; font-size: 0.9em; background: #00a4dc; color: #fff; cursor: pointer;';
+                    btnCopy.onclick = function () {
+                        textarea.select();
+                        const currentText = textarea.value;
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(currentText).then(function () {
+                                btnCopy.innerHTML = '<span>✓ Copied!</span>';
+                                setTimeout(function () {
+                                    btnCopy.innerHTML = '<span>📋 Copy to Clipboard</span>';
+                                }, 2500);
+                            }).catch(function () {
+                                document.execCommand('copy');
+                                btnCopy.innerHTML = '<span>✓ Copied!</span>';
+                                setTimeout(function () {
+                                    btnCopy.innerHTML = '<span>📋 Copy to Clipboard</span>';
+                                }, 2500);
+                            });
+                        } else {
+                            document.execCommand('copy');
+                            btnCopy.innerHTML = '<span>✓ Copied!</span>';
+                            setTimeout(function () {
+                                btnCopy.innerHTML = '<span>📋 Copy to Clipboard</span>';
+                            }, 2500);
+                        }
+                    };
+                    footer.appendChild(btnCopy);
+
+                    modalContent.appendChild(footer);
+                    modal.appendChild(modalContent);
+                    document.body.appendChild(modal);
+                }).catch(function (err) {
+                    console.error('Failed to load system info:', err);
+                    showStatus('Failed to load system diagnostics info.', true);
+                });
+            }
+
+            /* ── Library Selection ── */
+            function loadLibrarySelection(page, savedIds) {
+                const container = page.querySelector('#LibrarySelectionContainer');
+                if (!container) return;
+
+                const url = ApiClient.getUrl('LocalMovieSets/Libraries');
+                ApiClient.getJSON(url).then(function (libraries) {
+                    if (!libraries || libraries.length === 0) {
+                        container.innerHTML = '<div style="color: #888; font-style: italic;">No movie libraries found.</div>';
+                        return;
+                    }
+
+                    const selected = new Set(savedIds && savedIds.length > 0 ? savedIds : libraries.map(function (l) { return l.Id; }));
+                    let html = '';
+                    libraries.forEach(function (lib) {
+                        const isChecked = selected.has(lib.Id) ? 'checked' : '';
+                        const locs = (lib.Locations && lib.Locations.length > 0) ? ' (' + escapeHtml(lib.Locations.join(', ')) + ')' : '';
+                        html += '<label class="emby-checkbox-label" style="display: flex; align-items: center; gap: 0.6em; cursor: pointer;">' +
+                            '<input type="checkbox" class="lms-lib-checkbox" value="' + escapeHtml(lib.Id) + '" ' + isChecked + ' style="margin: 0;" />' +
+                            '<span><strong>' + escapeHtml(lib.Name) + '</strong><span style="color: #888; font-size: 0.85em;">' + locs + '</span></span>' +
+                        '</label>';
+                    });
+
+                    container.innerHTML = html;
+                }).catch(function (err) {
+                    console.error('Failed to load libraries:', err);
+                    container.innerHTML = '<div style="color: #f44336;">Failed to load movie libraries.</div>';
                 });
             }
 
@@ -1570,6 +1922,17 @@
                 btnBrowse._clickHandler = () => openFolderBrowser(page.querySelector('#SetDataFolder'));
                 btnBrowse.addEventListener('click', btnBrowse._clickHandler);
 
+                const setDataFolderInput = page.querySelector('#SetDataFolder');
+                if (setDataFolderInput) {
+                    setDataFolderInput.removeEventListener('change', setDataFolderInput._changeHandler);
+                    setDataFolderInput._changeHandler = () => validateSetDataFolderPath(page);
+                    setDataFolderInput.addEventListener('change', setDataFolderInput._changeHandler);
+
+                    setDataFolderInput.removeEventListener('blur', setDataFolderInput._blurHandler);
+                    setDataFolderInput._blurHandler = () => validateSetDataFolderPath(page);
+                    setDataFolderInput.addEventListener('blur', setDataFolderInput._blurHandler);
+                }
+
                 const btnDetect = page.querySelector('#BtnDetectNaming');
                 btnDetect.removeEventListener('click', btnDetect._clickHandler);
                 btnDetect._clickHandler = () => detectNamingConvention(page);
@@ -1580,6 +1943,13 @@
                     btnValidate.removeEventListener('click', btnValidate._clickHandler);
                     btnValidate._clickHandler = () => validateNfos(page);
                     btnValidate.addEventListener('click', btnValidate._clickHandler);
+                }
+
+                const btnSystemInfo = page.querySelector('#BtnSystemInfo');
+                if (btnSystemInfo) {
+                    btnSystemInfo.removeEventListener('click', btnSystemInfo._clickHandler);
+                    btnSystemInfo._clickHandler = () => openSystemInfoModal(page);
+                    btnSystemInfo.addEventListener('click', btnSystemInfo._clickHandler);
                 }
 
                 const btnCloseVal = page.querySelector('#BtnCloseValidation');

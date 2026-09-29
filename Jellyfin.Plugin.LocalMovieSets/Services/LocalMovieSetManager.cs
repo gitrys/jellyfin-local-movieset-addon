@@ -55,12 +55,50 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     private readonly object _historyLock = new();
     private readonly List<SyncStatusInfo> _syncHistory = [];
     private const int MaxHistoryEntries = 10;
+    private readonly List<string> _recentLogs = [];
+    private readonly object _logLock = new();
 
     // Set names discovered by the most recent sync. Consulted by the metadata
     // provider so it only touches collections this plugin manages. Replaced
     // atomically; never mutated in place.
     private volatile HashSet<string> _managedSetNames = new(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
+
+    private void LogMessage(LogLevel level, string message)
+    {
+        switch (level)
+        {
+            case LogLevel.Error:
+                _logger.LogError("{Message}", message);
+                break;
+            case LogLevel.Warning:
+                _logger.LogWarning("{Message}", message);
+                break;
+            case LogLevel.Debug:
+                _logger.LogDebug("{Message}", message);
+                break;
+            default:
+                _logger.LogInformation("{Message}", message);
+                break;
+        }
+
+        var timestamp = DateTime.UtcNow.ToString("HH:mm:ss");
+        var prefix = level switch
+        {
+            LogLevel.Error => "ERR",
+            LogLevel.Warning => "WRN",
+            LogLevel.Debug => "DBG",
+            _ => "INF"
+        };
+        lock (_logLock)
+        {
+            if (_recentLogs.Count >= 100)
+            {
+                _recentLogs.RemoveAt(0);
+            }
+            _recentLogs.Add($"[{timestamp} {prefix}] {message}");
+        }
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LocalMovieSetManager"/> class.
@@ -106,7 +144,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
     /// <summary>
     /// Returns a snapshot of the most recent sync run's status and statistics,
-    /// including recent historical runs.
+    /// including recent historical runs and recent execution logs.
     /// </summary>
     /// <returns>A copy of the current status.</returns>
     public SyncStatusInfo GetStatusSnapshot()
@@ -116,6 +154,10 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             var snapshot = _lastStatus.Clone();
             snapshot.IsRunning = IsSyncRunning;
             snapshot.History = _syncHistory.Select(x => x.Clone()).ToList();
+            lock (_logLock)
+            {
+                snapshot.RecentLogs = _recentLogs.ToList();
+            }
             return snapshot;
         }
     }
@@ -159,6 +201,11 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     private void OnLibraryItemChanged(object? sender, ItemChangeEventArgs e)
     {
         if (_isSyncing)
+        {
+            return;
+        }
+
+        if (Plugin.Instance?.Configuration.EnableAutoSyncOnLibraryChange == false)
         {
             return;
         }
@@ -227,20 +274,20 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
         try
         {
-            _logger.LogInformation("Local Movie Sets: starting sync");
-
             var config = Plugin.Instance?.Configuration;
             if (config is null)
             {
-                _logger.LogError("Plugin configuration is not available");
+                LogMessage(LogLevel.Error, "Plugin configuration is not available.");
                 stats.LastRunOutcome = SyncOutcomes.Failed;
                 stats.LastErrorMessage = "Plugin configuration is not available";
                 return;
             }
 
+            LogMessage(LogLevel.Information, $"Starting sync run (Mount Guard: {(config.EnableMountGuard ? "enabled" : "disabled")})");
+
             if (config.EnableMountGuard && !CheckMounts())
             {
-                _logger.LogWarning("Local Movie Sets: sync aborted due to offline or empty library paths (Mount Guard active).");
+                LogMessage(LogLevel.Warning, "Sync aborted due to offline or empty library paths (Mount Guard active).");
                 stats.LastRunOutcome = SyncOutcomes.MountGuardAborted;
                 return;
             }
@@ -253,7 +300,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             var allMovies = QueryAllMovies();
             stats.MoviesScanned = allMovies.Count;
 
-            _logger.LogInformation("Local Movie Sets: scanning {Count} movies", allMovies.Count);
+            LogMessage(LogLevel.Information, $"Scanned {allMovies.Count} movies across configured libraries.");
             progress?.Report(5);
 
             // ── Step 2: Parse NFOs — group movies by set name ─────────────────
@@ -264,10 +311,9 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             // Publish the managed set names for the metadata/image providers
             _managedSetNames = new HashSet<string>(setGroups.Keys, StringComparer.OrdinalIgnoreCase);
 
-            _logger.LogInformation(
-                "Local Movie Sets: found {SetCount} distinct sets across {MovieCount} movies",
-                stats.SetsFound,
-                stats.MoviesInSets);
+            LogMessage(
+                LogLevel.Information,
+                $"Discovered {stats.SetsFound} distinct sets across {stats.MoviesInSets} movies ({stats.NfoParseErrors} NFO errors).");
             progress?.Report(15);
 
             // ── Step 3: Load existing BoxSet collections ───────────────────────
@@ -276,9 +322,9 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
             if (duplicateNames.Count > 0)
             {
-                _logger.LogWarning(
-                    "Local Movie Sets: multiple collections share the same name ({Names}). Only the first of each will be managed; consider removing the duplicates.",
-                    string.Join(", ", duplicateNames));
+                LogMessage(
+                    LogLevel.Warning,
+                    $"Duplicate collections share the same name in Jellyfin: {string.Join(", ", duplicateNames)}");
             }
 
             // ── Step 4: Create or update collections ───────────────────────────
@@ -296,6 +342,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     if (updated)
                     {
                         stats.CollectionsUpdated++;
+                        LogMessage(LogLevel.Information, $"Updated BoxSet '{setName}' ({movies.Count} movies).");
                     }
                 }
                 else
@@ -303,9 +350,9 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     var minimumMovies = Math.Max(1, config.MinimumMovies);
                     if (movies.Count < minimumMovies)
                     {
-                        _logger.LogDebug(
-                            "Not creating collection for set '{SetName}': {Count} movies < minimum {Min}",
-                            setName, movies.Count, config.MinimumMovies);
+                        LogMessage(
+                            LogLevel.Debug,
+                            $"Skipping BoxSet '{setName}': {movies.Count} movies < minimum {config.MinimumMovies}.");
                         processedSets++;
                         continue;
                     }
@@ -315,6 +362,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     if (created)
                     {
                         stats.CollectionsCreated++;
+                        LogMessage(LogLevel.Information, $"Created BoxSet '{setName}' ({movies.Count} movies).");
                     }
                 }
 
@@ -333,6 +381,10 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             {
                 stats.CollectionsDeleted = await DeleteOrphanedSetsAsync(existingBoxSets, setGroups, config.DeleteSetsWithProviderId, cancellationToken)
                     .ConfigureAwait(false);
+                if (stats.CollectionsDeleted > 0)
+                {
+                    LogMessage(LogLevel.Information, $"Deleted {stats.CollectionsDeleted} orphaned collections.");
+                }
             }
 
             progress?.Report(90);
@@ -348,18 +400,18 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
             stats.LastRunOutcome = SyncOutcomes.Success;
             progress?.Report(100);
-            _logger.LogInformation("Local Movie Sets: sync completed successfully");
+            LogMessage(LogLevel.Information, $"Sync completed successfully (Created: {stats.CollectionsCreated}, Updated: {stats.CollectionsUpdated}, Deleted: {stats.CollectionsDeleted}).");
         }
         catch (OperationCanceledException)
         {
             stats.LastRunOutcome = SyncOutcomes.Cancelled;
-            _logger.LogInformation("Local Movie Sets: sync was cancelled");
+            LogMessage(LogLevel.Warning, "Sync was cancelled.");
         }
         catch (Exception ex)
         {
             stats.LastRunOutcome = SyncOutcomes.Failed;
             stats.LastErrorMessage = ex.Message;
-            _logger.LogError(ex, "Local Movie Sets: sync failed with an unexpected error");
+            LogMessage(LogLevel.Error, $"Sync failed with error: {ex.Message}");
         }
         finally
         {
@@ -370,11 +422,11 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     }
 
     /// <summary>
-    /// Queries all non-virtual movies from the library.
+    /// Queries all non-virtual movies from the library, optionally filtered by configured included libraries.
     /// </summary>
     private List<Movie> QueryAllMovies()
     {
-        return _libraryManager
+        var allMovies = _libraryManager
             .GetItemsResult(new InternalItemsQuery
             {
                 IncludeItemTypes = [BaseItemKind.Movie],
@@ -383,6 +435,48 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             .Items
             .OfType<Movie>()
             .ToList();
+
+        var includedLibraryIds = Plugin.Instance?.Configuration.IncludedLibraryIds;
+        if (includedLibraryIds == null || includedLibraryIds.Length == 0)
+        {
+            return allMovies;
+        }
+
+        var includedSet = new HashSet<string>(includedLibraryIds, StringComparer.OrdinalIgnoreCase);
+
+        var virtualFolders = _libraryManager.GetVirtualFolders()
+            .Where(vf => includedSet.Contains(vf.ItemId) || includedSet.Contains(vf.Name))
+            .ToList();
+
+        var allowedLocations = virtualFolders
+            .SelectMany(vf => vf.Locations ?? [])
+            .Where(loc => !string.IsNullOrWhiteSpace(loc))
+            .Select(loc => loc.TrimEnd('/', '\\') + Path.DirectorySeparatorChar)
+            .ToList();
+
+        return allMovies.Where(m =>
+        {
+            // 1. Check parent collection folder ID or Name if available
+            var parentCollection = m.FindParent<CollectionFolder>();
+            if (parentCollection != null && (includedSet.Contains(parentCollection.Id.ToString()) ||
+                                             includedSet.Contains(parentCollection.Id.ToString("N")) ||
+                                             includedSet.Contains(parentCollection.Name)))
+            {
+                return true;
+            }
+
+            // 2. Check file path prefix matching against library locations
+            if (!string.IsNullOrEmpty(m.Path))
+            {
+                var normalizedPath = m.Path;
+                if (allowedLocations.Any(loc => normalizedPath.StartsWith(loc, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }).ToList();
     }
 
     /// <summary>

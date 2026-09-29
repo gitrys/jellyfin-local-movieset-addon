@@ -133,6 +133,18 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool AggregatePeople { get; set; } = false;
 
     /// <summary>
+    /// Gets or sets the list of library IDs to include in the sync.
+    /// If empty, all movie libraries are scanned.
+    /// </summary>
+    public string[] IncludedLibraryIds { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to automatically trigger a sync
+    /// after movies are added or updated in the library (debounced by 30 seconds).
+    /// </summary>
+    public bool EnableAutoSyncOnLibraryChange { get; set; } = true;
+
+    /// <summary>
     /// Gets or sets a value indicating whether the one-time cleanup of sort titles
     /// written by old plugin versions has already been performed.
     /// </summary>

@@ -24,6 +24,7 @@ public class LocalMovieSetsController : ControllerBase
     private readonly ILibraryManager _libraryManager;
     private readonly LocalMovieSetManager _manager;
     private readonly Jellyfin.Plugin.LocalMovieSets.Services.Validation.NfoValidator _validator;
+    private readonly MediaBrowser.Controller.IServerApplicationHost _applicationHost;
     private readonly ILogger<LocalMovieSetsController> _logger;
 
     /// <summary>
@@ -32,16 +33,19 @@ public class LocalMovieSetsController : ControllerBase
     /// <param name="libraryManager">Jellyfin library manager (injected).</param>
     /// <param name="manager">LocalMovieSetManager instance (injected).</param>
     /// <param name="validator">NFO and artwork validator instance (injected).</param>
+    /// <param name="applicationHost">Jellyfin server application host (injected).</param>
     /// <param name="logger">Logger instance (injected).</param>
     public LocalMovieSetsController(
         ILibraryManager libraryManager,
         LocalMovieSetManager manager,
         Jellyfin.Plugin.LocalMovieSets.Services.Validation.NfoValidator validator,
+        MediaBrowser.Controller.IServerApplicationHost applicationHost,
         ILogger<LocalMovieSetsController> logger)
     {
         _libraryManager = libraryManager;
         _manager = manager;
         _validator = validator;
+        _applicationHost = applicationHost;
         _logger = logger;
     }
 
@@ -123,6 +127,27 @@ public class LocalMovieSetsController : ControllerBase
             HasConflicts = conflictingLibraries.Count > 0,
             ConflictingLibraries = conflictingLibraries
         });
+    }
+
+    /// <summary>
+    /// Returns the list of all available movie libraries in Jellyfin.
+    /// </summary>
+    /// <returns>List of movie libraries with their ID and Name.</returns>
+    [HttpGet("Libraries")]
+    public ActionResult<List<LibraryInfoDto>> GetLibraries()
+    {
+        var movieLibraries = _libraryManager.GetVirtualFolders()
+            .Where(f => f.CollectionType == MediaBrowser.Model.Entities.CollectionTypeOptions.movies ||
+                        string.Equals(f.CollectionType?.ToString(), "movies", StringComparison.OrdinalIgnoreCase))
+            .Select(f => new LibraryInfoDto
+            {
+                Id = f.ItemId,
+                Name = f.Name,
+                Locations = f.Locations ?? []
+            })
+            .ToList();
+
+        return Ok(movieLibraries);
     }
 
     /// <summary>
@@ -288,6 +313,227 @@ public class LocalMovieSetsController : ControllerBase
 
         return Ok(new { Success = true, Message = "Force rebuild started. Check the server log for progress." });
     }
+
+    /// <summary>
+    /// Validates whether a folder path exists and is readable by the Jellyfin process.
+    /// Particularly helpful for Docker/NAS setups with volume mapping or permission issues.
+    /// </summary>
+    /// <param name="path">The directory path to validate.</param>
+    /// <returns>Validation status with diagnostic details.</returns>
+    [HttpGet("ValidatePath")]
+    public ActionResult<PathValidationResult> ValidatePath([FromQuery] string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return Ok(new PathValidationResult
+            {
+                IsValid = false,
+                Exists = false,
+                IsReadable = false,
+                Message = "No path specified."
+            });
+        }
+
+        try
+        {
+            if (!Directory.Exists(path))
+            {
+                return Ok(new PathValidationResult
+                {
+                    IsValid = false,
+                    Exists = false,
+                    IsReadable = false,
+                    Message = $"Path not found: '{path}'. If running in Docker, verify volume mounts and host paths."
+                });
+            }
+
+            // Test read access
+            _ = Directory.EnumerateFileSystemEntries(path).FirstOrDefault();
+
+            return Ok(new PathValidationResult
+            {
+                IsValid = true,
+                Exists = true,
+                IsReadable = true,
+                Message = "Path is accessible and readable."
+            });
+        }
+        catch (UnauthorizedAccessException uex)
+        {
+            _logger.LogWarning(uex, "Access denied to path '{Path}'", path);
+            return Ok(new PathValidationResult
+            {
+                IsValid = false,
+                Exists = true,
+                IsReadable = false,
+                Message = $"Access denied to '{path}'. If running in Docker, check PUID/PGID and container permissions."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to validate path '{Path}'", path);
+            return Ok(new PathValidationResult
+            {
+                IsValid = false,
+                Exists = false,
+                IsReadable = false,
+                Message = $"Unable to read '{path}': {ex.Message}"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Returns sanitized, privacy-safe system diagnostic information for GitHub bug reports.
+    /// Strictly excludes any personal data, file paths, usernames, IP addresses, or movie titles.
+    /// </summary>
+    /// <returns>Sanitized system diagnostic information.</returns>
+    [HttpGet("SystemInfo")]
+    public ActionResult<SystemInfoDto> GetSystemInfo()
+    {
+        var config = Plugin.Instance?.Configuration;
+        var status = _manager.GetStatusSnapshot();
+
+        return Ok(new SystemInfoDto
+        {
+            PluginVersion = Plugin.Instance?.Version.ToString() ?? "Unknown",
+            ServerVersion = _applicationHost.ApplicationVersionString,
+            OperatingSystem = System.Runtime.InteropServices.RuntimeInformation.OSDescription,
+            Architecture = System.Runtime.InteropServices.RuntimeInformation.OSArchitecture.ToString(),
+            DotNetVersion = Environment.Version.ToString(),
+            NfoNamingConvention = config?.NfoNaming.ToString() ?? "Not Set",
+            MinimumMovies = config?.MinimumMovies ?? 1,
+            MountGuardEnabled = config?.EnableMountGuard ?? true,
+            MovieFolderFallbackEnabled = config?.EnableMovieFolderArtworkFallback ?? true,
+            DeleteOrphanedSets = config?.DeleteOrphanedSets ?? false,
+            AggregateRatings = config?.AggregateRatings ?? false,
+            AggregateTags = config?.AggregateTags ?? false,
+            AggregatePeople = config?.AggregatePeople ?? false,
+            CollectionSortBy = config?.CollectionSortBy ?? "Default",
+            LastRunOutcome = status.LastRunOutcome,
+            ScannedMoviesCount = status.MoviesScanned,
+            MoviesInSetsCount = status.MoviesInSets,
+            SetsFoundCount = status.SetsFound,
+            CollectionsCreatedCount = status.CollectionsCreated,
+            CollectionsUpdatedCount = status.CollectionsUpdated,
+            CollectionsDeletedCount = status.CollectionsDeleted,
+            NfoParseErrorsCount = status.NfoParseErrors,
+            LastErrorMessage = status.LastErrorMessage,
+            DurationSeconds = status.DurationSeconds,
+            RecentLogs = status.RecentLogs,
+            HasErrorMessage = !string.IsNullOrEmpty(status.LastErrorMessage)
+        });
+    }
+}
+
+/// <summary>
+/// Sanitized, privacy-safe system diagnostic information for bug reporting.
+/// Contains strictly zero telemetry, zero paths, zero usernames, and zero item titles.
+/// </summary>
+public class SystemInfoDto
+{
+    /// <summary>Gets or sets the plugin version.</summary>
+    public string PluginVersion { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the Jellyfin server version.</summary>
+    public string ServerVersion { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the operating system description.</summary>
+    public string OperatingSystem { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the OS architecture.</summary>
+    public string Architecture { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the .NET runtime version.</summary>
+    public string DotNetVersion { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the configured NFO naming convention.</summary>
+    public string NfoNamingConvention { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the minimum movies threshold.</summary>
+    public int MinimumMovies { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether Mount Guard is enabled.</summary>
+    public bool MountGuardEnabled { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether movie folder artwork fallback is enabled.</summary>
+    public bool MovieFolderFallbackEnabled { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether orphaned sets deletion is enabled.</summary>
+    public bool DeleteOrphanedSets { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether community ratings aggregation is enabled.</summary>
+    public bool AggregateRatings { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether tags aggregation is enabled.</summary>
+    public bool AggregateTags { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether people aggregation is enabled.</summary>
+    public bool AggregatePeople { get; set; }
+
+    /// <summary>Gets or sets the collection sort by setting.</summary>
+    public string CollectionSortBy { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the last sync run outcome.</summary>
+    public string LastRunOutcome { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the number of movies scanned.</summary>
+    public int ScannedMoviesCount { get; set; }
+
+    /// <summary>Gets or sets the number of movies belonging to sets.</summary>
+    public int MoviesInSetsCount { get; set; }
+
+    /// <summary>Gets or sets the number of sets found.</summary>
+    public int SetsFoundCount { get; set; }
+
+    /// <summary>Gets or sets the number of collections created in the last sync.</summary>
+    public int CollectionsCreatedCount { get; set; }
+
+    /// <summary>Gets or sets the number of collections updated in the last sync.</summary>
+    public int CollectionsUpdatedCount { get; set; }
+
+    /// <summary>Gets or sets the number of collections deleted in the last sync.</summary>
+    public int CollectionsDeletedCount { get; set; }
+
+    /// <summary>Gets or sets the number of NFO parse errors encountered.</summary>
+    public int NfoParseErrorsCount { get; set; }
+
+    /// <summary>Gets or sets the error message of the last sync run, if any.</summary>
+    public string? LastErrorMessage { get; set; }
+
+    /// <summary>Gets or sets the duration of the last sync run in seconds.</summary>
+    public double? DurationSeconds { get; set; }
+
+    /// <summary>Gets or sets recent execution logs from the sync manager.</summary>
+    public IReadOnlyList<string> RecentLogs { get; set; } = Array.Empty<string>();
+
+    /// <summary>Gets or sets a value indicating whether an error message is recorded.</summary>
+    public bool HasErrorMessage { get; set; }
+}
+
+/// <summary>
+/// Data model returned by the path validation API.
+/// </summary>
+public class PathValidationResult
+{
+    /// <summary>
+    /// Gets or sets a value indicating whether the path exists and is readable.
+    /// </summary>
+    public bool IsValid { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the directory exists.
+    /// </summary>
+    public bool Exists { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the directory is readable.
+    /// </summary>
+    public bool IsReadable { get; set; }
+
+    /// <summary>
+    /// Gets or sets status or error message.
+    /// </summary>
+    public string Message { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -325,4 +571,19 @@ public class NamingDetectionResult
     /// Gets or sets status or error message.
     /// </summary>
     public string Message { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Information about a Jellyfin library.
+/// </summary>
+public class LibraryInfoDto
+{
+    /// <summary>Gets or sets the library ID.</summary>
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the library name.</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the library locations.</summary>
+    public string[] Locations { get; set; } = [];
 }
