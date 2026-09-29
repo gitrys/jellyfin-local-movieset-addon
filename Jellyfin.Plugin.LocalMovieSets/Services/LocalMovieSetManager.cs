@@ -1269,14 +1269,44 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
     private string GetHistoryFilePath()
     {
-        var dataDir = Plugin.Instance?.DataFolderPath;
-        if (string.IsNullOrWhiteSpace(dataDir))
+        // 1. Primary choice: beside the plugin's configuration XML in Jellyfin's configurations directory.
+        // This folder is guaranteed to exist and is always writable by the jellyfin daemon user.
+        try
         {
-            dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "jellyfin", "data", "LocalMovieSets");
+            var configPath = Plugin.Instance?.ConfigurationFilePath;
+            if (!string.IsNullOrWhiteSpace(configPath))
+            {
+                var configDir = Path.GetDirectoryName(configPath);
+                if (!string.IsNullOrWhiteSpace(configDir) && Directory.Exists(configDir))
+                {
+                    return Path.Combine(configDir, "Jellyfin.Plugin.LocalMovieSets.history.json");
+                }
+            }
+        }
+        catch
+        {
+            // Fall through to secondary options if configuration folder lookup fails
         }
 
-        Directory.CreateDirectory(dataDir);
-        return Path.Combine(dataDir, "sync_history.json");
+        // 2. Secondary choice: Plugin DataFolderPath
+        try
+        {
+            var dataDir = Plugin.Instance?.DataFolderPath;
+            if (!string.IsNullOrWhiteSpace(dataDir))
+            {
+                Directory.CreateDirectory(dataDir);
+                return Path.Combine(dataDir, "sync_history.json");
+            }
+        }
+        catch
+        {
+            // Fall through
+        }
+
+        // 3. Fallback: OS ApplicationData folder
+        var appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "jellyfin", "data", "LocalMovieSets");
+        Directory.CreateDirectory(appDataDir);
+        return Path.Combine(appDataDir, "sync_history.json");
     }
 
     private void LoadSyncHistory()
@@ -1286,7 +1316,31 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             var filePath = GetHistoryFilePath();
             if (!File.Exists(filePath))
             {
-                return;
+                // Fallback: check if legacy history file in DataFolderPath exists
+                try
+                {
+                    var dataDir = Plugin.Instance?.DataFolderPath;
+                    if (!string.IsNullOrWhiteSpace(dataDir))
+                    {
+                        var legacyPath = Path.Combine(dataDir, "sync_history.json");
+                        if (File.Exists(legacyPath))
+                        {
+                            filePath = legacyPath;
+                        }
+                        else
+                        {
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
+                catch
+                {
+                    return;
+                }
             }
 
             var json = File.ReadAllText(filePath);
@@ -1299,7 +1353,17 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     _syncHistory.AddRange(items.Take(MaxHistoryEntries));
                     _lastStatus = _syncHistory[0].Clone();
                     _lastStatus.History = _syncHistory.Select(x => x.Clone()).ToList();
+
+                    if (_lastStatus.RecentLogs is { Count: > 0 })
+                    {
+                        lock (_logLock)
+                        {
+                            _recentLogs.Clear();
+                            _recentLogs.AddRange(_lastStatus.RecentLogs);
+                        }
+                    }
                 }
+                _logger.LogInformation("Local Movie Sets: restored sync history with {Count} entries from disk ({FilePath})", _syncHistory.Count, filePath);
             }
         }
         catch (Exception ex)
@@ -1316,6 +1380,11 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             {
                 var entry = run.Clone();
                 entry.History = Array.Empty<SyncStatusInfo>(); // Don't nest history inside history entries
+                lock (_logLock)
+                {
+                    entry.RecentLogs = _recentLogs.ToList(); // Persist recent logs alongside metrics
+                }
+
                 _syncHistory.Insert(0, entry);
                 while (_syncHistory.Count > MaxHistoryEntries)
                 {
@@ -1327,6 +1396,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 var filePath = GetHistoryFilePath();
                 var json = System.Text.Json.JsonSerializer.Serialize(_syncHistory, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(filePath, json);
+                _logger.LogInformation("Local Movie Sets: persisted sync history to {FilePath}", filePath);
             }
         }
         catch (Exception ex)
@@ -1351,6 +1421,16 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 if (File.Exists(filePath))
                 {
                     File.Delete(filePath);
+                }
+
+                var dataDir = Plugin.Instance?.DataFolderPath;
+                if (!string.IsNullOrWhiteSpace(dataDir))
+                {
+                    var legacyPath = Path.Combine(dataDir, "sync_history.json");
+                    if (File.Exists(legacyPath))
+                    {
+                        File.Delete(legacyPath);
+                    }
                 }
             }
             catch (Exception ex)

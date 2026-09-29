@@ -484,7 +484,7 @@
                                     type="button"
                                     class="raised block emby-button"
                                     style="background: rgba(255, 255, 255, 0.08); color: #fff;">
-                                <span>📋 Copy System Info for Bug Report</span>
+                                <span>📋 System Info &amp; Bug Report</span>
                             </button>
                             <button is="emby-button"
                                     id="BtnForceRebuild"
@@ -1434,13 +1434,13 @@
                                 mdLines.push('### Validator Diagnostics (' + currentValidationReport.Issues.length + ' total: ' + (currentValidationReport.ErrorCount || 0) + ' errors, ' + (currentValidationReport.WarningCount || 0) + ' warnings, ' + (currentValidationReport.InfoCount || 0) + ' infos)');
                                 currentValidationReport.Issues.forEach(function (issue, idx) {
                                     let colName = issue.CollectionName || 'Unknown';
-                                    let filePath = issue.FilePath || '';
-                                    let desc = issue.Issue || '';
+                                    let filePath = issue.FilePath || issue.FolderPath || '';
+                                    let desc = issue.Message || issue.Issue || '';
                                     let sugg = issue.Suggestion || '';
                                     if (maskTitles) colName = '[Collection #' + (idx + 1) + ']';
                                     if (maskPaths) filePath = sanitizePath(filePath);
                                     let itemStr = '- [' + (issue.Severity || 'Issue') + '] **' + colName + '**: ' + desc;
-                                    if (filePath) itemStr += ' (File/Folder: `' + filePath + '`)';
+                                    if (filePath) itemStr += ' (`' + filePath + '`)';
                                     if (sugg) itemStr += ' &rarr; *' + sugg + '*';
                                     mdLines.push(itemStr);
                                 });
@@ -1547,6 +1547,18 @@
                     hint.textContent = '🔒 100% offline & zero telemetry';
                     footer.appendChild(hint);
 
+                    const actions = document.createElement('div');
+                    actions.style.cssText = 'display: flex; gap: 0.8em; align-items: center;';
+
+                    const linkReport = document.createElement('a');
+                    linkReport.href = 'https://github.com/gitrys/jellyfin-local-movieset-addon/issues/new';
+                    linkReport.target = '_blank';
+                    linkReport.rel = 'noopener noreferrer';
+                    linkReport.className = 'raised emby-button';
+                    linkReport.style.cssText = 'display: inline-flex; align-items: center; gap: 0.4em; padding: 0.5em 1.1em; font-size: 0.88em; text-decoration: none; color: #fff; background: rgba(255, 255, 255, 0.08); border-radius: 4px;';
+                    linkReport.innerHTML = '<span>🐛 Open GitHub Issues</span>';
+                    actions.appendChild(linkReport);
+
                     const btnCopy = document.createElement('button');
                     btnCopy.className = 'raised button-submit block emby-button';
                     btnCopy.innerHTML = '<span>📋 Copy to Clipboard</span>';
@@ -1575,7 +1587,8 @@
                             }, 2500);
                         }
                     };
-                    footer.appendChild(btnCopy);
+                    actions.appendChild(btnCopy);
+                    footer.appendChild(actions);
 
                     modalContent.appendChild(footer);
                     modal.appendChild(modalContent);
