@@ -10,15 +10,15 @@
     "versions": [
       {
         "version": "1.0.31.0",
-        "changelog": "- Jellyfin 12 & .NET 10 Unterstützung (Target ABI: 12.0.0.0)\n- Relationaler Datenbank-Fallback für Sammlungs-Kinder (LinkedChildren)\n- Reflection-Hacks für Personen/Cast entfernt",
+        "changelog": "- Jellyfin 12 & .NET 10 support (targetAbi: 12.0.0.0)\n- Relational database fallback for collection children (LinkedChildren)\n- Removed legacy reflection workarounds for people/cast metadata",
         "targetAbi": "12.0.0.0",
         "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.31.0/Jellyfin.Plugin.LocalMovieSets_1.0.31.0.zip",
-        "checksum": "a2aa768054fa61162d0bcc6f2d3a7eec",
-        "timestamp": "2026-09-29T08:00:06Z"
+        "checksum": "bc41a45ad1a21c1107013fc029a651da",
+        "timestamp": "2026-09-29T07:05:00Z"
       },
       {
         "version": "1.0.30.0",
-        "changelog": "- Provider-Pipeline-Refactoring (behebt Race Conditions bei collection.xml)\n- Sammlungs-Artwork als Stream & alternatives tinyMediaManager-Ordner-Matching\n- Stabilitäts- und Cross-Platform-Verbesserungen",
+        "changelog": "- Provider pipeline refactoring to avoid collection.xml race conditions\n- Artwork returned as stream & improved tinyMediaManager folder matching\n- Stability and cross-platform path improvements",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.30.0/Jellyfin.Plugin.LocalMovieSets_1.0.30.0.zip",
         "checksum": "fef21d98d8d714795c009dce7cbcd5a6",
@@ -26,7 +26,7 @@
       },
       {
         "version": "1.0.23.0",
-        "changelog": "- Vorschau-Modus (Dry-Run / Preview) & Sync-Status im Dashboard\n- Verwaiste [boxset]-Ordner auf der Festplatte beim Löschen von Sammlungen entfernen\n- Robustere NFO-Parser-Fehlerbehandlung",
+        "changelog": "- Added Dry-Run / Preview mode and sync status to dashboard\n- Clean up orphaned [boxset] folders when deleting collections\n- More resilient NFO parsing",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.23.0/Jellyfin.Plugin.LocalMovieSets_1.0.23.0.zip",
         "checksum": "cc729fa5eba55b862c197c3f446ae957",
@@ -34,7 +34,7 @@
       },
       {
         "version": "1.0.19.0",
-        "changelog": "- Metadaten-Aggregation: Bewertungen, Tags und Cast/Crew von Filmen auf Sammlungen übertragen\n- Dynamische API-Kompatibilität für ältere Jellyfin 10.x Builds",
+        "changelog": "- Metadata aggregation: Aggregate ratings, tags, and cast/crew onto collections\n- Dynamic API compatibility for older Jellyfin builds",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.19.0/Jellyfin.Plugin.LocalMovieSets_1.0.19.0.zip",
         "checksum": "fa2abb24f92290702efc317f41e2b356",
@@ -42,7 +42,7 @@
       },
       {
         "version": "1.0.18.0",
-        "changelog": "- Mount-Guard: Löschschutz bei ungemounteten oder offline Netzlaufwerken\n- Force-Rebuild-Modus & Retry-Logik bei Dateisperren",
+        "changelog": "- Mount Guard: Safety check prevents collection deletion when shares are offline\n- Force Rebuild mode and retry logic for file locks",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.18.0/Jellyfin.Plugin.LocalMovieSets_1.0.18.0.zip",
         "checksum": "dcb3256b99741eb7a5b65ee082ca494c",
@@ -50,7 +50,7 @@
       },
       {
         "version": "1.0.16.0",
-        "changelog": "- Chronologische Berechnung von PremiereDate & ProductionYear basierend auf dem ältesten Film\n- Sicherheitshärtung und Pfadvalidierung",
+        "changelog": "- Chronological collection PremiereDate and ProductionYear calculation\n- Security hardening and path traversal validation",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/gitrys/jellyfin-local-movieset-addon/releases/download/v1.0.16.0/Jellyfin.Plugin.LocalMovieSets_1.0.16.0.zip",
         "checksum": "8787f83f927d9fe26ecb591f7305bfda",
