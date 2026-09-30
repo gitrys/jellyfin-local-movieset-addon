@@ -4,8 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.LocalMovieSets.Services;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -127,6 +130,46 @@ public class LocalMovieSetsController : ControllerBase
             HasConflicts = conflictingLibraries.Count > 0,
             ConflictingLibraries = conflictingLibraries
         });
+    }
+
+    /// <summary>
+    /// Checks whether the collections library enables only this plugin as a BoxSet image fetcher.
+    /// </summary>
+    /// <returns>A conflict when online or other image fetchers are still enabled, or when no BoxSet list is saved.</returns>
+    [HttpGet("CheckImageFetchers")]
+    public ActionResult<ImageFetcherCheckResult> CheckImageFetchers()
+    {
+        var collectionsLibraries = _libraryManager.GetUserRootFolder()
+            .Children
+            .OfType<CollectionFolder>()
+            .Where(folder => folder.CollectionType == CollectionType.boxsets)
+            .ToList();
+
+        if (collectionsLibraries.Count == 0)
+        {
+            return Ok(new ImageFetcherCheckResult
+            {
+                HasConflict = true,
+                Reason = ImageFetcherCheck.NoCollectionsLibrary
+            });
+        }
+
+        foreach (var library in collectionsLibraries)
+        {
+            var typeOptions = library.GetLibraryOptions().TypeOptions?
+                .FirstOrDefault(option => string.Equals(option.Type, "BoxSet", StringComparison.OrdinalIgnoreCase));
+
+            var result = ImageFetcherCheck.Evaluate(typeOptions is not null, typeOptions?.ImageFetchers);
+            if (!result.HasConflict)
+            {
+                continue;
+            }
+
+            result.LibraryName = library.Name;
+            return Ok(result);
+        }
+
+        return Ok(new ImageFetcherCheckResult { HasConflict = false });
     }
 
     /// <summary>

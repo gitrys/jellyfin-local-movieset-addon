@@ -220,6 +220,16 @@
                 </p>
             </div>
 
+            <div id="ImageFetcherWarningBox" style="display: none; background: rgba(244, 67, 54, 0.15); border: 1px solid #f44336; border-radius: 8px; padding: 1.25em; margin-bottom: 1.5em; font-size: 0.95em; line-height: 1.5;">
+                <h3 style="margin-top: 0; margin-bottom: 0.5em; color: #f44336; display: flex; align-items: center; gap: 0.5em; font-weight: bold;">
+                    <span style="font-size: 1.2em;">⚠️</span> Warning: Collection image fetchers are not limited to Local Movie Sets
+                </h3>
+                <p id="ImageFetcherWarningText" style="margin: 0 0 0.8em 0; color: #eee;"></p>
+                <p style="margin: 0; color: #ccc; font-size: 0.9em;">
+                    Open <strong>Dashboard &rarr; Libraries &rarr; Collections &rarr; Manage Library</strong> and enable only <strong>Local Movie Sets</strong> as a BoxSet image fetcher.
+                </p>
+            </div>
+
             <form id="LocalMovieSetsConfigForm">
 
                 <!-- ════════════════════════════════════════════════════════════════
@@ -872,6 +882,34 @@
                     }
                 }).catch(function (err) {
                     console.error('Failed to check collection conflicts:', err);
+                });
+
+                const fetcherUrl = ApiClient.getUrl('LocalMovieSets/CheckImageFetchers');
+                ApiClient.getJSON(fetcherUrl).then(function (result) {
+                    const warningEl = page.querySelector('#ImageFetcherWarningBox');
+                    const textEl = page.querySelector('#ImageFetcherWarningText');
+                    if (!warningEl || !textEl) return;
+
+                    if (!result || !result.HasConflict) {
+                        warningEl.style.display = 'none';
+                        textEl.textContent = '';
+                        return;
+                    }
+
+                    const libraryName = result.LibraryName ? ' (' + result.LibraryName + ')' : '';
+                    if (result.Reason === 'NoBoxSetOptions') {
+                        textEl.textContent = 'Collections' + libraryName + ' has no saved BoxSet image-fetcher list. Jellyfin is using the server defaults, which usually leave online image fetchers enabled.';
+                    } else if (result.Reason === 'NoCollectionsLibrary') {
+                        textEl.textContent = 'No collections library was found, so the plugin cannot confirm that only Local Movie Sets is enabled.';
+                    } else {
+                        const names = (result.EnabledFetchers || []).join(', ');
+                        textEl.textContent = names
+                            ? 'Enabled BoxSet image fetchers' + libraryName + ': ' + names + '.'
+                            : 'No BoxSet image fetcher is enabled' + libraryName + '.';
+                    }
+                    warningEl.style.display = 'block';
+                }).catch(function (err) {
+                    console.error('Failed to check collection image fetchers:', err);
                 });
             }
 
