@@ -20,7 +20,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - **Streamlined Configuration Tabs:** Consolidated into three focused tabs: ⚙️ Settings, 🩺 Diagnostics & Tools, and 💡 Setup Guide.
 - **Default Limit Values:** Set default limit inputs to `0` (Unbegrenzt / All) across all metadata aggregation fields.
+- **README accuracy:** Feature list and FAQ now match current defaults (no library filter, optional release year/aggregation, theme music only from the set folder).
 
+### Removed
+- **Dashboard & History tab / Insights widget:** Removed from the configuration UI. Sync progress is visible via Jellyfin's server activity log and Scheduled Tasks; diagnostics export still includes last-run metrics when available.
+- **Dead status poll after Force Rebuild:** Removed a leftover `scheduleStatusPoll` call that referenced a function no longer present in the page.
 ---
 
 ## [1.0.34.0] - 2026-09-30

@@ -1010,9 +1010,6 @@
                 });
             }
 
-            /* ── Sync Status & Metrics Dashboard ── */
-            let statusPollTimer = null;
-
             function escapeHtml(str) {
                 if (!str) return '';
                 return String(str)
@@ -1395,7 +1392,6 @@
                     url: url
                 }).then(function () {
                     showStatus('Rebuild started — check the server log or Scheduled Tasks for progress.', false);
-                    scheduleStatusPoll(page);
                 }).catch(function (err) {
                     console.error('Failed to start force rebuild:', err);
                     showStatus('Failed to start force rebuild (is a sync already running?). Check server logs.', true);

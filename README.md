@@ -27,9 +27,9 @@ If you curate your media collection using media managers such as [tinyMediaManag
 
 **Local Movie Sets** solves this permanently by reading the metadata already sitting on your hard drives:
 
-1. **Movie `.nfo` files:** Reads the standard `<set><name>` tags inside each movie's NFO.
-2. **Centralized Set Data Folder:** Reads set-level `.nfo` files (with titles, overviews/plots, studios, and genres) alongside collection posters and fanart.
-3. **Movie-Folder Fallback:** Searches individual movie folders for `movieset-poster.jpg` and `movieset-fanart.jpg` when no centralized set folder exists.
+1. **Movie `.nfo` files:** Reads the standard `<set><name>` tags inside each movie's NFO. Collection membership always comes from these tags across **all** movie libraries.
+2. **Centralized Set Data Folder:** Each set needs its own subfolder with a set-level `.nfo` (title, overview/plot, studios, genres, sort title) plus poster/fanart and optional `theme.mp3`.
+3. **Optional movie-folder artwork fallback:** If enabled in settings, searches member movie folders for `movieset-poster.jpg` / `movieset-fanart.jpg` when the set folder has no image. Theme music is **not** taken from movie folders.
 
 <div align="center">
   <img src="images/collections_grid.png" width="800" alt="Jellyfin Collections Grid" />
@@ -46,17 +46,17 @@ If you curate your media collection using media managers such as [tinyMediaManag
 ## Key Features
 
 - ⚡ **100% Local & Offline:** Never makes outbound calls to TMDB, TVDb, or external servers. Your media collection stays private and works during internet outages.
-- 🩺 **Integrated Diagnostic Tools & Maintenance:** Trigger an instant sync (`▶ Sync Now`), dry-run preview pending changes with movie-level diffs and KPI badges before altering your library, inspect full system health and NFO validation diagnostics, or force-rebuild all collections from scratch.
-- 🛡️ **Mount Guard Protection:** Prevents collections from being emptied or deleted if your NAS, NFS share, or external hard drive is temporarily unmounted or offline.
-- 📁 **Selective Library Filter:** Select exactly which movie libraries to scan via convenient checkboxes in the settings UI.
-- 🔄 **Automatic Background Sync:** Hooks into Jellyfin's library events to automatically sync movie sets whenever a library scan finishes (with a 30-second debounce).
-- 🕒 **Oldest-Movie Release Year:** Automatically dates each collection box set by its oldest movie, enabling perfect chronological sorting in your library view.
-- 🎯 **Intelligent Frequency-Ranked Metadata:** Counts element occurrences across all member movies so franchise-defining recurring tags, stars, directors, writers, and studios always appear first on the collection card, with fully customizable limits (or unlimited).
-- 🏷️ **Studio & Genre Fallback Inheritance:** Automatically inherits and ranks dominant genres and production studios from member movies when the set NFO does not provide them.
-- 🔤 **Custom Collection Sort Title (`<sorttitle>`):** Reads `<sorttitle>` from set NFOs to control custom alphabetical ordering of collections in Jellyfin (`collection.SortName`).
-- 🎵 **Native Theme Music Synchronization:** Detects `theme.mp3` (and `.m4a`, `.flac`, `.ogg`, `.wav`) in set data folders or movie folders and syncs them to collection directories for native background theme playback.
-- 🔔 **Jellyfin Activity Feed Logging:** Automatically posts sync results, metrics (+created, ~updated, -deleted), and warnings directly into Jellyfin's server activity log.
-- 🔒 **Privacy-Safe Bug Report Export:** Includes an interactive export dialog that strips sensitive file paths and titles so you can safely file GitHub issues with zero telemetry and persistent preferences.
+- 🩺 **Settings, Diagnostics & Setup Guide:** Instant sync, dry-run preview with movie-level diffs and KPI badges, NFO/artwork validation, path checks, Force Rebuild, and an in-plugin setup guide.
+- 🛡️ **Mount Guard Protection:** Aborts sync (no create/delete) if a movie library path is missing, empty, or unreadable.
+- 📚 **All Movie Libraries:** Scans every movie library; there is no per-library filter in the UI.
+- 🔄 **Automatic Background Sync:** Hooks into Jellyfin library events to resync after library scans (with debounce).
+- 🕒 **Optional Collection Release Year:** Can date each box set from its oldest or newest member movie — off by default (`Do not calculate`).
+- 🎯 **Optional Frequency-Ranked Metadata:** When aggregation is enabled, ranks tags, cast, and crew across member movies with configurable limits (`0` = unlimited). Aggregation is off by default.
+- 🏷️ **Genres & Studios:** With aggregation on, values come from member movies. With aggregation off, values come from the set NFO; if the set NFO has none, the collection fields are cleared.
+- 🔤 **Custom Collection Sort Title (`<sorttitle>`):** Reads `<sorttitle>` from set NFOs for custom alphabetical ordering (`collection.SortName`).
+- 🎵 **Theme Music from the Set Folder:** Copies `theme.mp3` (also `.m4a`, `.flac`, `.ogg`, `.wav`) or prefixed names such as `Alien Collection-theme.mp3` into the Jellyfin collection folder. Enable **Theme songs** in Jellyfin display settings to hear them in the web client.
+- 🔔 **Jellyfin Activity Feed Logging:** Posts sync results and warnings to the server activity log.
+- 🔒 **Privacy-Safe Bug Report Export:** Interactive export dialog with optional path/title masking for GitHub issues.
 
 ---
 
@@ -115,7 +115,7 @@ Each set needs its own folder. The NFO file lives inside that folder. Match the 
 | **`[Subfolder] <SetName>/<SetName>.nfo`** *(recommended)* | `<SetFolder>/<SetName>/<SetName>.nfo` | tinyMediaManager (TMM) standard | `_sets/Alien Collection/Alien Collection.nfo` |
 | **`[Subfolder] <SetName>/collection.nfo`** | `<SetFolder>/<SetName>/collection.nfo` | MediaElch, Ember, Kodi standard | `_sets/Alien Collection/collection.nfo` |
 
-**Artwork files:** Place `poster.jpg` (or `folder.jpg`) and `fanart.jpg` (or `backdrop.jpg`) directly in the collection folder. If using movie-folder fallback, name them `movieset-poster.jpg` and `movieset-fanart.jpg` inside the member movie folders.
+**Artwork files:** Place `poster.jpg` (or `folder.jpg`) and `fanart.jpg` (or `backdrop.jpg`) in the set folder. Optional theme music: `theme.mp3` (or `{folder}-theme.mp3`) in the same folder. For movie-folder artwork fallback, use `movieset-poster.jpg` / `movieset-fanart.jpg` inside member movie folders and keep **Search movie folders for set artwork** enabled.
 
 ---
 
@@ -125,10 +125,10 @@ Each set needs its own folder. The NFO file lives inside that folder. Match the 
 You likely have Jellyfin's native **"Automatically add to collection"** option enabled on one or more libraries. This causes TMDB to generate online box sets alongside your local ones. Disable this option in your library settings and run **⚠️ Force Rebuild** in the plugin's Diagnostics tab.
 
 ### Where should I store my collection artwork?
-Either in a dedicated movie set data folder (e.g. `_sets/Alien Collection/poster.jpg`), or directly in each movie's folder (e.g. `movieset-poster.jpg`). If you use the latter, make sure to enable **Movie Folder Fallback** in the plugin settings.
+In the dedicated set data folder (e.g. `_sets/Alien Collection/poster.jpg`). Optionally enable **Search movie folders for set artwork** and place `movieset-poster.jpg` / `movieset-fanart.jpg` in member movie folders. Theme music belongs only in the set folder (`theme.mp3` or a prefixed name).
 
 ### Will my collections disappear if my network drive unmounts?
-No. The **Mount Guard** verifies that library roots are online and non-empty before starting any sync. If a share is unreachable, the sync safely aborts and keeps your existing collections untouched.
+No. **Mount Guard** checks that movie library roots are online and non-empty before sync. If a share is unreachable or empty, the sync aborts and leaves existing collections untouched.
 
 ### Does this plugin modify any of my media files?
 **Never.** Local Movie Sets operates in strict **read-only mode** with respect to your physical files. It never edits, renames, or writes to your `.nfo`, video, or image files on disk.
