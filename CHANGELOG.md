@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.33.0] - 2026-09-30
+### Added
+- **Universal Media Manager Compatibility:** Generalized all references from tinyMediaManager (TMM) to universal media managers (e.g. tinyMediaManager, MediaElch, Ember, Kodi, custom NFOs) across the entire plugin, UI, setup guide, and documentation.
+- **Frequency-Ranked Metadata Aggregation:** Intelligent frequency counting across all member movies so franchise-defining elements always appear first:
+  - **Tags:** Ranked by occurrences across movies, with configurable limit (`MaxTags`, default: 15, `0 = All`).
+  - **Cast & Crew:** Actors ranked by franchise appearances across movies (`MaxActors`, default: 20, `0 = All`); directors and writers ranked by total films directed/written (`MaxDirectors`, `MaxWriters`, default: `0 = All`).
+  - **Genres & Studios Fallback Inheritance:** When a set NFO has no genres or studios, dominant genres and recurring studios are inherited from member movies and ranked by frequency (`AggregateGenres`, `AggregateStudios`, `MaxGenres`, `MaxStudios`).
+- **Tactile UI Save & Status Feedback:** Multi-channel visual feedback when saving settings — animated button states (`Saving…` → `✓ Saved!`), inline badge (`✅ Settings saved successfully.`), and a floating bottom-center toast visible regardless of scroll position.
+- **Unit Test Suite Expansion:** Added comprehensive tests for string/person frequency ranking, tie-breaking, unlimited limits, and cast weighting.
+
+---
+
 ## [1.0.32.0] - 2026-09-30
 ### Added
 - **Modern Tabbed Interface:** Redesigned plugin configuration page with fixed layout navigation (`Dashboard & History`, `Settings`, `Diagnostics & Tools`, `Setup Guide`) eliminating layout shifts.

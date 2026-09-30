@@ -52,6 +52,8 @@ If you curate your media collection using media managers such as [tinyMediaManag
 - 📁 **Selective Library Filter:** Select exactly which movie libraries to scan via convenient checkboxes in the settings UI.
 - 🔄 **Automatic Background Sync:** Hooks into Jellyfin's library events to automatically sync movie sets whenever a library scan finishes (with a 30-second debounce).
 - 🕒 **Oldest-Movie Release Year:** Automatically dates each collection box set by its oldest movie, enabling perfect chronological sorting in your library view.
+- 🎯 **Intelligent Frequency-Ranked Metadata:** Counts element occurrences across all member movies so franchise-defining recurring tags, stars, directors, writers, and studios always appear first on the collection card, with fully customizable limits (or unlimited).
+- 🏷️ **Studio & Genre Fallback Inheritance:** Automatically inherits and ranks dominant genres and production studios from member movies when the set NFO does not provide them.
 - 🔒 **Privacy-Safe Bug Report Export:** Includes an export dialog that strips sensitive file paths and library names so you can safely file GitHub issues.
 
 <div align="center">
