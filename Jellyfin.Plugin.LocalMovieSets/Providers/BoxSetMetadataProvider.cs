@@ -224,50 +224,28 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
             }
         }
 
-        // Genres: Set NFO takes priority if present, otherwise inherit from member movies if AggregateGenres is enabled
-        IReadOnlyList<string> candidateGenres = Array.Empty<string>();
-        if (setInfo?.Genres != null && setInfo.Genres.Count > 0)
+        // Genres: aggregation from movies wins when enabled; otherwise set NFO, else clear.
+        var genresArray = ResolveCollectionStringList(
+            config.AggregateGenres,
+            setInfo?.Genres,
+            movies.Select(m => m.Genres),
+            config.MaxGenres);
+        if (collection.Genres is null || !collection.Genres.SequenceEqual(genresArray, StringComparer.OrdinalIgnoreCase))
         {
-            candidateGenres = config.MaxGenres > 0
-                ? setInfo.Genres.Take(config.MaxGenres).ToArray()
-                : setInfo.Genres.ToArray();
-        }
-        else if (config.AggregateGenres)
-        {
-            candidateGenres = RankStringsByFrequency(movies.Select(m => m.Genres), config.MaxGenres);
-        }
-
-        if (candidateGenres.Count > 0)
-        {
-            var genresArray = candidateGenres.ToArray();
-            if (collection.Genres is null || !collection.Genres.SequenceEqual(genresArray, StringComparer.OrdinalIgnoreCase))
-            {
-                collection.Genres = genresArray;
-                changed = true;
-            }
+            collection.Genres = genresArray;
+            changed = true;
         }
 
-        // Studios: Set NFO takes priority if present, otherwise inherit from member movies if AggregateStudios is enabled
-        IReadOnlyList<string> candidateStudios = Array.Empty<string>();
-        if (setInfo?.Studios != null && setInfo.Studios.Count > 0)
+        // Studios: same rule as genres.
+        var studiosArray = ResolveCollectionStringList(
+            config.AggregateStudios,
+            setInfo?.Studios,
+            movies.Select(m => m.Studios),
+            config.MaxStudios);
+        if (collection.Studios is null || !collection.Studios.SequenceEqual(studiosArray, StringComparer.OrdinalIgnoreCase))
         {
-            candidateStudios = config.MaxStudios > 0
-                ? setInfo.Studios.Take(config.MaxStudios).ToArray()
-                : setInfo.Studios.ToArray();
-        }
-        else if (config.AggregateStudios)
-        {
-            candidateStudios = RankStringsByFrequency(movies.Select(m => m.Studios), config.MaxStudios);
-        }
-
-        if (candidateStudios.Count > 0)
-        {
-            var studiosArray = candidateStudios.ToArray();
-            if (collection.Studios is null || !collection.Studios.SequenceEqual(studiosArray, StringComparer.OrdinalIgnoreCase))
-            {
-                collection.Studios = studiosArray;
-                changed = true;
-            }
+            collection.Studios = studiosArray;
+            changed = true;
         }
 
         // 3. Aggregate community rating and tags
@@ -364,6 +342,32 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Resolves genres or studios for a collection.
+    /// When <paramref name="aggregate"/> is true, values come from member movies.
+    /// Otherwise values come from the set NFO when present; an empty result clears the field.
+    /// </summary>
+    public static string[] ResolveCollectionStringList(
+        bool aggregate,
+        IReadOnlyList<string>? setNfoValues,
+        IEnumerable<IEnumerable<string>?> movieSources,
+        int max)
+    {
+        if (aggregate)
+        {
+            return RankStringsByFrequency(movieSources, max).ToArray();
+        }
+
+        if (setNfoValues is { Count: > 0 })
+        {
+            return max > 0
+                ? setNfoValues.Take(max).ToArray()
+                : setNfoValues.ToArray();
+        }
+
+        return [];
     }
 
     /// <summary>

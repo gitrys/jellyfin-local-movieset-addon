@@ -145,11 +145,13 @@ public class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>
     /// Gets or sets a value indicating whether to aggregate genres from member movies.
+    /// When enabled, movie genres win over the set NFO. When disabled, genres come from the set NFO or are cleared.
     /// </summary>
     public bool AggregateGenres { get; set; } = false;
 
     /// <summary>
     /// Gets or sets a value indicating whether to aggregate production studios from member movies.
+    /// When enabled, movie studios win over the set NFO. When disabled, studios come from the set NFO or are cleared.
     /// </summary>
     public bool AggregateStudios { get; set; } = false;
 

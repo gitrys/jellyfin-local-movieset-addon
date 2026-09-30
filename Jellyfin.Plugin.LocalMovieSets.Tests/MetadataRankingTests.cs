@@ -115,4 +115,60 @@ public class MetadataRankingTests
         Assert.Equal("Sigourney Weaver", topActors[0].Name);  // 4 movies
         Assert.Equal("Lance Henriksen", topActors[1].Name);   // 2 movies
     }
+
+    [Fact]
+    public void ResolveCollectionStringList_AggregateOn_UsesMovies_IgnoresSetNfo()
+    {
+        var movies = new[]
+        {
+            new[] { "Sci-Fi", "Horror" },
+            new[] { "Sci-Fi", "Action" }
+        };
+
+        var result = BoxSetMetadataProvider.ResolveCollectionStringList(
+            aggregate: true,
+            setNfoValues: ["Romance"],
+            movieSources: movies,
+            max: 0);
+
+        Assert.Equal(3, result.Length);
+        Assert.Equal("Sci-Fi", result[0]);
+        Assert.DoesNotContain("Romance", result);
+    }
+
+    [Fact]
+    public void ResolveCollectionStringList_AggregateOff_UsesSetNfo()
+    {
+        var result = BoxSetMetadataProvider.ResolveCollectionStringList(
+            aggregate: false,
+            setNfoValues: ["Action", "Sci-Fi"],
+            movieSources: [new[] { "Horror" }],
+            max: 0);
+
+        Assert.Equal(["Action", "Sci-Fi"], result);
+    }
+
+    [Fact]
+    public void ResolveCollectionStringList_AggregateOff_EmptySetNfo_Clears()
+    {
+        var result = BoxSetMetadataProvider.ResolveCollectionStringList(
+            aggregate: false,
+            setNfoValues: [],
+            movieSources: [new[] { "Horror" }],
+            max: 0);
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void ResolveCollectionStringList_AggregateOff_NullSetNfo_Clears()
+    {
+        var result = BoxSetMetadataProvider.ResolveCollectionStringList(
+            aggregate: false,
+            setNfoValues: null,
+            movieSources: [new[] { "Horror" }],
+            max: 0);
+
+        Assert.Empty(result);
+    }
 }
