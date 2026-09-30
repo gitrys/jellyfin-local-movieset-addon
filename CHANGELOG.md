@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **README accuracy:** Feature list and FAQ now match current defaults (no library filter, optional release year/aggregation, theme music only from the set folder).
 - **Bug report template:** Clarified that path masking is on by default and title masking is optional / pattern-limited.
 - **Validate query parameter:** Diagnostics export now passes `folderPath` so an unsaved Set Data Folder input is actually validated.
+- **Settings help text:** Shortened field descriptions across the Settings tab for clearer defaults and orphan/artwork behavior.
 
 ### Removed
 - **Dashboard & History tab / Insights widget:** Removed from the configuration UI. Sync progress is visible via Jellyfin's server activity log and Scheduled Tasks; diagnostics export still includes last-run metrics when available.

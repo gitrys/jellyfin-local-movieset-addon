@@ -274,9 +274,7 @@
                             </div>
                             <div id="SetDataFolderStatus" style="font-size: 0.9em; margin-top: 0.5em; font-weight: 500; display: none;"></div>
                             <div class="fieldDescription">
-                                Path to dedicated Movie Set Data Folder (e.g. tinyMediaManager, MediaElch).
-                                This folder contains per-set NFO files and artwork.
-                                Leave blank if you only use the &lt;set&gt; tag in individual movie NFOs.
+                                Folder with set NFOs and artwork (e.g. TMM / MediaElch). Empty = movie &lt;set&gt; tags only.
                             </div>
                         </div>
 
@@ -300,9 +298,7 @@
                             </div>
                             <div id="DetectNamingStatus" style="font-size: 0.95em; margin-bottom: 0.6em; font-weight: bold; display: none;"></div>
                             <div class="fieldDescription">
-                                Each set needs its own folder. The NFO lives inside that folder.
-                                Match the file name to your media manager
-                                (e.g. tinyMediaManager &rarr; Settings &rarr; Movies &rarr; Movie Sets or MediaElch).
+                                One folder per set; NFO inside. Match your media manager's layout.
                             </div>
                         </div>
 
@@ -319,8 +315,7 @@
                                    value="1"
                             />
                             <div class="fieldDescription">
-                                A collection is only created if at least this many movies in your
-                                library belong to the set. Default: 1.
+                                Skip creating sets smaller than this. Existing small sets are kept.
                             </div>
                         </div>
                     </div>
@@ -339,7 +334,7 @@
                                 <span>Aggregate community ratings</span>
                             </label>
                             <div class="fieldDescription checkboxFieldDescription">
-                                When enabled, calculates and sets the collection's community rating as the average of the ratings of its member movies.
+                                Set the collection rating to the average of its movies.
                             </div>
                         </div>
 
@@ -364,7 +359,7 @@
                                         </label>
                                         <input id="MaxTags" type="number" class="emby-input" min="0" max="100" value="0" />
                                         <div class="fieldDescription" style="font-size: 0.82em; margin-top: 0.25em;">
-                                            Ranked by franchise frequency. Default: 0.
+                                            Max tags to keep (<code>0</code> = unlimited). Most common first.
                                         </div>
                                     </div>
                                 </div>
@@ -383,7 +378,7 @@
                                         </label>
                                         <input id="MaxGenres" type="number" class="emby-input" min="0" max="50" value="0" />
                                         <div class="fieldDescription" style="font-size: 0.82em; margin-top: 0.25em;">
-                                            From member movies when on. When off, from the set NFO, or cleared. Default: 0.
+                                            On &rarr; from movies. Off &rarr; set NFO, else clear. <code>0</code> = all.
                                         </div>
                                     </div>
                                 </div>
@@ -402,7 +397,7 @@
                                         </label>
                                         <input id="MaxStudios" type="number" class="emby-input" min="0" max="50" value="0" />
                                         <div class="fieldDescription" style="font-size: 0.82em; margin-top: 0.25em;">
-                                            From member movies when on. When off, from the set NFO, or cleared. Default: 0.
+                                            On &rarr; from movies. Off &rarr; set NFO, else clear. <code>0</code> = all.
                                         </div>
                                     </div>
                                 </div>
@@ -420,7 +415,7 @@
                                     <span>Aggregate cast and crew</span>
                                 </label>
                                 <div class="fieldDescription checkboxFieldDescription">
-                                    When enabled, aggregates actors, directors, and writers from member movies and displays them on the collection card, ranked by franchise frequency.
+                                    Fill cast/crew from members, ranked by how often they appear.
                                 </div>
                             </div>
 
@@ -437,7 +432,7 @@
                                            value="0"
                                     />
                                     <div class="fieldDescription" style="font-size: 0.82em; margin-top: 0.25em;">
-                                        Recurring stars appear first. Default: 0.
+                                        Max people to keep (<code>0</code> = unlimited).
                                     </div>
                                 </div>
 
@@ -453,7 +448,7 @@
                                            value="0"
                                     />
                                     <div class="fieldDescription" style="font-size: 0.82em; margin-top: 0.25em;">
-                                        Ranked by directed films. Default: 0.
+                                        Max people to keep (<code>0</code> = unlimited).
                                     </div>
                                 </div>
 
@@ -469,7 +464,7 @@
                                            value="0"
                                     />
                                     <div class="fieldDescription" style="font-size: 0.82em; margin-top: 0.25em;">
-                                        Ranked by written films. Default: 0.
+                                        Max people to keep (<code>0</code> = unlimited).
                                     </div>
                                 </div>
                             </div>
@@ -486,11 +481,7 @@
                                 <option value="SortName">Sort Name</option>
                             </select>
                             <div class="fieldDescription">
-                                Display order applied to collections. Jellyfin natively supports only
-                                "Release Date" and "Sort Name"; "Creation Order" keeps the order in which
-                                the plugin linked the movies (sorted by release date when created).
-                                You can still manually override this for individual collections by clicking
-                                "Edit Metadata" on the collection's details page in Jellyfin.
+                                How movies are ordered in the collection. &quot;Creation Order&quot; = plugin link order (by release when built). Override per collection in Edit Metadata.
                             </div>
                         </div>
 
@@ -504,9 +495,7 @@
                                 <option value="Descending">Descending</option>
                             </select>
                             <div class="fieldDescription">
-                                Sorting direction for the order in which movies are linked into a collection.
-                                Only affects "Creation Order" mode — Jellyfin's native "Release Date" and
-                                "Sort Name" display orders are always ascending.
+                                Asc/Desc for Creation Order only. Jellyfin native sorts stay ascending.
                             </div>
                         </div>
 
@@ -521,7 +510,7 @@
                                 <option value="SetOnlyIfEmpty">Set only if empty</option>
                             </select>
                             <div class="fieldDescription">
-                                Automatically calculate the collection's release date based on the oldest movie in it.
+                                Derive premiere from members: off / always / only if empty.
                             </div>
                         </div>
                     </div>
@@ -540,9 +529,7 @@
                                 <span>Enable Mount Guard</span>
                             </label>
                             <div class="fieldDescription checkboxFieldDescription">
-                                When enabled, the plugin checks if all configured movie library folders
-                                are online and not empty before syncing. If a folder goes offline or becomes
-                                empty (e.g. network share drops), the sync is aborted to prevent collections from losing their members.
+                                Abort sync if any movie library path is offline or empty.
                             </div>
                         </div>
 
@@ -556,7 +543,7 @@
                                 <span>Automatically sync after library scans and updates</span>
                             </label>
                             <div class="fieldDescription checkboxFieldDescription">
-                                When enabled, automatically triggers a collection sync 30 seconds after movies are added, updated, or scanned in your library.
+                                Auto-sync ~30s after library add/update/scan.
                             </div>
                         </div>
 
@@ -570,11 +557,7 @@
                                 <span>Delete orphaned collections</span>
                             </label>
                             <div class="fieldDescription checkboxFieldDescription">
-                                Remove Jellyfin collections whose name no longer appears as a
-                                &lt;set&gt; in any movie NFO. Collections with a TMDB or IMDb ID
-                                are kept unless the option below is on. When this is off, a
-                                renamed set leaves the old collection in place and its movies
-                                appear in both until you remove the old one.
+                                Delete orphans (name not in any movie &lt;set&gt;). Keeps TMDB/IMDb IDs.
                             </div>
                         </div>
 
@@ -589,11 +572,7 @@
                                     <span>Also delete orphaned collections with provider IDs</span>
                                 </label>
                                 <div class="fieldDescription checkboxFieldDescription">
-                                    Turn this on if this plugin is your only source of collections.
-                                    Set NFOs with a &lt;tmdbid&gt; give their collection a provider ID too,
-                                    so with this off such a set survives as an orphan after you rename or remove it.
-                                    Leave it off only if you keep collections from other sources
-                                    (manual or TMDB) next to your local sets.
+                                    Also delete orphans with provider IDs (incl. set &lt;tmdbid&gt;). Only if this plugin is your only source.
                                 </div>
                             </div>
                         </div>
@@ -608,9 +587,7 @@
                                 <span>Overwrite existing collection artwork</span>
                             </label>
                             <div class="fieldDescription checkboxFieldDescription">
-                                When enabled, artwork in the set folder is re-copied
-                                on every sync, replacing any existing images on the collection.
-                                When disabled, only collections with no artwork are updated.
+                                On = always refresh images from the set folder. Off = only if collection has none.
                             </div>
                         </div>
 
@@ -624,7 +601,7 @@
                                 <span>Search movie folders for set artwork (fallback)</span>
                             </label>
                             <div class="fieldDescription checkboxFieldDescription">
-                                When enabled, the plugin searches for set artwork (e.g. <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code>) directly inside member movie folders if no dedicated set data folder is configured or if no image was found there.
+                                If set folder has no image, look for <code>movieset-poster.jpg</code> / <code>movieset-fanart.jpg</code> in movie folders.
                             </div>
                         </div>
                     </div>
