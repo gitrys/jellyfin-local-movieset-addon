@@ -471,7 +471,7 @@
                         </div>
 
                         <!-- ── Default Collection Sort By ── -->
-                        <div class="inputContainer">
+                        <div class="inputContainer" style="margin-top: 1.5em;">
                             <label class="inputLabel inputLabelUnfocused" for="CollectionSortBy">
                                 Default Collection Sort By
                             </label>
@@ -557,7 +557,7 @@
                                 <span>Delete orphaned collections</span>
                             </label>
                             <div class="fieldDescription checkboxFieldDescription">
-                                Delete orphans (name not in any movie &lt;set&gt;). Keeps TMDB/IMDb IDs.
+                                Delete orphans (name not in any movie &lt;set&gt;). Keeps sets with TMDB/IMDb IDs.
                             </div>
                         </div>
 
@@ -732,13 +732,9 @@
                             <ul style="margin: 0; padding-left: 1.2em; color: #bbb;">
                                 <li><strong>Set Subfolder:</strong> <code>.../_sets/Avatar Collection/Avatar Collection.nfo</code></li>
                                 <li><strong>collection.nfo:</strong> <code>.../_sets/Avatar Collection/collection.nfo</code></li>
-                                <li><strong>Artwork:</strong> place <code>poster.jpg</code> / <code>fanart.jpg</code> (or common aliases) in the same set folder.</li>
+                                <li><strong>Artwork / theme:</strong> see the file-name legend below.</li>
                                 <li>
-                                    <strong>Theme music:</strong>
-                                    <code>theme.mp3</code> (also <code>.m4a</code>, <code>.flac</code>, <code>.ogg</code>, <code>.wav</code>),
-                                    or <code>Avatar Collection-theme.mp3</code> / <code>Avatar Collection.theme.mp3</code>.
-                                    Plain <code>theme.*</code> wins if both exist. The file is copied into the Jellyfin collection folder as <code>theme.*</code>.
-                                    To hear it in the web client, enable
+                                    To hear theme music in the web client, enable
                                     <em>Theme songs</em> under
                                     <a href="#/mypreferencesdisplay" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Settings &rarr; Display</a>.
                                     <span id="ThemeSongSettingWarning"
@@ -747,6 +743,29 @@
                                           aria-label="Theme songs are disabled in your display settings">⚠</span>
                                 </li>
                             </ul>
+                            <details style="margin-top: 0.9em; color: #ccc;">
+                                <summary style="cursor: pointer; color: #00a4dc; font-weight: 600; user-select: none;">
+                                    File-name legend (what the plugin looks for)
+                                </summary>
+                                <div style="margin-top: 0.75em; padding: 0.9em 1em; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; font-size: 0.9em; line-height: 1.55;">
+                                    <p style="margin: 0 0 0.6em 0;"><strong>In the set folder</strong> (preferred):</p>
+                                    <ul style="margin: 0 0 0.8em 0; padding-left: 1.2em; color: #bbb;">
+                                        <li><strong>Poster:</strong> <code>poster.jpg/.png</code>, <code>folder.jpg/.png</code></li>
+                                        <li><strong>Fanart:</strong> <code>fanart.jpg/.png</code>, <code>backdrop.jpg/.png</code></li>
+                                        <li><strong>Logo:</strong> <code>logo.png/.jpg</code>, <code>clearlogo.png</code></li>
+                                        <li><strong>Thumb:</strong> <code>landscape.jpg/.png</code>, <code>thumb.jpg/.png</code></li>
+                                        <li><strong>Clearart / banner / disc / box / menu:</strong> <code>clearart.*</code>, <code>banner.*</code>, <code>disc.*</code> / <code>discart.*</code>, <code>box.*</code>, <code>boxrear.*</code> / <code>back.*</code>, <code>menu.*</code></li>
+                                        <li><strong>Theme music:</strong> <code>theme.mp3</code> (also <code>.m4a</code>, <code>.flac</code>, <code>.ogg</code>, <code>.wav</code>), or <code>{Folder}-theme.ext</code> / <code>{Folder}.theme.ext</code></li>
+                                    </ul>
+                                    <p style="margin: 0 0 0.6em 0;"><strong>In movie folders</strong> (only if fallback is on; artwork only — not theme):</p>
+                                    <ul style="margin: 0; padding-left: 1.2em; color: #bbb;">
+                                        <li><code>movieset-poster</code> / <code>movieset-folder</code> (+ <code>.jpg/.png</code>)</li>
+                                        <li><code>movieset-fanart</code> / <code>movieset-backdrop</code></li>
+                                        <li><code>movieset-logo</code> / <code>movieset-clearlogo</code>, <code>movieset-thumb</code> / <code>movieset-landscape</code>, and similar <code>movieset-*</code> names for clearart, banner, disc</li>
+                                        <li>Also <code>{SetName}-poster.jpg</code> style prefixes matching the set name</li>
+                                    </ul>
+                                </div>
+                            </details>
                         </div>
 
                         <div style="margin-bottom: 1.5em;">
