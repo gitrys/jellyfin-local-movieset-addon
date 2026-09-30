@@ -702,39 +702,103 @@
                         <h3 style="margin-top: 0; margin-bottom: 1em; color: #00a4dc; display: flex; align-items: center; gap: 0.5em; font-size: 1.2em;">
                             <span>💡</span> Setup Guide &amp; Best Practices
                         </h3>
-                        
+
                         <div style="margin-bottom: 1.5em;">
                             <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">1. Before Syncing (Avoid Metadata Conflicts)</h4>
+                            <p style="margin: 0 0 0.6em 0; color: #ccc;">
+                                Turn off <em>"Automatically add to collection"</em> for every movie library
+                                (under
+                                <a href="#/dashboard/libraries" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Dashboard &rarr; Libraries</a>,
+                                then open the library &rarr; Metadata settings).
+                                Otherwise TMDB can create collections next to the ones this plugin builds from your NFOs.
+                            </p>
                             <p style="margin: 0; color: #ccc;">
-                                Ensure that <em>"Automatically add to collection"</em> is <strong>disabled</strong> in your Jellyfin library settings 
-                                (under <strong>Dashboard &rarr; Libraries &rarr; [your movie library] &rarr; Metadata settings</strong>) to prevent conflicts with TMDB auto-collections.
+                                For the Collections library, enable only <strong>Local Movie Sets</strong> as a BoxSet image fetcher
+                                and leave BoxSet metadata downloaders unchecked
+                                (under
+                                <a href="#/dashboard/libraries" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Dashboard &rarr; Libraries</a>,
+                                then Collections &rarr; Manage Library).
+                                Online fetchers can overwrite local artwork and text.
                             </p>
                         </div>
 
                         <div style="margin-bottom: 1.5em;">
                             <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">2. Display Settings (Group Movies into Collections)</h4>
                             <p style="margin: 0; color: #ccc;">
-                                To group member movies under their collection poster in the main movie library view, enable 
-                                <em>"Group movies into collections"</em> under 
+                                To nest movies under their collection poster in the <strong>Movies</strong> tab, enable
+                                <em>"Group movies into collections"</em> under
                                 <a href="#/dashboard/libraries/display" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Dashboard &rarr; Libraries &rarr; Display</a>.
+                                The Collections library and the Collections tab list your sets either way.
                             </p>
                         </div>
 
                         <div style="margin-bottom: 1.5em;">
-                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">3. Folder Structure &amp; Naming Conventions</h4>
+                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">3. How Sync Works</h4>
                             <p style="margin: 0 0 0.5em 0; color: #ccc;">
-                                Each set needs its own folder inside the Movie Set Data Folder. The NFO file lives in that folder.
+                                Sync reads <strong>all</strong> movie libraries. Collection names come from the
+                                <code>&lt;set&gt;</code> tag in each movie NFO. The Movie Set Data Folder only supplies artwork, overview, and theme music.
+                                A set folder with no matching movie never creates a collection.
+                            </p>
+                            <ul style="margin: 0; padding-left: 1.2em; color: #bbb;">
+                                <li><strong>Sync Now:</strong> create or update collections from the current NFOs.</li>
+                                <li><strong>Force Rebuild:</strong> delete every collection in Jellyfin, then recreate from the NFOs. Manual and TMDB collections are removed too.</li>
+                                <li><strong>Minimum Movies:</strong> a new collection is only created when at least this many movies in the library share that set name. Existing collections below the minimum stay and are still updated.</li>
+                                <li><strong>Mount Guard:</strong> if a movie library path is missing, empty, or unreadable, sync does nothing (no create, no delete).</li>
+                            </ul>
+                        </div>
+
+                        <div style="margin-bottom: 1.5em;">
+                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">4. Folder Structure &amp; Naming</h4>
+                            <p style="margin: 0 0 0.5em 0; color: #ccc;">
+                                Each set needs its own folder inside the Movie Set Data Folder. The NFO lives in that folder.
                             </p>
                             <ul style="margin: 0; padding-left: 1.2em; color: #bbb;">
                                 <li><strong>Set Subfolder:</strong> <code>.../_sets/Avatar Collection/Avatar Collection.nfo</code></li>
                                 <li><strong>collection.nfo:</strong> <code>.../_sets/Avatar Collection/collection.nfo</code></li>
+                                <li><strong>Artwork:</strong> place <code>poster.jpg</code> / <code>fanart.jpg</code> (or common aliases) in the same set folder.</li>
+                                <li>
+                                    <strong>Theme music:</strong>
+                                    <code>theme.mp3</code> (also <code>.m4a</code>, <code>.flac</code>, <code>.ogg</code>, <code>.wav</code>),
+                                    or <code>Avatar Collection-theme.mp3</code> / <code>Avatar Collection.theme.mp3</code>.
+                                    Plain <code>theme.*</code> wins if both exist. The file is copied into the Jellyfin collection folder as <code>theme.*</code>.
+                                    To hear it in the web client, enable
+                                    <em>Theme songs</em> under
+                                    <a href="#/mypreferencesdisplay" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Settings &rarr; Display</a>.
+                                    <span id="ThemeSongSettingWarning"
+                                          style="display: none; color: #f44336; font-size: 1.15em; margin-left: 0.25em; cursor: help; vertical-align: middle;"
+                                          title="Theme songs are off for this browser. Enable Settings → Display → Theme songs, or copied theme files will not play here."
+                                          aria-label="Theme songs are disabled in your display settings">⚠</span>
+                                </li>
                             </ul>
                         </div>
 
-                        <div>
-                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">4. Movie Folder Artwork Fallback</h4>
+                        <div style="margin-bottom: 1.5em;">
+                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">5. Genres &amp; Studios</h4>
                             <p style="margin: 0; color: #ccc;">
-                                If a movie set has no dedicated folder in the Set Data Folder (or if you don't use a central set folder), enabling the fallback option allows the plugin to search the member movies' folders for <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code>, etc.
+                                With <em>Aggregate genres</em> / <em>Aggregate studios</em> on, values come from the member movies.
+                                With aggregation off, values come from the set NFO; if the set NFO has none, the collection field is cleared.
+                            </p>
+                        </div>
+
+                        <div style="margin-bottom: 1.5em;">
+                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">6. Delete Orphaned Collections</h4>
+                            <p style="margin: 0 0 0.5em 0; color: #ccc;">
+                                When enabled, sync removes collections whose name no longer appears as a <code>&lt;set&gt;</code> in any movie NFO.
+                                Collections with a TMDB or IMDb ID are kept unless the second option is on.
+                            </p>
+                            <p style="margin: 0; color: #ccc;">
+                                Turn <em>Also delete orphaned collections with provider IDs</em> on if this plugin is your only source of collections.
+                                Set NFOs with a <code>&lt;tmdbid&gt;</code> give their collection a provider ID too, so without that option such a set would survive after you rename or remove it.
+                                Leave it off if you keep manual or TMDB collections next to your local sets.
+                            </p>
+                        </div>
+
+                        <div>
+                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">7. Movie Folder Artwork Fallback</h4>
+                            <p style="margin: 0; color: #ccc;">
+                                Optional. If a set has no artwork in the Set Data Folder, the plugin can look in member movie folders for
+                                <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code>, and similar names.
+                                Theme music is <strong>not</strong> taken from movie folders — only from the set folder.
                             </p>
                         </div>
                     </div>
@@ -804,6 +868,10 @@
                         }
                     });
 
+                    if (targetTabId === 'TabGuide') {
+                        updateThemeSongGuideWarning(page);
+                    }
+
                     try {
                         sessionStorage.setItem('lms_active_tab', targetTabId);
                     } catch (e) {
@@ -858,6 +926,24 @@
                         setTimeout(function () { toast.style.display = 'none'; }, 300);
                     }, 3500);
                 }
+            }
+
+            /* ── Theme songs client setting (localStorage only in Jellyfin Web) ── */
+            function isThemeSongsEnabledInThisBrowser() {
+                try {
+                    const userId = ApiClient.getCurrentUserId && ApiClient.getCurrentUserId();
+                    if (!userId) return false;
+                    // Jellyfin Web stores this as "{userId}-enableThemeSongs"; default is off.
+                    return localStorage.getItem(userId + '-enableThemeSongs') === 'true';
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            function updateThemeSongGuideWarning(page) {
+                const warningEl = page.querySelector('#ThemeSongSettingWarning');
+                if (!warningEl) return;
+                warningEl.style.display = isThemeSongsEnabledInThisBrowser() ? 'none' : 'inline';
             }
 
             /* ── Check Conflicts ── */
@@ -1947,6 +2033,16 @@
                 initTabs(page);
                 loadConfig(page);
                 checkConflicts(page);
+                updateThemeSongGuideWarning(page);
+
+                if (!page._lmsThemeSongVisibilityBound) {
+                    page._lmsThemeSongVisibilityBound = true;
+                    document.addEventListener('visibilitychange', function () {
+                        if (document.visibilityState === 'visible') {
+                            updateThemeSongGuideWarning(page);
+                        }
+                    });
+                }
 
                 const form = page.querySelector('#LocalMovieSetsConfigForm');
                 form.removeEventListener('submit', form._saveHandler);

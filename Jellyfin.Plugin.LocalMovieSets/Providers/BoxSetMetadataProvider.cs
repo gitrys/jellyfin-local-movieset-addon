@@ -72,7 +72,7 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
 
         var changed = ApplyDisplayOrder(item, config);
         changed |= ApplySetMetadata(item, item.Name, movies, config);
-        changed |= ApplyThemeSong(item, item.Name, movies, config);
+        changed |= ApplyThemeSong(item, item.Name, config);
 
         await UpdatePeopleAsync(item, item.Name, movies, config, cancellationToken).ConfigureAwait(false);
 
@@ -285,9 +285,9 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
 
     /// <summary>
     /// Synchronizes theme music (e.g. theme.mp3, theme.flac) from the set data folder
-    /// (or member movie folder fallback) into the Jellyfin BoxSet directory, enabling native theme music playback.
+    /// into the Jellyfin BoxSet directory, enabling native theme music playback.
     /// </summary>
-    private bool ApplyThemeSong(BoxSet collection, string setName, List<Movie> movies, PluginConfiguration config)
+    private bool ApplyThemeSong(BoxSet collection, string setName, PluginConfiguration config)
     {
         if (string.IsNullOrWhiteSpace(collection.Path) || !Directory.Exists(collection.Path))
         {
@@ -296,17 +296,12 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
 
         try
         {
-            string? sourceThemeSong = null;
-            if (!string.IsNullOrWhiteSpace(config.SetDataFolder))
+            if (string.IsNullOrWhiteSpace(config.SetDataFolder))
             {
-                sourceThemeSong = SetNfoParser.ResolveThemeSongPath(config.SetDataFolder, setName, config.NfoNaming);
+                return false;
             }
 
-            if (sourceThemeSong is null && config.EnableMovieFolderArtworkFallback)
-            {
-                sourceThemeSong = SetNfoParser.ResolveMovieFolderThemeSong(movies.Select(m => m.ContainingFolderPath));
-            }
-
+            var sourceThemeSong = SetNfoParser.ResolveThemeSongPath(config.SetDataFolder, setName, config.NfoNaming);
             if (sourceThemeSong is not null && File.Exists(sourceThemeSong))
             {
                 var ext = Path.GetExtension(sourceThemeSong);

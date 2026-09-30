@@ -321,22 +321,32 @@ public class SetNfoParserTests : IDisposable
     }
 
     [Fact]
-    public void ResolveMovieFolderThemeSong_FindsFirstExisting()
+    public void ResolveThemeSongPath_FindsPrefixedThemeSong()
     {
-        // Arrange
-        var movieFolder1 = Path.Combine(_tempDirectory, "Movie1");
-        var movieFolder2 = Path.Combine(_tempDirectory, "Movie2");
-        Directory.CreateDirectory(movieFolder1);
-        Directory.CreateDirectory(movieFolder2);
-
-        var themeFile = Path.Combine(movieFolder2, "theme.mp3");
+        var setName = "James Bond Collection";
+        var subfolder = Path.Combine(_tempDirectory, setName);
+        Directory.CreateDirectory(subfolder);
+        var themeFile = Path.Combine(subfolder, "James Bond Collection-theme.mp3");
         File.WriteAllText(themeFile, "fake mp3");
 
-        // Act
-        var result = SetNfoParser.ResolveMovieFolderThemeSong([movieFolder1, movieFolder2]);
+        var result = SetNfoParser.ResolveThemeSongPath(_tempDirectory, setName, NfoNamingConvention.SetSubfolder);
 
-        // Assert
-        Assert.NotNull(result);
         Assert.Equal(themeFile, result);
+    }
+
+    [Fact]
+    public void ResolveThemeSongPath_PrefersPlainThemeOverPrefixed()
+    {
+        var setName = "Alien Collection";
+        var subfolder = Path.Combine(_tempDirectory, setName);
+        Directory.CreateDirectory(subfolder);
+        var plain = Path.Combine(subfolder, "theme.mp3");
+        var prefixed = Path.Combine(subfolder, "Alien Collection-theme.mp3");
+        File.WriteAllText(plain, "plain");
+        File.WriteAllText(prefixed, "prefixed");
+
+        var result = SetNfoParser.ResolveThemeSongPath(_tempDirectory, setName, NfoNamingConvention.SetSubfolder);
+
+        Assert.Equal(plain, result);
     }
 }

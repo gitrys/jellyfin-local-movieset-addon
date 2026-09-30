@@ -262,6 +262,7 @@ public class SetNfoParser
 
     /// <summary>
     /// Resolves an existing theme audio file for a given set name from the configured set data folder.
+    /// Accepts <c>theme.ext</c>, <c>{folder}-theme.ext</c>, and <c>{folder}.theme.ext</c>.
     /// </summary>
     /// <param name="setDataFolder">Root set data folder.</param>
     /// <param name="setName">Name of the movie set.</param>
@@ -275,12 +276,17 @@ public class SetNfoParser
         }
 
         var artworkFolder = ResolveArtworkFolder(setDataFolder, setName, naming);
-        if (artworkFolder is not null && Directory.Exists(artworkFolder))
+        if (artworkFolder is null || !Directory.Exists(artworkFolder))
         {
-            foreach (var name in ThemeSongFileNames)
+            return null;
+        }
+
+        foreach (var fileName in GetThemeSongFileNameCandidates(Path.GetFileName(artworkFolder)))
+        {
+            var candidate = Path.Combine(artworkFolder, fileName);
+            if (File.Exists(candidate))
             {
-                var candidate = Path.Combine(artworkFolder, name);
-                if (File.Exists(candidate)) return candidate;
+                return candidate;
             }
         }
 
@@ -288,27 +294,25 @@ public class SetNfoParser
     }
 
     /// <summary>
-    /// Checks movie folders for a theme audio file (fallback mode).
+    /// Theme file names to try in a set folder, most specific last.
     /// </summary>
-    /// <param name="movieFolderPaths">Folder paths of the member movies.</param>
-    /// <returns>Full path to the first existing theme song file found, or <c>null</c> if none found.</returns>
-    public static string? ResolveMovieFolderThemeSong(IEnumerable<string?> movieFolderPaths)
+    internal static IEnumerable<string> GetThemeSongFileNameCandidates(string? folderBaseName)
     {
-        foreach (var folder in movieFolderPaths)
+        foreach (var name in ThemeSongFileNames)
         {
-            if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
-            {
-                continue;
-            }
-
-            foreach (var name in ThemeSongFileNames)
-            {
-                var candidate = Path.Combine(folder, name);
-                if (File.Exists(candidate)) return candidate;
-            }
+            yield return name;
         }
 
-        return null;
+        if (string.IsNullOrWhiteSpace(folderBaseName))
+        {
+            yield break;
+        }
+
+        foreach (var ext in ThemeSongExtensions)
+        {
+            yield return $"{folderBaseName}-theme{ext}";
+            yield return $"{folderBaseName}.theme{ext}";
+        }
     }
 
     private static string BuildNfoPath(string setDataFolder, string safeName, NfoNamingConvention naming)
