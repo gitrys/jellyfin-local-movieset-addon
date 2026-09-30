@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.34.0] - 2026-09-30
+### Added
+- **Collection Sort Title Support (`<sorttitle>`):** Dedicated set NFOs now support `<sorttitle>` (e.g. from tinyMediaManager, MediaElch, or custom XML), allowing precise, custom alphabetical positioning of collections in Jellyfin (`collection.SortName` / `collection.ForcedSortName`).
+- **Jellyfin Server Activity Feed Integration (`IActivityManager`):** Sync completions, metrics (+created, ~updated, -deleted), duration, cancellations, and Mount Guard warnings are now logged directly to Jellyfin's server activity log.
+- **Theme Music Synchronization (`theme.mp3`):** Automatic detection and synchronization of theme music (`theme.mp3`, `theme.m4a`, `theme.flac`, `theme.ogg`, `theme.wav`) from set data folders or movie folder fallbacks into Jellyfin's native collection directories, enabling immersive background theme song playback in Jellyfin Web and TV clients.
+- **Theme Music Validator Support:** Local NFO & Artwork Validator now detects theme audio files and reports their status as informational diagnostics.
+- **Collection Insights Dashboard Widget:** Modern interactive highlights card on the **Dashboard & History** tab showcasing the library's largest franchise, oldest franchise premiere, newest franchise release, highest-rated franchise, and average movies per set.
+- **Unit Test Coverage:** Added unit test suites for sort title parsing, theme song path resolution, Jellyfin activity logging, and collection insights calculation (74 tests passing with 0 warnings).
+
+---
+
 ## [1.0.33.0] - 2026-09-30
 ### Added
 - **Universal Media Manager Compatibility:** Generalized all references from tinyMediaManager (TMM) to universal media managers (e.g. tinyMediaManager, MediaElch, Ember, Kodi, custom NFOs) across the entire plugin, UI, setup guide, and documentation.

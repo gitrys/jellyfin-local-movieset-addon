@@ -973,6 +973,52 @@
                     '</div>'
                 ].join('\n');
 
+                // ── Collection Insights Widget ──
+                let insightsHtml = '';
+                if (s.Insights && (s.Insights.LargestCollectionName || s.Insights.OldestFranchiseName || s.Insights.TopRatedCollectionName)) {
+                    const ins = s.Insights;
+                    insightsHtml = [
+                        '<div style="background: rgba(0, 164, 220, 0.07); border: 1px solid rgba(0, 164, 220, 0.22); border-radius: 8px; padding: 1em 1.25em; margin-bottom: 1.2em;">',
+                        '  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75em; flex-wrap: wrap; gap: 0.5em;">',
+                        '    <div style="font-weight: 600; color: #00a4dc; font-size: 0.95em; display: flex; align-items: center; gap: 0.4em;">',
+                        '      <span>✨</span> Collection Insights &amp; Highlights',
+                        '    </div>',
+                        '    <div style="font-size: 0.8em; color: #888;">Avg ' + (ins.AverageMoviesPerSet || 0) + ' movies per set</div>',
+                        '  </div>',
+                        '  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75em;">',
+                        ins.LargestCollectionName ? (
+                            '    <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 0.7em 0.9em;">' +
+                            '      <div style="font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px;">🏆 Largest Franchise</div>' +
+                            '      <div style="font-size: 0.95em; font-weight: 600; color: #fff; margin-top: 0.25em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHtml(ins.LargestCollectionName) + '">' + escapeHtml(ins.LargestCollectionName) + '</div>' +
+                            '      <div style="font-size: 0.8em; color: #00a4dc; margin-top: 0.15em;">' + ins.LargestCollectionMovieCount + ' movies</div>' +
+                            '    </div>'
+                        ) : '',
+                        ins.TopRatedCollectionName ? (
+                            '    <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 0.7em 0.9em;">' +
+                            '      <div style="font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px;">⭐ Top Rated</div>' +
+                            '      <div style="font-size: 0.95em; font-weight: 600; color: #fff; margin-top: 0.25em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHtml(ins.TopRatedCollectionName) + '">' + escapeHtml(ins.TopRatedCollectionName) + '</div>' +
+                            '      <div style="font-size: 0.8em; color: #FFC107; margin-top: 0.15em;">★ ' + (ins.TopRatedAverageRating ? ins.TopRatedAverageRating.toFixed(1) : 'N/A') + ' / 10</div>' +
+                            '    </div>'
+                        ) : '',
+                        ins.OldestFranchiseName ? (
+                            '    <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 0.7em 0.9em;">' +
+                            '      <div style="font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px;">🕰️ Oldest Franchise</div>' +
+                            '      <div style="font-size: 0.95em; font-weight: 600; color: #fff; margin-top: 0.25em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHtml(ins.OldestFranchiseName) + '">' + escapeHtml(ins.OldestFranchiseName) + '</div>' +
+                            '      <div style="font-size: 0.8em; color: #aaa; margin-top: 0.15em;">Premiered ' + (ins.OldestFranchiseYear || 'N/A') + '</div>' +
+                            '    </div>'
+                        ) : '',
+                        ins.NewestFranchiseName ? (
+                            '    <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 0.7em 0.9em;">' +
+                            '      <div style="font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px;">🚀 Newest Franchise</div>' +
+                            '      <div style="font-size: 0.95em; font-weight: 600; color: #fff; margin-top: 0.25em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHtml(ins.NewestFranchiseName) + '">' + escapeHtml(ins.NewestFranchiseName) + '</div>' +
+                            '      <div style="font-size: 0.8em; color: #4CAF50; margin-top: 0.15em;">Latest ' + (ins.NewestFranchiseYear || 'N/A') + '</div>' +
+                            '    </div>'
+                        ) : '',
+                        '  </div>',
+                        '</div>'
+                    ].filter(Boolean).join('\n');
+                }
+
                 // ── Diagnostic alerts ──
                 let alertsHtml = '';
                 if (s.LastErrorMessage) {
@@ -1047,7 +1093,7 @@
                     ].join('\n');
                 }
 
-                content.innerHTML = kpiHtml + alertsHtml + historyHtml;
+                content.innerHTML = kpiHtml + insightsHtml + alertsHtml + historyHtml;
 
                 // Hook up clear history button if rendered
                 const btnClear = content.querySelector('#BtnClearHistory');

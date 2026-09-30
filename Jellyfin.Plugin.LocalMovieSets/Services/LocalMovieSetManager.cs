@@ -13,6 +13,8 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
+using MediaBrowser.Model.Activity;
+using Jellyfin.Database.Implementations.Entities;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -36,6 +38,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     private readonly IFileSystem _fileSystem;
     private readonly MovieNfoParser _movieNfoParser;
     private readonly ILogger<LocalMovieSetManager> _logger;
+    private readonly IActivityManager? _activityManager;
 
     // Debounce timer: fires 30 seconds after the last library change event
     private readonly Timer _debounceTimer;
@@ -109,7 +112,8 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         IProviderManager providerManager,
         IFileSystem fileSystem,
         MovieNfoParser movieNfoParser,
-        ILogger<LocalMovieSetManager> logger)
+        ILogger<LocalMovieSetManager> logger,
+        IActivityManager? activityManager = null)
     {
         _libraryManager = libraryManager;
         _collectionManager = collectionManager;
@@ -117,6 +121,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         _fileSystem = fileSystem;
         _movieNfoParser = movieNfoParser;
         _logger = logger;
+        _activityManager = activityManager;
 
         // Timer starts stopped (Timeout.Infinite = never fire)
         _debounceTimer = new Timer(
@@ -307,6 +312,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             var setGroups = BuildSetGroups(allMovies, cancellationToken, stats);
             stats.SetsFound = setGroups.Count;
             stats.MoviesInSets = setGroups.Values.Sum(g => g.Count);
+            stats.Insights = ComputeInsights(setGroups);
 
             // Publish the managed set names for the metadata/image providers
             _managedSetNames = new HashSet<string>(setGroups.Keys, StringComparer.OrdinalIgnoreCase);
@@ -418,7 +424,180 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             stats.LastRunCompletedUtc = DateTime.UtcNow;
             _isSyncing = false;
             RecordSyncHistory(stats);
+            _ = LogServerActivityAsync(stats);
         }
+    }
+
+    /// <summary>
+    /// Logs sync completion or failures to the Jellyfin Server Activity Log feed if <see cref="IActivityManager"/> is available.
+    /// </summary>
+    internal async Task LogServerActivityAsync(SyncStatusInfo stats)
+    {
+        if (_activityManager == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var duration = stats.DurationSeconds.HasValue
+                ? $"{stats.DurationSeconds.Value:F1}s"
+                : "N/A";
+
+            string name;
+            string overview;
+            LogLevel severity;
+
+            switch (stats.LastRunOutcome)
+            {
+                case SyncOutcomes.Success:
+                    name = "Local Movie Sets Sync Succeeded";
+                    overview = $"Synced {stats.SetsFound} collections (+{stats.CollectionsCreated} / ~{stats.CollectionsUpdated} / -{stats.CollectionsDeleted}) from {stats.MoviesScanned} movies in {duration}.";
+                    severity = LogLevel.Information;
+                    break;
+
+                case SyncOutcomes.MountGuardAborted:
+                    name = "Local Movie Sets Sync Aborted";
+                    overview = "Sync was aborted because library mounts or paths were offline or empty (Mount Guard active).";
+                    severity = LogLevel.Warning;
+                    break;
+
+                case SyncOutcomes.Cancelled:
+                    name = "Local Movie Sets Sync Cancelled";
+                    overview = "Sync operation was cancelled.";
+                    severity = LogLevel.Warning;
+                    break;
+
+                case SyncOutcomes.Failed:
+                default:
+                    name = "Local Movie Sets Sync Failed";
+                    overview = string.IsNullOrWhiteSpace(stats.LastErrorMessage)
+                        ? "Sync failed with an unexpected error."
+                        : $"Sync failed: {stats.LastErrorMessage}";
+                    severity = LogLevel.Error;
+                    break;
+            }
+
+            var entry = new ActivityLog(
+                name,
+                "LocalMovieSets",
+                Guid.Empty)
+            {
+                Overview = overview,
+                ShortOverview = overview,
+                LogSeverity = severity,
+                DateCreated = DateTime.UtcNow
+            };
+
+            await _activityManager.CreateAsync(entry).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to create activity log entry");
+        }
+    }
+
+    /// <summary>
+    /// Computes interesting highlights and metrics across discovered movie set groups.
+    /// </summary>
+    internal static CollectionInsightsInfo ComputeInsights(IReadOnlyDictionary<string, List<Movie>> setGroups)
+    {
+        var insights = new CollectionInsightsInfo();
+
+        if (setGroups == null || setGroups.Count == 0)
+        {
+            return insights;
+        }
+
+        var totalMoviesInSets = setGroups.Values.Sum(g => g.Count);
+        insights.AverageMoviesPerSet = Math.Round((double)totalMoviesInSets / setGroups.Count, 1);
+
+        // 1. Largest Collection
+        var largest = setGroups
+            .OrderByDescending(g => g.Value.Count)
+            .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+
+        if (largest.Value != null)
+        {
+            insights.LargestCollectionName = largest.Key;
+            insights.LargestCollectionMovieCount = largest.Value.Count;
+        }
+
+        // 2. Oldest Franchise (by earliest movie release year)
+        var oldest = setGroups
+            .Select(g =>
+            {
+                var minYear = g.Value
+                    .Where(m => m.ProductionYear.HasValue && m.ProductionYear.Value > 1880)
+                    .Select(m => m.ProductionYear!.Value)
+                    .DefaultIfEmpty(int.MaxValue)
+                    .Min();
+                return new { Name = g.Key, Year = minYear };
+            })
+            .Where(x => x.Year < int.MaxValue)
+            .OrderBy(x => x.Year)
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+
+        if (oldest != null)
+        {
+            insights.OldestFranchiseName = oldest.Name;
+            insights.OldestFranchiseYear = oldest.Year;
+        }
+
+        // 3. Newest Franchise (by latest movie release year)
+        var newest = setGroups
+            .Select(g =>
+            {
+                var maxYear = g.Value
+                    .Where(m => m.ProductionYear.HasValue)
+                    .Select(m => m.ProductionYear!.Value)
+                    .DefaultIfEmpty(0)
+                    .Max();
+                return new { Name = g.Key, Year = maxYear };
+            })
+            .Where(x => x.Year > 0)
+            .OrderByDescending(x => x.Year)
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+
+        if (newest != null)
+        {
+            insights.NewestFranchiseName = newest.Name;
+            insights.NewestFranchiseYear = newest.Year;
+        }
+
+        // 4. Top Rated Collection (prefer sets with at least 2 member movies)
+        var candidateGroupsForRating = setGroups.Where(g => g.Value.Count >= 2).ToList();
+        if (candidateGroupsForRating.Count == 0)
+        {
+            candidateGroupsForRating = setGroups.ToList();
+        }
+
+        var topRated = candidateGroupsForRating
+            .Select(g =>
+            {
+                var ratedMovies = g.Value.Where(m => m.CommunityRating.HasValue).ToList();
+                if (ratedMovies.Count == 0)
+                {
+                    return new { Name = g.Key, AvgRating = (float?)null };
+                }
+                var avg = (float)Math.Round(ratedMovies.Average(m => m.CommunityRating!.Value), 1);
+                return new { Name = g.Key, AvgRating = (float?)avg };
+            })
+            .Where(x => x.AvgRating.HasValue)
+            .OrderByDescending(x => x.AvgRating!.Value)
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+
+        if (topRated != null)
+        {
+            insights.TopRatedCollectionName = topRated.Name;
+            insights.TopRatedAverageRating = topRated.AvgRating;
+        }
+
+        return insights;
     }
 
     /// <summary>

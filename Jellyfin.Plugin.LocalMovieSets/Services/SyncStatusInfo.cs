@@ -90,6 +90,9 @@ public class SyncStatusInfo
     /// <summary>Gets or sets recent log messages from sync executions.</summary>
     public IReadOnlyList<string> RecentLogs { get; set; } = Array.Empty<string>();
 
+    /// <summary>Gets or sets highlights and interesting statistics across managed collections.</summary>
+    public CollectionInsightsInfo? Insights { get; set; }
+
     /// <summary>Creates a shallow copy of this snapshot.</summary>
     /// <returns>A copy safe to hand out to API consumers.</returns>
     public SyncStatusInfo Clone()
@@ -99,6 +102,39 @@ public class SyncStatusInfo
         copy.RecentLogs = new List<string>(RecentLogs);
         return copy;
     }
+}
+
+/// <summary>
+/// Interesting insights and highlights across managed movie sets in the library.
+/// </summary>
+public class CollectionInsightsInfo
+{
+    /// <summary>The collection with the most movies (e.g. "James Bond Collection").</summary>
+    public string? LargestCollectionName { get; set; }
+
+    /// <summary>Movie count of the largest collection.</summary>
+    public int LargestCollectionMovieCount { get; set; }
+
+    /// <summary>The collection with the oldest movie release.</summary>
+    public string? OldestFranchiseName { get; set; }
+
+    /// <summary>Release year of the oldest movie in the oldest franchise.</summary>
+    public int? OldestFranchiseYear { get; set; }
+
+    /// <summary>The collection with the newest / most recent movie release.</summary>
+    public string? NewestFranchiseName { get; set; }
+
+    /// <summary>Release year of the newest movie in the newest franchise.</summary>
+    public int? NewestFranchiseYear { get; set; }
+
+    /// <summary>The collection with the highest average community rating.</summary>
+    public string? TopRatedCollectionName { get; set; }
+
+    /// <summary>Average community rating of the top rated collection.</summary>
+    public float? TopRatedAverageRating { get; set; }
+
+    /// <summary>Average member movies per collection.</summary>
+    public double AverageMoviesPerSet { get; set; }
 }
 
 /// <summary>

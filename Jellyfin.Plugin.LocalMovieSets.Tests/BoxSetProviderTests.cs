@@ -18,6 +18,7 @@ public class BoxSetProviderTests
         Assert.Equal(expected, BoxSetMetadataProvider.MapSortByToJellyfin(input));
     }
 
+
     [Fact]
     public void ArtworkMappings_CoverAllExpectedImageTypes()
     {

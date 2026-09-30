@@ -180,4 +180,27 @@ public class NfoValidatorTests : IDisposable
         // Assert
         Assert.Contains(report.Issues, i => i.Severity == ValidationSeverity.Warning && i.Category == ValidationCategory.DuplicateName);
     }
+
+    [Fact]
+    public void Validate_DetectsThemeSong_WhenPresentInFolder()
+    {
+        // Arrange
+        var folder = Path.Combine(_tempDirectory, "The Matrix Collection");
+        Directory.CreateDirectory(folder);
+
+        File.WriteAllText(Path.Combine(folder, "collection.nfo"), @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<collection><title>The Matrix Collection</title></collection>");
+        File.WriteAllText(Path.Combine(folder, "poster.jpg"), "dummy poster");
+        File.WriteAllText(Path.Combine(folder, "fanart.jpg"), "dummy fanart");
+        File.WriteAllText(Path.Combine(folder, "theme.mp3"), "dummy theme music bytes");
+
+        // Act
+        var report = _validator.Validate(_tempDirectory);
+
+        // Assert
+        Assert.Contains(report.Issues, i =>
+            i.Severity == ValidationSeverity.Info
+            && i.Category == ValidationCategory.ThemeSong
+            && i.Message.Contains("theme.mp3"));
+    }
 }

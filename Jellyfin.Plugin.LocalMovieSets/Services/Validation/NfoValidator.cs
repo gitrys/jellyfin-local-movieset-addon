@@ -443,6 +443,22 @@ public class NfoValidator
             });
         }
 
+        // 3. Theme Music Check
+        var themeFile = SetNfoParser.ThemeSongFileNames.FirstOrDefault(f => fileNamesLower.Contains(f));
+        if (themeFile != null)
+        {
+            issues.Add(new ValidationIssueDto
+            {
+                Severity = ValidationSeverity.Info,
+                Category = ValidationCategory.ThemeSong,
+                CollectionName = collectionName,
+                FolderPath = directoryPath,
+                FilePath = Path.Combine(directoryPath, themeFile),
+                Message = $"Theme song found: '{themeFile}'.",
+                Suggestion = "Theme music will be played automatically when browsing this collection."
+            });
+        }
+
         return issues;
     }
 
@@ -485,6 +501,26 @@ public class NfoValidator
                 FolderPath = folderPath,
                 Message = $"No sibling fanart '{setBaseName}-fanart.jpg' found for set '{setBaseName}'.",
                 Suggestion = $"Place '{setBaseName}-fanart.jpg' next to the NFO file."
+            });
+        }
+
+        var themeCandidates = SetNfoParser.ThemeSongExtensions.SelectMany(ext => new[]
+        {
+            $"{setBaseName}-theme{ext}",
+            $"{setBaseName}.theme{ext}"
+        });
+        var foundTheme = themeCandidates.FirstOrDefault(c => File.Exists(Path.Combine(folderPath, c)));
+        if (foundTheme != null)
+        {
+            issues.Add(new ValidationIssueDto
+            {
+                Severity = ValidationSeverity.Info,
+                Category = ValidationCategory.ThemeSong,
+                CollectionName = setBaseName,
+                FolderPath = folderPath,
+                FilePath = Path.Combine(folderPath, foundTheme),
+                Message = $"Theme song found: '{foundTheme}'.",
+                Suggestion = "Theme music will be played automatically when browsing this collection."
             });
         }
 

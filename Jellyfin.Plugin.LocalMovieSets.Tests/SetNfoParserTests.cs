@@ -281,4 +281,68 @@ public class SetNfoParserTests : IDisposable
         Assert.Equal("125570", result.TmdbId);
         Assert.Equal("tt0123456", result.ImdbId);
     }
+
+    [Fact]
+    public void ParseSet_WithSortTitle_ParsesSortTitleCorrectly()
+    {
+        // Arrange
+        var setName = "Star Wars Collection";
+        var subfolder = Path.Combine(_tempDirectory, setName);
+        Directory.CreateDirectory(subfolder);
+
+        var nfoPath = Path.Combine(subfolder, $"{setName}.nfo");
+        var nfoContent = @"<set>
+  <title>Star Wars Filmreihe</title>
+  <sorttitle>Star Wars 00</sorttitle>
+  <plot>Die epische Weltraumsaga.</plot>
+</set>";
+        File.WriteAllText(nfoPath, nfoContent);
+
+        // Act
+        var result = _parser.ParseSet(_tempDirectory, setName, NfoNamingConvention.SetSubfolder);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Star Wars Filmreihe", result.Title);
+        Assert.Equal("Star Wars 00", result.SortTitle);
+        Assert.Equal("Die epische Weltraumsaga.", result.Overview);
+    }
+
+    [Fact]
+    public void ResolveThemeSongPath_FindsThemeSong_WhenPresent()
+    {
+        // Arrange
+        var setName = "Indiana Jones";
+        var subfolder = Path.Combine(_tempDirectory, setName);
+        Directory.CreateDirectory(subfolder);
+        var themeFile = Path.Combine(subfolder, "theme.flac");
+        File.WriteAllText(themeFile, "fake flac");
+
+        // Act
+        var result = SetNfoParser.ResolveThemeSongPath(_tempDirectory, setName, NfoNamingConvention.SetSubfolder);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(themeFile, result);
+    }
+
+    [Fact]
+    public void ResolveMovieFolderThemeSong_FindsFirstExisting()
+    {
+        // Arrange
+        var movieFolder1 = Path.Combine(_tempDirectory, "Movie1");
+        var movieFolder2 = Path.Combine(_tempDirectory, "Movie2");
+        Directory.CreateDirectory(movieFolder1);
+        Directory.CreateDirectory(movieFolder2);
+
+        var themeFile = Path.Combine(movieFolder2, "theme.mp3");
+        File.WriteAllText(themeFile, "fake mp3");
+
+        // Act
+        var result = SetNfoParser.ResolveMovieFolderThemeSong([movieFolder1, movieFolder2]);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(themeFile, result);
+    }
 }

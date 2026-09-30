@@ -54,6 +54,10 @@ If you curate your media collection using media managers such as [tinyMediaManag
 - 🕒 **Oldest-Movie Release Year:** Automatically dates each collection box set by its oldest movie, enabling perfect chronological sorting in your library view.
 - 🎯 **Intelligent Frequency-Ranked Metadata:** Counts element occurrences across all member movies so franchise-defining recurring tags, stars, directors, writers, and studios always appear first on the collection card, with fully customizable limits (or unlimited).
 - 🏷️ **Studio & Genre Fallback Inheritance:** Automatically inherits and ranks dominant genres and production studios from member movies when the set NFO does not provide them.
+- 🔤 **Custom Collection Sort Title (`<sorttitle>`):** Reads `<sorttitle>` from set NFOs to control custom alphabetical ordering of collections in Jellyfin (`collection.SortName`).
+- 🎵 **Native Theme Music Synchronization:** Detects `theme.mp3` (and `.m4a`, `.flac`, `.ogg`, `.wav`) in set data folders or movie folders and syncs them to collection directories for native background theme playback.
+- 🔔 **Jellyfin Activity Feed Logging:** Automatically posts sync results, metrics (+created, ~updated, -deleted), and warnings directly into Jellyfin's server activity log.
+- ✨ **Collection Insights Widget:** Displays interesting highlights on the dashboard (largest franchise, oldest franchise premiere, newest release, highest rated, and average movies per set).
 - 🔒 **Privacy-Safe Bug Report Export:** Includes an export dialog that strips sensitive file paths and library names so you can safely file GitHub issues.
 
 <div align="center">

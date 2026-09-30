@@ -69,6 +69,7 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
 
         var changed = ApplyDisplayOrder(item, config);
         changed |= ApplySetMetadata(item, item.Name, movies, config);
+        changed |= ApplyThemeSong(item, item.Name, movies, config);
 
         await UpdatePeopleAsync(item, item.Name, movies, config, cancellationToken).ConfigureAwait(false);
 
@@ -196,6 +197,14 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
                     changed = true;
                 }
 
+                if (!string.IsNullOrWhiteSpace(setInfo.SortTitle)
+                    && !string.Equals(collection.SortName, setInfo.SortTitle, StringComparison.Ordinal))
+                {
+                    collection.SortName = setInfo.SortTitle;
+                    collection.ForcedSortName = setInfo.SortTitle;
+                    changed = true;
+                }
+
                 if (!string.IsNullOrEmpty(setInfo.TmdbId)
                     && !string.Equals(collection.GetProviderId(MetadataProvider.Tmdb), setInfo.TmdbId, StringComparison.Ordinal))
                 {
@@ -291,6 +300,67 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
         }
 
         return changed;
+    }
+
+    /// <summary>
+    /// Synchronizes theme music (e.g. theme.mp3, theme.flac) from the set data folder
+    /// (or member movie folder fallback) into the Jellyfin BoxSet directory, enabling native theme music playback.
+    /// </summary>
+    private bool ApplyThemeSong(BoxSet collection, string setName, List<Movie> movies, PluginConfiguration config)
+    {
+        if (string.IsNullOrWhiteSpace(collection.Path) || !Directory.Exists(collection.Path))
+        {
+            return false;
+        }
+
+        try
+        {
+            string? sourceThemeSong = null;
+            if (!string.IsNullOrWhiteSpace(config.SetDataFolder))
+            {
+                sourceThemeSong = SetNfoParser.ResolveThemeSongPath(config.SetDataFolder, setName, config.NfoNaming);
+            }
+
+            if (sourceThemeSong is null && config.EnableMovieFolderArtworkFallback)
+            {
+                sourceThemeSong = SetNfoParser.ResolveMovieFolderThemeSong(movies.Select(m => m.ContainingFolderPath));
+            }
+
+            if (sourceThemeSong is not null && File.Exists(sourceThemeSong))
+            {
+                var ext = Path.GetExtension(sourceThemeSong);
+                var targetPath = Path.Combine(collection.Path, $"theme{ext}");
+
+                var needCopy = true;
+                if (File.Exists(targetPath))
+                {
+                    var sourceInfo = new FileInfo(sourceThemeSong);
+                    var targetInfo = new FileInfo(targetPath);
+                    if (sourceInfo.Length == targetInfo.Length
+                        && sourceInfo.LastWriteTimeUtc == targetInfo.LastWriteTimeUtc)
+                    {
+                        needCopy = false;
+                    }
+                }
+
+                if (needCopy)
+                {
+                    File.Copy(sourceThemeSong, targetPath, overwrite: true);
+                    File.SetLastWriteTimeUtc(targetPath, File.GetLastWriteTimeUtc(sourceThemeSong));
+                    _logger.LogInformation(
+                        "Linked theme song '{SourceFile}' to collection folder for '{SetName}'",
+                        Path.GetFileName(sourceThemeSong),
+                        setName);
+                    return true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to apply theme song for collection '{SetName}'", setName);
+        }
+
+        return false;
     }
 
     /// <summary>

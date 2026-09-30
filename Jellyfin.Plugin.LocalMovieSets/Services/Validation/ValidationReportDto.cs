@@ -62,7 +62,12 @@ public enum ValidationCategory
     /// <summary>
     /// Multiple distinct folders or NFOs define identical set names.
     /// </summary>
-    DuplicateName
+    DuplicateName,
+
+    /// <summary>
+    /// Theme song audio file discovery or status.
+    /// </summary>
+    ThemeSong
 }
 
 /// <summary>
