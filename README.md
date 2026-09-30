@@ -46,8 +46,7 @@ If you curate your media collection using media managers such as [tinyMediaManag
 ## Key Features
 
 - ⚡ **100% Local & Offline:** Never makes outbound calls to TMDB, TVDb, or external servers. Your media collection stays private and works during internet outages.
-- 📊 **Rich Dashboard & Metrics:** Real-time KPI cards display scanned movies, sets detected, collections created/updated/deleted, and NFO errors — persisted across Jellyfin server restarts.
-- 🩺 **Local NFO & Artwork Validator:** Scans your set folder and highlights XML syntax issues, missing posters, or missing fanart with actionable suggestions.
+- 🩺 **Integrated Diagnostic Tools & Maintenance:** Trigger an instant sync (`▶ Sync Now`), dry-run preview pending changes without altering your library, inspect full system health and NFO validation diagnostics, or force-rebuild all collections from scratch.
 - 🛡️ **Mount Guard Protection:** Prevents collections from being emptied or deleted if your NAS, NFS share, or external hard drive is temporarily unmounted or offline.
 - 📁 **Selective Library Filter:** Select exactly which movie libraries to scan via convenient checkboxes in the settings UI.
 - 🔄 **Automatic Background Sync:** Hooks into Jellyfin's library events to automatically sync movie sets whenever a library scan finishes (with a 30-second debounce).
@@ -57,18 +56,7 @@ If you curate your media collection using media managers such as [tinyMediaManag
 - 🔤 **Custom Collection Sort Title (`<sorttitle>`):** Reads `<sorttitle>` from set NFOs to control custom alphabetical ordering of collections in Jellyfin (`collection.SortName`).
 - 🎵 **Native Theme Music Synchronization:** Detects `theme.mp3` (and `.m4a`, `.flac`, `.ogg`, `.wav`) in set data folders or movie folders and syncs them to collection directories for native background theme playback.
 - 🔔 **Jellyfin Activity Feed Logging:** Automatically posts sync results, metrics (+created, ~updated, -deleted), and warnings directly into Jellyfin's server activity log.
-- ✨ **Collection Insights Widget:** Displays interesting highlights on the dashboard (largest franchise, oldest franchise premiere, newest release, highest rated, and average movies per set).
-- 🔒 **Privacy-Safe Bug Report Export:** Includes an export dialog that strips sensitive file paths and library names so you can safely file GitHub issues.
-
-<div align="center">
-  <img src="images/plugin_dashboard.png" width="800" alt="Local Movie Sets Dashboard" />
-  <p><em>Plugin Dashboard showing live KPI metrics, sync duration, and status persisted across restarts.</em></p>
-</div>
-
-<div align="center">
-  <img src="images/diagnostics_tools.png" width="800" alt="Local Movie Sets Diagnostics & Validator" />
-  <p><em>Local NFO &amp; Artwork Diagnostics scanner with status filters and detailed issue suggestions.</em></p>
-</div>
+- 🔒 **Privacy-Safe Bug Report Export:** Includes an interactive export dialog that strips sensitive file paths and titles so you can safely file GitHub issues with zero telemetry and persistent preferences.
 
 ---
 

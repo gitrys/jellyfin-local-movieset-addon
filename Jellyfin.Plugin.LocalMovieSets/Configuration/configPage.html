@@ -89,17 +89,41 @@
         }
 
         /* ── Modern Jellyfin Checkbox & Section Styling ── */
+        .emby-checkbox-label {
+            display: inline-flex !important;
+            align-items: center !important;
+            position: relative !important;
+            padding-left: 0 !important;
+            cursor: pointer !important;
+            user-select: none !important;
+            font-size: 0.95em !important;
+            color: #eee !important;
+            line-height: 1.4 !important;
+        }
+        .emby-checkbox-label:hover {
+            color: #fff !important;
+        }
         .checkboxOutline {
+            order: -1 !important;
+            position: static !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
             width: 1.25em !important;
             height: 1.25em !important;
             min-width: 1.25em !important;
             min-height: 1.25em !important;
             border-radius: 4px !important;
-            margin-right: 0.65em !important;
+            margin: 0 0.65em 0 0 !important;
             vertical-align: middle !important;
+            flex-shrink: 0 !important;
+            top: auto !important;
+            left: auto !important;
         }
         .checkboxOutline .checkboxIcon {
-            font-size: 1.1em !important;
+            font-size: 1.05em !important;
+            position: static !important;
+            margin: 0 !important;
         }
         .lms-checkbox,
         .lms-lib-checkbox {
@@ -116,18 +140,7 @@
             accent-color: #00a4dc !important;
             cursor: pointer !important;
             vertical-align: middle !important;
-        }
-        .emby-checkbox-label {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.65em;
-            cursor: pointer;
-            user-select: none;
-            font-size: 0.95em;
-            color: #eee;
-        }
-        .emby-checkbox-label:hover {
-            color: #fff;
+            flex-shrink: 0 !important;
         }
         .checkboxContainer {
             margin: 1.1em 0;
@@ -330,58 +343,90 @@
                             </div>
                         </div>
 
-                        <!-- ── Aggregate Tags ── -->
-                        <div class="checkboxContainer checkboxContainer-withDescription">
-                            <label class="emby-checkbox-label">
-                                <input id="AggregateTags"
-                                       type="checkbox"
-                                       is="emby-checkbox"
-                                />
-                                <span>Aggregate tags</span>
-                            </label>
-                            <div class="fieldDescription checkboxFieldDescription">
-                                When enabled, aggregates tags from member movies and applies them to the collection, ranked by frequency across member movies.
+                        <!-- ── ROW 1: General Metadata (Tags, Genres, Studios) ── -->
+                        <div style="margin-top: 1.5em; padding: 1.1em 1.25em; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+                            <div style="font-weight: 600; color: #fff; margin-bottom: 0.8em; font-size: 0.95em;">
+                                General Metadata Aggregation (Tags, Genres &amp; Studios)
                             </div>
-                        </div>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25em;">
+                                <!-- Tag Aggregation & Limit -->
+                                <div>
+                                    <div class="checkboxContainer" style="margin: 0 0 0.4em 0;">
+                                        <label class="emby-checkbox-label">
+                                            <input id="AggregateTags" type="checkbox" is="emby-checkbox" />
+                                            <span>Aggregate tags</span>
+                                        </label>
+                                    </div>
+                                    <div class="inputContainer" style="margin-bottom: 0;">
+                                        <label class="inputLabel inputLabelUnfocused" for="MaxTags" style="font-size: 0.85em;">
+                                            Max Tags (0 = All)
+                                        </label>
+                                        <input id="MaxTags" type="number" class="emby-input" min="0" max="100" value="0" />
+                                        <div class="fieldDescription" style="font-size: 0.82em; margin-top: 0.25em;">
+                                            Ranked by franchise frequency. Default: 0.
+                                        </div>
+                                    </div>
+                                </div>
 
-                        <!-- ── Sub-option: Max Tags ── -->
-                        <div class="lms-sub-options">
-                            <div class="inputContainer" style="max-width: 320px; margin-bottom: 0;">
-                                <label class="inputLabel inputLabelUnfocused" for="MaxTags">
-                                    Maximum Tags (0 = All / Unlimited)
-                                </label>
-                                <input id="MaxTags"
-                                       type="number"
-                                       class="emby-input"
-                                       min="0"
-                                       max="100"
-                                       value="0"
-                                />
-                                <div class="fieldDescription">
-                                    Sorted by frequency across member movies so franchise-defining tags appear first. Default: 0 (All).
+                                <!-- Genre Aggregation & Limit -->
+                                <div>
+                                    <div class="checkboxContainer" style="margin: 0 0 0.4em 0;">
+                                        <label class="emby-checkbox-label">
+                                            <input id="AggregateGenres" type="checkbox" is="emby-checkbox" />
+                                            <span>Aggregate genres</span>
+                                        </label>
+                                    </div>
+                                    <div class="inputContainer" style="margin-bottom: 0;">
+                                        <label class="inputLabel inputLabelUnfocused" for="MaxGenres" style="font-size: 0.85em;">
+                                            Max Genres (0 = All)
+                                        </label>
+                                        <input id="MaxGenres" type="number" class="emby-input" min="0" max="50" value="0" />
+                                        <div class="fieldDescription" style="font-size: 0.82em; margin-top: 0.25em;">
+                                            Dominant genres ranked. Default: 0.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Studio Aggregation & Limit -->
+                                <div>
+                                    <div class="checkboxContainer" style="margin: 0 0 0.4em 0;">
+                                        <label class="emby-checkbox-label">
+                                            <input id="AggregateStudios" type="checkbox" is="emby-checkbox" />
+                                            <span>Aggregate studios</span>
+                                        </label>
+                                    </div>
+                                    <div class="inputContainer" style="margin-bottom: 0;">
+                                        <label class="inputLabel inputLabelUnfocused" for="MaxStudios" style="font-size: 0.85em;">
+                                            Max Studios (0 = All)
+                                        </label>
+                                        <input id="MaxStudios" type="number" class="emby-input" min="0" max="50" value="0" />
+                                        <div class="fieldDescription" style="font-size: 0.82em; margin-top: 0.25em;">
+                                            Recurring studios ranked. Default: 0.
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- ── Aggregate Cast and Crew ── -->
-                        <div class="checkboxContainer checkboxContainer-withDescription">
-                            <label class="emby-checkbox-label">
-                                <input id="AggregatePeople"
-                                       type="checkbox"
-                                       is="emby-checkbox"
-                                />
-                                <span>Aggregate cast and crew</span>
-                            </label>
-                            <div class="fieldDescription checkboxFieldDescription">
-                                When enabled, aggregates actors, directors, and writers from member movies and displays them on the collection card, ranked by franchise frequency.
+                        <!-- ── ROW 2: Cast and Crew (Actors, Directors, Writers) ── -->
+                        <div style="margin-top: 1.25em; padding: 1.1em 1.25em; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;">
+                            <div class="checkboxContainer checkboxContainer-withDescription" style="margin: 0 0 0.8em 0;">
+                                <label class="emby-checkbox-label">
+                                    <input id="AggregatePeople"
+                                           type="checkbox"
+                                           is="emby-checkbox"
+                                    />
+                                    <span>Aggregate cast and crew</span>
+                                </label>
+                                <div class="fieldDescription checkboxFieldDescription">
+                                    When enabled, aggregates actors, directors, and writers from member movies and displays them on the collection card, ranked by franchise frequency.
+                                </div>
                             </div>
-                        </div>
 
-                        <!-- ── Sub-options: Max Actors / Directors / Writers ── -->
-                        <div class="lms-sub-options">
-                            <div style="display: flex; flex-wrap: wrap; gap: 1.5em; max-width: 750px;">
-                                <div class="inputContainer" style="flex: 1 1 200px; margin-bottom: 0;">
-                                    <label class="inputLabel inputLabelUnfocused" for="MaxActors">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25em; margin-top: 0.6em;">
+                                <div class="inputContainer" style="margin-bottom: 0;">
+                                    <label class="inputLabel inputLabelUnfocused" for="MaxActors" style="font-size: 0.85em;">
                                         Max Actors (0 = All)
                                     </label>
                                     <input id="MaxActors"
@@ -391,13 +436,13 @@
                                            max="100"
                                            value="0"
                                     />
-                                    <div class="fieldDescription">
-                                        Top recurring stars across member movies appear first. Default: 0 (All).
+                                    <div class="fieldDescription" style="font-size: 0.82em; margin-top: 0.25em;">
+                                        Recurring stars appear first. Default: 0.
                                     </div>
                                 </div>
 
-                                <div class="inputContainer" style="flex: 1 1 200px; margin-bottom: 0;">
-                                    <label class="inputLabel inputLabelUnfocused" for="MaxDirectors">
+                                <div class="inputContainer" style="margin-bottom: 0;">
+                                    <label class="inputLabel inputLabelUnfocused" for="MaxDirectors" style="font-size: 0.85em;">
                                         Max Directors (0 = All)
                                     </label>
                                     <input id="MaxDirectors"
@@ -407,13 +452,13 @@
                                            max="50"
                                            value="0"
                                     />
-                                    <div class="fieldDescription">
-                                        Ranked by number of films directed in the collection. Default: 0 (All).
+                                    <div class="fieldDescription" style="font-size: 0.82em; margin-top: 0.25em;">
+                                        Ranked by directed films. Default: 0.
                                     </div>
                                 </div>
 
-                                <div class="inputContainer" style="flex: 1 1 200px; margin-bottom: 0;">
-                                    <label class="inputLabel inputLabelUnfocused" for="MaxWriters">
+                                <div class="inputContainer" style="margin-bottom: 0;">
+                                    <label class="inputLabel inputLabelUnfocused" for="MaxWriters" style="font-size: 0.85em;">
                                         Max Writers (0 = All)
                                     </label>
                                     <input id="MaxWriters"
@@ -423,75 +468,9 @@
                                            max="50"
                                            value="0"
                                     />
-                                    <div class="fieldDescription">
-                                        Ranked by number of films written in the collection. Default: 0 (All).
+                                    <div class="fieldDescription" style="font-size: 0.82em; margin-top: 0.25em;">
+                                        Ranked by written films. Default: 0.
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ── Aggregate Genres ── -->
-                        <div class="checkboxContainer checkboxContainer-withDescription">
-                            <label class="emby-checkbox-label">
-                                <input id="AggregateGenres"
-                                       type="checkbox"
-                                       is="emby-checkbox"
-                                />
-                                <span>Aggregate genres</span>
-                            </label>
-                            <div class="fieldDescription checkboxFieldDescription">
-                                When enabled, inherits and aggregates genres from member movies if the collection NFO has none, ranked by frequency across the set.
-                            </div>
-                        </div>
-
-                        <!-- ── Sub-option: Max Genres ── -->
-                        <div class="lms-sub-options">
-                            <div class="inputContainer" style="max-width: 320px; margin-bottom: 0;">
-                                <label class="inputLabel inputLabelUnfocused" for="MaxGenres">
-                                    Maximum Genres (0 = All / Unlimited)
-                                </label>
-                                <input id="MaxGenres"
-                                       type="number"
-                                       class="emby-input"
-                                       min="0"
-                                       max="50"
-                                       value="0"
-                                />
-                                <div class="fieldDescription">
-                                    Ranked by frequency across member movies so dominant genres appear first. Default: 0 (All).
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ── Aggregate Studios ── -->
-                        <div class="checkboxContainer checkboxContainer-withDescription">
-                            <label class="emby-checkbox-label">
-                                <input id="AggregateStudios"
-                                       type="checkbox"
-                                       is="emby-checkbox"
-                                />
-                                <span>Aggregate production studios</span>
-                            </label>
-                            <div class="fieldDescription checkboxFieldDescription">
-                                When enabled, inherits and aggregates production studios from member movies if the collection NFO has none, ranked by frequency across the set.
-                            </div>
-                        </div>
-
-                        <!-- ── Sub-option: Max Studios ── -->
-                        <div class="lms-sub-options">
-                            <div class="inputContainer" style="max-width: 320px; margin-bottom: 0;">
-                                <label class="inputLabel inputLabelUnfocused" for="MaxStudios">
-                                    Maximum Studios (0 = All / Unlimited)
-                                </label>
-                                <input id="MaxStudios"
-                                       type="number"
-                                       class="emby-input"
-                                       min="0"
-                                       max="50"
-                                       value="0"
-                                />
-                                <div class="fieldDescription">
-                                    Ranked by frequency across member movies so major recurring studios appear first. Default: 0 (All).
                                 </div>
                             </div>
                         </div>
@@ -1231,9 +1210,24 @@
                     }
                     if (!info) return;
 
-                    let maskPaths = true;
-                    let maskTitles = false;
-                    let includeErrors = true;
+                    function getSavedBool(key, defaultVal) {
+                        try {
+                            const val = localStorage.getItem(key);
+                            return val !== null ? val === 'true' : defaultVal;
+                        } catch (e) {
+                            return defaultVal;
+                        }
+                    }
+                    function setSavedBool(key, val) {
+                        try {
+                            localStorage.setItem(key, val ? 'true' : 'false');
+                        } catch (e) {}
+                    }
+
+                    let wordWrap = getSavedBool('lms_diag_wrap', true);
+                    let maskPaths = getSavedBool('lms_diag_mask_paths', true);
+                    let maskTitles = getSavedBool('lms_diag_mask_titles', false);
+                    let includeErrors = getSavedBool('lms_diag_include_errors', true);
 
                     function sanitizePath(str) {
                         if (!str) return '';
@@ -1381,21 +1375,21 @@
                         '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em; flex-wrap: wrap; gap: 0.5em;">',
                         '  <div style="font-size: 0.78em; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Interactive Privacy &amp; Output Filters:</div>',
                         '  <label class="emby-checkbox-label" style="font-size: 0.85em; color: #00a4dc;">',
-                        '    <input type="checkbox" id="LmsWordWrap" checked class="lms-checkbox" />',
+                        '    <input type="checkbox" id="LmsWordWrap" ' + (wordWrap ? 'checked' : '') + ' class="lms-checkbox" />',
                         '    <span>↩️ Wrap Long Lines</span>',
                         '  </label>',
                         '</div>',
                         '<div style="display: flex; gap: 1.2em; flex-wrap: wrap;">',
                         '  <label class="emby-checkbox-label" style="font-size: 0.88em;">',
-                        '    <input type="checkbox" id="LmsMaskPaths" checked class="lms-checkbox" />',
+                        '    <input type="checkbox" id="LmsMaskPaths" ' + (maskPaths ? 'checked' : '') + ' class="lms-checkbox" />',
                         '    <span>📁 Mask File Paths</span>',
                         '  </label>',
                         '  <label class="emby-checkbox-label" style="font-size: 0.88em;">',
-                        '    <input type="checkbox" id="LmsMaskTitles" class="lms-checkbox" />',
+                        '    <input type="checkbox" id="LmsMaskTitles" ' + (maskTitles ? 'checked' : '') + ' class="lms-checkbox" />',
                         '    <span>🎬 Mask Set &amp; Movie Titles</span>',
                         '  </label>',
                         '  <label class="emby-checkbox-label" style="font-size: 0.88em;">',
-                        '    <input type="checkbox" id="LmsIncludeErrors" checked class="lms-checkbox" />',
+                        '    <input type="checkbox" id="LmsIncludeErrors" ' + (includeErrors ? 'checked' : '') + ' class="lms-checkbox" />',
                         '    <span>⚠️ Include Diagnostics &amp; Logs</span>',
                         '  </label>',
                         '</div>'
@@ -1418,7 +1412,7 @@
 
                     const chkWrap = toolbar.querySelector('#LmsWordWrap');
                     function applyWrap() {
-                        if (chkWrap && chkWrap.checked) {
+                        if (wordWrap) {
                             textarea.style.whiteSpace = 'pre-wrap';
                             textarea.style.wordBreak = 'break-word';
                             textarea.style.overflowX = 'hidden';
@@ -1429,7 +1423,11 @@
                         }
                     }
                     if (chkWrap) {
-                        chkWrap.onchange = applyWrap;
+                        chkWrap.onchange = function () {
+                            wordWrap = chkWrap.checked;
+                            setSavedBool('lms_diag_wrap', wordWrap);
+                            applyWrap();
+                        };
                         applyWrap();
                     }
 
@@ -1439,14 +1437,17 @@
 
                     chkPaths.onchange = function () {
                         maskPaths = chkPaths.checked;
+                        setSavedBool('lms_diag_mask_paths', maskPaths);
                         updateText();
                     };
                     chkTitles.onchange = function () {
                         maskTitles = chkTitles.checked;
+                        setSavedBool('lms_diag_mask_titles', maskTitles);
                         updateText();
                     };
                     chkErrors.onchange = function () {
                         includeErrors = chkErrors.checked;
+                        setSavedBool('lms_diag_include_errors', includeErrors);
                         updateText();
                     };
 
@@ -1459,7 +1460,7 @@
                     footer.appendChild(hint);
 
                     const actions = document.createElement('div');
-                    actions.style.cssText = 'display: flex; gap: 0.8em; align-items: center; flex-wrap: wrap;';
+                    actions.style.cssText = 'display: flex; gap: 0.8em; align-items: center; flex-wrap: wrap; margin-left: auto;';
 
                     const linkReport = document.createElement('a');
                     linkReport.href = 'https://github.com/gitrys/jellyfin-local-movieset-addon/issues/new';
@@ -1471,7 +1472,7 @@
                     actions.appendChild(linkReport);
 
                     const btnCopy = document.createElement('button');
-                    btnCopy.className = 'raised button-submit block emby-button';
+                    btnCopy.className = 'raised button-submit emby-button';
                     btnCopy.innerHTML = '<span>📋 Copy to Clipboard</span>';
                     btnCopy.style.cssText = 'margin: 0; padding: 0.5em 1.2em; font-size: 0.9em; background: #00a4dc; color: #fff; cursor: pointer; transition: background 0.2s ease; white-space: nowrap;';
                     btnCopy.onclick = function () {
