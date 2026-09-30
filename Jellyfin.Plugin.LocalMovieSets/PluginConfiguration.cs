@@ -146,13 +146,13 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets the maximum number of tags to apply to a collection (0 = all / unlimited).
     /// Ranked by frequency across member movies.
     /// </summary>
-    public int MaxTags { get; set; } = 15;
+    public int MaxTags { get; set; } = 0;
 
     /// <summary>
     /// Gets or sets the maximum number of actors to apply to a collection (0 = all / unlimited).
     /// Ranked by frequency across member movies.
     /// </summary>
-    public int MaxActors { get; set; } = 20;
+    public int MaxActors { get; set; } = 0;
 
     /// <summary>
     /// Gets or sets the maximum number of directors to apply to a collection (0 = all / unlimited).

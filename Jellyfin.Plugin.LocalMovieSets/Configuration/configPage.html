@@ -87,21 +87,95 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.15);
             padding: 10px;
         }
+
+        /* ── Modern Jellyfin Checkbox & Section Styling ── */
+        .checkboxOutline {
+            width: 1.25em !important;
+            height: 1.25em !important;
+            min-width: 1.25em !important;
+            min-height: 1.25em !important;
+            border-radius: 4px !important;
+            margin-right: 0.65em !important;
+            vertical-align: middle !important;
+        }
+        .checkboxOutline .checkboxIcon {
+            font-size: 1.1em !important;
+        }
+        .lms-checkbox,
+        .lms-lib-checkbox {
+            appearance: auto !important;
+            -webkit-appearance: checkbox !important;
+            opacity: 1 !important;
+            position: static !important;
+            display: inline-block !important;
+            width: 1.2em !important;
+            height: 1.2em !important;
+            min-width: 1.2em !important;
+            min-height: 1.2em !important;
+            margin: 0 !important;
+            accent-color: #00a4dc !important;
+            cursor: pointer !important;
+            vertical-align: middle !important;
+        }
+        .emby-checkbox-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.65em;
+            cursor: pointer;
+            user-select: none;
+            font-size: 0.95em;
+            color: #eee;
+        }
+        .emby-checkbox-label:hover {
+            color: #fff;
+        }
+        .checkboxContainer {
+            margin: 1.1em 0;
+        }
+        .checkboxFieldDescription {
+            margin-left: 1.9em !important;
+            margin-top: 0.35em;
+            color: #999;
+            font-size: 0.9em;
+            line-height: 1.45;
+        }
+        .lms-section {
+            margin-bottom: 2.2em;
+            padding-bottom: 1.4em;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .lms-section:last-of-type {
+            border-bottom: none;
+            margin-bottom: 1em;
+        }
+        .lms-section-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #fff;
+            margin: 0 0 1.2em 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
+        }
+        .lms-sub-options {
+            margin-left: 1.9em;
+            padding-left: 1.2em;
+            border-left: 2px solid rgba(0, 164, 220, 0.35);
+            margin-top: 0.75em;
+            margin-bottom: 1.2em;
+        }
     </style>
 
     <div data-role="content">
         <div class="content-primary">
 
-            <div class="sectionTitleContainer flex align-items-center" style="margin-bottom: 0.5em;">
-                <h2 class="sectionTitle">Local Movie Sets</h2>
+            <div class="sectionTitleContainer" style="margin-bottom: 0.8em;">
+                <h2 class="sectionTitle" style="margin: 0;">Local Movie Sets</h2>
             </div>
 
             <!-- ── Tab Navigation Bar ── -->
             <div class="lms-tab-bar" role="tablist">
-                <button type="button" class="lms-tab-btn active" data-tab="TabDashboard" role="tab" aria-selected="true">
-                    <span>📊</span> <span>Dashboard &amp; History</span>
-                </button>
-                <button type="button" class="lms-tab-btn" data-tab="TabSettings" role="tab" aria-selected="false">
+                <button type="button" class="lms-tab-btn active" data-tab="TabSettings" role="tab" aria-selected="true">
                     <span>⚙️</span> <span>Settings</span>
                 </button>
                 <button type="button" class="lms-tab-btn" data-tab="TabDiagnostics" role="tab" aria-selected="false">
@@ -136,444 +210,448 @@
             <form id="LocalMovieSetsConfigForm">
 
                 <!-- ════════════════════════════════════════════════════════════════
-                     TAB 1: 📊 Dashboard & History
+                     TAB 1: ⚙️ Settings
                      ════════════════════════════════════════════════════════════════ -->
-                <div id="TabDashboard" class="lms-tab-pane active" role="tabpanel">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2em; flex-wrap: wrap; gap: 0.8em;">
-                        <div>
-                            <h3 style="margin: 0; font-size: 1.15em; color: #fff;">Status &amp; Collection Metrics</h3>
-                            <div style="font-size: 0.85em; color: #888;">Real-time statistics for local movies and sets</div>
-                        </div>
-                        <button is="emby-button"
-                                id="BtnSyncNow"
-                                type="button"
-                                class="raised block emby-button"
-                                style="margin: 0; background: #00a4dc; color: #fff; font-weight: 600; padding: 0.6em 1.4em;">
-                            <span>&#9654; Sync Now</span>
-                        </button>
-                    </div>
+                <div id="TabSettings" class="lms-tab-pane active" role="tabpanel">
 
-                    <!-- ── Sync Status & Metrics Dashboard ── -->
-                    <div id="SyncStatusPanel" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; padding: 1.25em 1.5em; margin-bottom: 2em; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8em; flex-wrap: wrap; gap: 0.8em;">
-                            <div style="display: flex; align-items: center; gap: 0.6em;">
-                                <span style="font-size: 1.3em;">📊</span>
-                                <h3 style="margin: 0; font-size: 1.15em; color: #00a4dc; font-weight: bold;">Sync Status &amp; Metrics</h3>
+                    <!-- ── SECTION 1: 📁 Data Folder & Libraries ───────────────────── -->
+                    <div class="verticalSection lms-section">
+                        <h3 class="sectionTitle lms-section-title">📁 Data Folder &amp; Libraries</h3>
+
+                        <!-- ── Movie Set Data Folder ── -->
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="SetDataFolder">
+                                Movie Set Data Folder
+                            </label>
+                            <div style="display: flex; gap: 0.5em; align-items: center;">
+                                <input id="SetDataFolder"
+                                       type="text"
+                                       class="emby-input"
+                                       style="flex-grow: 1; margin: 0;"
+                                       placeholder="/mnt/nas/moviesets  (leave empty to skip dedicated set NFOs)"
+                                />
+                                <button is="emby-button"
+                                        id="BtnBrowseFolder"
+                                        type="button"
+                                        class="raised block emby-button"
+                                        style="margin: 0; padding: 0.5em 1em; font-size: 0.9em; height: 38px;">
+                                    <span>Browse...</span>
+                                </button>
                             </div>
-                            <div id="SyncStatusBadgeContainer"></div>
+                            <div id="SetDataFolderStatus" style="font-size: 0.9em; margin-top: 0.5em; font-weight: 500; display: none;"></div>
+                            <div class="fieldDescription">
+                                Path to dedicated Movie Set Data Folder (e.g. tinyMediaManager, MediaElch).
+                                This folder contains per-set NFO files and artwork.
+                                Leave blank if you only use the &lt;set&gt; tag in individual movie NFOs.
+                            </div>
                         </div>
-                        <div id="SyncStatusSubheader" style="color: #aaa; font-size: 0.9em; margin-bottom: 1.2em;"></div>
-                        <div id="SyncStatusContent" style="color: #ccc;">Loading…</div>
-                    </div>
-                </div>
 
-                <!-- ════════════════════════════════════════════════════════════════
-                     TAB 2: ⚙️ Settings
-                     ════════════════════════════════════════════════════════════════ -->
-                <div id="TabSettings" class="lms-tab-pane" role="tabpanel">
+                        <!-- ── NFO File Naming Convention ── -->
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="NfoNaming">
+                                NFO File Naming Convention
+                            </label>
+                            <div style="display: flex; gap: 0.5em; align-items: center; margin-bottom: 0.4em;">
+                                <select id="NfoNaming" is="emby-select" class="emby-select-withcolor emby-select" style="flex-grow: 1; margin: 0;">
+                                    <option value="SetSubfolder">Set Subfolder  — &lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</option>
+                                    <option value="FlatFile">Flat File      — &lt;SetFolder&gt;/&lt;SetName&gt;.nfo</option>
+                                    <option value="CollectionNfo">collection.nfo — &lt;SetFolder&gt;/&lt;SetName&gt;/collection.nfo</option>
+                                </select>
+                                <button is="emby-button"
+                                        id="BtnDetectNaming"
+                                        type="button"
+                                        class="raised block emby-button"
+                                        style="margin: 0; padding: 0.5em 1em; font-size: 0.9em; height: 38px;">
+                                    <span>Auto-Detect</span>
+                                </button>
+                            </div>
+                            <div id="DetectNamingStatus" style="font-size: 0.95em; margin-bottom: 0.6em; font-weight: bold; display: none;"></div>
+                            <div class="fieldDescription">
+                                Must match the NFO file naming configured in your media manager
+                                (e.g. tinyMediaManager &rarr; Settings &rarr; Movies &rarr; Movie Sets or MediaElch).
+                            </div>
+                        </div>
 
-                    <!-- ── Set Data Folder ───────────────────────────────────────── -->
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="SetDataFolder">
-                            Movie Set Data Folder
-                        </label>
-                        <div style="display: flex; gap: 0.5em; align-items: center;">
-                            <input id="SetDataFolder"
-                                   type="text"
+                        <!-- ── Movie Libraries Selection ── -->
+                        <div class="inputContainer">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4em;">
+                                <label class="inputLabel inputLabelUnfocused" style="margin: 0;">
+                                    Movie Libraries to Scan
+                                </label>
+                                <div style="font-size: 0.85em; display: flex; gap: 0.8em;">
+                                    <a href="#" id="BtnSelectAllLibs" style="color: #00a4dc; text-decoration: none; font-weight: 500;">Select all</a>
+                                    <span style="color: #555;">|</span>
+                                    <a href="#" id="BtnDeselectAllLibs" style="color: #00a4dc; text-decoration: none; font-weight: 500;">Deselect all</a>
+                                </div>
+                            </div>
+                            <div id="LibrarySelectionContainer" style="display: flex; flex-direction: column; gap: 0.5em; margin: 0.4em 0; padding: 0.8em 1em; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px;">
+                                <div style="color: #888; font-style: italic;">Loading libraries…</div>
+                            </div>
+                            <div class="fieldDescription">
+                                Select which movie libraries will be scanned for local movie sets.
+                                Leave all checked to scan your entire movie collection.
+                            </div>
+                        </div>
+
+                        <!-- ── Minimum Movies per Collection ── -->
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="MinimumMovies">
+                                Minimum Movies per Collection
+                            </label>
+                            <input id="MinimumMovies"
+                                   type="number"
                                    class="emby-input"
-                                   style="flex-grow: 1; margin: 0;"
-                                   placeholder="/mnt/nas/moviesets  (leave empty to skip dedicated set NFOs)"
+                                   min="1"
+                                   max="20"
+                                   value="1"
                             />
-                            <button is="emby-button"
-                                    id="BtnBrowseFolder"
-                                    type="button"
-                                    class="raised block emby-button"
-                                    style="margin: 0; padding: 0.5em 1em; font-size: 0.9em; height: 38px;">
-                                <span>Browse...</span>
-                            </button>
-                        </div>
-                        <div id="SetDataFolderStatus" style="font-size: 0.9em; margin-top: 0.5em; font-weight: 500; display: none;"></div>
-                        <div class="fieldDescription">
-                            Path to dedicated Movie Set Data Folder (e.g. tinyMediaManager, MediaElch).
-                            This folder contains per-set NFO files and artwork.
-                            Leave blank if you only use the &lt;set&gt; tag in individual movie NFOs.
+                            <div class="fieldDescription">
+                                A collection is only created if at least this many movies in your
+                                library belong to the set. Default: 1.
+                            </div>
                         </div>
                     </div>
 
-                    <!-- ── NFO Naming Convention ─────────────────────────────────── -->
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="NfoNaming">
-                            NFO File Naming Convention
-                        </label>
-                        <div style="display: flex; gap: 0.5em; align-items: center; margin-bottom: 0.4em;">
-                            <select id="NfoNaming" is="emby-select" class="emby-select-withcolor emby-select" style="flex-grow: 1; margin: 0;">
-                                <option value="SetSubfolder">Set Subfolder  — &lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</option>
-                                <option value="FlatFile">Flat File      — &lt;SetFolder&gt;/&lt;SetName&gt;.nfo</option>
-                                <option value="CollectionNfo">collection.nfo — &lt;SetFolder&gt;/&lt;SetName&gt;/collection.nfo</option>
+                    <!-- ── SECTION 2: 🎯 Metadata Aggregation & Limits ────────────── -->
+                    <div class="verticalSection lms-section">
+                        <h3 class="sectionTitle lms-section-title">🎯 Metadata Aggregation &amp; Limits</h3>
+
+                        <!-- ── Aggregate Community Ratings ── -->
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input id="AggregateRatings"
+                                       type="checkbox"
+                                       is="emby-checkbox"
+                                />
+                                <span>Aggregate community ratings</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">
+                                When enabled, calculates and sets the collection's community rating as the average of the ratings of its member movies.
+                            </div>
+                        </div>
+
+                        <!-- ── Aggregate Tags ── -->
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input id="AggregateTags"
+                                       type="checkbox"
+                                       is="emby-checkbox"
+                                />
+                                <span>Aggregate tags</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">
+                                When enabled, aggregates tags from member movies and applies them to the collection, ranked by frequency across member movies.
+                            </div>
+                        </div>
+
+                        <!-- ── Sub-option: Max Tags ── -->
+                        <div class="lms-sub-options">
+                            <div class="inputContainer" style="max-width: 320px; margin-bottom: 0;">
+                                <label class="inputLabel inputLabelUnfocused" for="MaxTags">
+                                    Maximum Tags (0 = All / Unlimited)
+                                </label>
+                                <input id="MaxTags"
+                                       type="number"
+                                       class="emby-input"
+                                       min="0"
+                                       max="100"
+                                       value="0"
+                                />
+                                <div class="fieldDescription">
+                                    Sorted by frequency across member movies so franchise-defining tags appear first. Default: 0 (All).
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ── Aggregate Cast and Crew ── -->
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input id="AggregatePeople"
+                                       type="checkbox"
+                                       is="emby-checkbox"
+                                />
+                                <span>Aggregate cast and crew</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">
+                                When enabled, aggregates actors, directors, and writers from member movies and displays them on the collection card, ranked by franchise frequency.
+                            </div>
+                        </div>
+
+                        <!-- ── Sub-options: Max Actors / Directors / Writers ── -->
+                        <div class="lms-sub-options">
+                            <div style="display: flex; flex-wrap: wrap; gap: 1.5em; max-width: 750px;">
+                                <div class="inputContainer" style="flex: 1 1 200px; margin-bottom: 0;">
+                                    <label class="inputLabel inputLabelUnfocused" for="MaxActors">
+                                        Max Actors (0 = All)
+                                    </label>
+                                    <input id="MaxActors"
+                                           type="number"
+                                           class="emby-input"
+                                           min="0"
+                                           max="100"
+                                           value="0"
+                                    />
+                                    <div class="fieldDescription">
+                                        Top recurring stars across member movies appear first. Default: 0 (All).
+                                    </div>
+                                </div>
+
+                                <div class="inputContainer" style="flex: 1 1 200px; margin-bottom: 0;">
+                                    <label class="inputLabel inputLabelUnfocused" for="MaxDirectors">
+                                        Max Directors (0 = All)
+                                    </label>
+                                    <input id="MaxDirectors"
+                                           type="number"
+                                           class="emby-input"
+                                           min="0"
+                                           max="50"
+                                           value="0"
+                                    />
+                                    <div class="fieldDescription">
+                                        Ranked by number of films directed in the collection. Default: 0 (All).
+                                    </div>
+                                </div>
+
+                                <div class="inputContainer" style="flex: 1 1 200px; margin-bottom: 0;">
+                                    <label class="inputLabel inputLabelUnfocused" for="MaxWriters">
+                                        Max Writers (0 = All)
+                                    </label>
+                                    <input id="MaxWriters"
+                                           type="number"
+                                           class="emby-input"
+                                           min="0"
+                                           max="50"
+                                           value="0"
+                                    />
+                                    <div class="fieldDescription">
+                                        Ranked by number of films written in the collection. Default: 0 (All).
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ── Aggregate Genres ── -->
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input id="AggregateGenres"
+                                       type="checkbox"
+                                       is="emby-checkbox"
+                                />
+                                <span>Aggregate genres</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">
+                                When enabled, inherits and aggregates genres from member movies if the collection NFO has none, ranked by frequency across the set.
+                            </div>
+                        </div>
+
+                        <!-- ── Sub-option: Max Genres ── -->
+                        <div class="lms-sub-options">
+                            <div class="inputContainer" style="max-width: 320px; margin-bottom: 0;">
+                                <label class="inputLabel inputLabelUnfocused" for="MaxGenres">
+                                    Maximum Genres (0 = All / Unlimited)
+                                </label>
+                                <input id="MaxGenres"
+                                       type="number"
+                                       class="emby-input"
+                                       min="0"
+                                       max="50"
+                                       value="0"
+                                />
+                                <div class="fieldDescription">
+                                    Ranked by frequency across member movies so dominant genres appear first. Default: 0 (All).
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ── Aggregate Studios ── -->
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input id="AggregateStudios"
+                                       type="checkbox"
+                                       is="emby-checkbox"
+                                />
+                                <span>Aggregate production studios</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">
+                                When enabled, inherits and aggregates production studios from member movies if the collection NFO has none, ranked by frequency across the set.
+                            </div>
+                        </div>
+
+                        <!-- ── Sub-option: Max Studios ── -->
+                        <div class="lms-sub-options">
+                            <div class="inputContainer" style="max-width: 320px; margin-bottom: 0;">
+                                <label class="inputLabel inputLabelUnfocused" for="MaxStudios">
+                                    Maximum Studios (0 = All / Unlimited)
+                                </label>
+                                <input id="MaxStudios"
+                                       type="number"
+                                       class="emby-input"
+                                       min="0"
+                                       max="50"
+                                       value="0"
+                                />
+                                <div class="fieldDescription">
+                                    Ranked by frequency across member movies so major recurring studios appear first. Default: 0 (All).
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ── Default Collection Sort By ── -->
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="CollectionSortBy">
+                                Default Collection Sort By
+                            </label>
+                            <select id="CollectionSortBy" is="emby-select" class="emby-select-withcolor emby-select">
+                                <option value="Default">Creation Order (Release Date)</option>
+                                <option value="PremiereDate">Release Date</option>
+                                <option value="SortName">Sort Name</option>
                             </select>
-                            <button is="emby-button"
-                                    id="BtnDetectNaming"
-                                    type="button"
-                                    class="raised block emby-button"
-                                    style="margin: 0; padding: 0.5em 1em; font-size: 0.9em; height: 38px;">
-                                <span>Auto-Detect</span>
-                            </button>
-                        </div>
-                        <div id="DetectNamingStatus" style="font-size: 0.95em; margin-bottom: 0.6em; font-weight: bold; display: none;"></div>
-                        <div class="fieldDescription">
-                            Must match the NFO file naming configured in your media manager
-                            (e.g. tinyMediaManager &rarr; Settings &rarr; Movies &rarr; Movie Sets or MediaElch).
-                        </div>
-                    </div>
-
-                    <!-- ── Movie Libraries Selection ─────────────────────────────── -->
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused">
-                            Movie Libraries to Scan
-                        </label>
-                        <div id="LibrarySelectionContainer" style="display: flex; flex-direction: column; gap: 0.5em; margin: 0.6em 0; padding: 0.8em 1em; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px;">
-                            <div style="color: #888; font-style: italic;">Loading libraries…</div>
-                        </div>
-                        <div class="fieldDescription">
-                            Select which movie libraries will be scanned for local movie sets.
-                            Leave all checked to scan your entire movie collection.
-                        </div>
-                    </div>
-
-                    <!-- ── Minimum Movies ────────────────────────────────────────── -->
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="MinimumMovies">
-                            Minimum Movies per Collection
-                        </label>
-                        <input id="MinimumMovies"
-                               type="number"
-                               class="emby-input"
-                               min="1"
-                               max="20"
-                               value="1"
-                        />
-                        <div class="fieldDescription">
-                            A collection is only created if at least this many movies in your
-                            library belong to the set. Default: 1.
-                        </div>
-                    </div>
-
-                    <!-- ── Delete Orphaned Sets ──────────────────────────────────── -->
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input id="DeleteOrphanedSets"
-                                   type="checkbox"
-                                   is="emby-checkbox"
-                            />
-                            <span>Delete orphaned collections</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">
-                            Remove Jellyfin collections that no longer have any movies
-                            with a matching &lt;set&gt; tag. By default, collections with
-                            a TMDB or IMDb provider ID are kept as a safety guard.
-                            Note: when this is disabled and a set is renamed in your NFOs,
-                            the old collection is left untouched — movies may then appear
-                            in both the old and the new collection until you remove the
-                            old one manually (or enable this option).
-                        </div>
-                    </div>
-
-                    <!-- ── Delete Sets With Provider ID ───────────────────────────── -->
-                    <div class="checkboxContainer checkboxContainer-withDescription" style="margin-left: 2em;">
-                        <label class="emby-checkbox-label">
-                            <input id="DeleteSetsWithProviderId"
-                                   type="checkbox"
-                                   is="emby-checkbox"
-                            />
-                            <span>Also delete orphaned collections with provider IDs</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">
-                            When enabled, orphaned collections are deleted even if they
-                            have a TMDB or IMDb provider ID. Use this if your set NFOs
-                            contain &lt;tmdbid&gt; tags and you want full automatic cleanup.
-                        </div>
-                    </div>
-
-                    <!-- ── Update Existing Artwork ───────────────────────────────── -->
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input id="UpdateExistingArtwork"
-                                   type="checkbox"
-                                   is="emby-checkbox"
-                            />
-                            <span>Overwrite existing collection artwork</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">
-                            When enabled, artwork from the TMM set folder is re-copied
-                            on every sync, replacing any existing images on the collection.
-                            When disabled, only collections with no artwork are updated.
-                        </div>
-                    </div>
-
-                    <!-- ── Movie Folder Artwork Fallback ─────────────────────────── -->
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input id="EnableMovieFolderArtworkFallback"
-                                   type="checkbox"
-                                   is="emby-checkbox"
-                            />
-                            <span>Search movie folders for set artwork (fallback)</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">
-                            When enabled, the plugin searches for set artwork (e.g. <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code>) directly inside member movie folders if no dedicated set data folder is configured or if no image was found there.
-                        </div>
-                    </div>
-
-                    <!-- ── Enable Mount Guard ────────────────────────────────────── -->
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input id="EnableMountGuard"
-                                   type="checkbox"
-                                   is="emby-checkbox"
-                            />
-                            <span>Enable Mount Guard</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">
-                            When enabled, the plugin checks if all configured movie library folders
-                            are online and not empty before syncing. If a folder goes offline or becomes
-                            empty (e.g. network share drops), the sync is aborted to prevent collections from losing their members.
-                        </div>
-                    </div>
-
-                    <!-- ── Enable Auto Sync on Library Updates ──────────────────── -->
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input id="EnableAutoSyncOnLibraryChange"
-                                   type="checkbox"
-                                   is="emby-checkbox"
-                            />
-                            <span>Automatically sync after library scans and updates</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">
-                            When enabled, automatically triggers a collection sync 30 seconds after movies are added, updated, or scanned in your library.
-                        </div>
-                    </div>
-
-                    <!-- ── Aggregate Community Ratings ────────────────────────────── -->
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input id="AggregateRatings"
-                                   type="checkbox"
-                                   is="emby-checkbox"
-                            />
-                            <span>Aggregate community ratings</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">
-                            When enabled, calculates and sets the collection's community rating as the average of the ratings of its member movies.
-                        </div>
-                    </div>
-
-                    <!-- ── Aggregate Tags ────────────────────────────────────────── -->
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input id="AggregateTags"
-                                   type="checkbox"
-                                   is="emby-checkbox"
-                            />
-                            <span>Aggregate tags</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">
-                            When enabled, aggregates tags from member movies and applies them to the collection, ranked by frequency across member movies.
-                        </div>
-                    </div>
-
-                    <div class="inputContainer" style="margin-left: 2em; max-width: 320px;">
-                        <label class="inputLabel inputLabelUnfocused" for="MaxTags">
-                            Maximum Tags (0 = All / Unlimited)
-                        </label>
-                        <input id="MaxTags"
-                               type="number"
-                               class="emby-input"
-                               min="0"
-                               max="100"
-                               value="15"
-                        />
-                        <div class="fieldDescription">
-                            Sorted by frequency across member movies so franchise-defining tags appear first. Default: 15.
-                        </div>
-                    </div>
-
-                    <!-- ── Aggregate Cast and Crew ───────────────────────────────── -->
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input id="AggregatePeople"
-                                   type="checkbox"
-                                   is="emby-checkbox"
-                            />
-                            <span>Aggregate cast and crew</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">
-                            When enabled, aggregates actors, directors, and writers from member movies and displays them on the collection card, ranked by franchise frequency.
-                        </div>
-                    </div>
-
-                    <div style="margin-left: 2em; display: flex; flex-wrap: wrap; gap: 1.5em; max-width: 750px; margin-bottom: 0.5em;">
-                        <div class="inputContainer" style="flex: 1 1 200px; margin-bottom: 0;">
-                            <label class="inputLabel inputLabelUnfocused" for="MaxActors">
-                                Max Actors (0 = All)
-                            </label>
-                            <input id="MaxActors"
-                                   type="number"
-                                   class="emby-input"
-                                   min="0"
-                                   max="100"
-                                   value="20"
-                            />
                             <div class="fieldDescription">
-                                Top recurring stars across member movies appear first. Set to 0 for unlimited / all. Default: 20.
+                                Display order applied to collections. Jellyfin natively supports only
+                                "Release Date" and "Sort Name"; "Creation Order" keeps the order in which
+                                the plugin linked the movies (sorted by release date when created).
+                                You can still manually override this for individual collections by clicking
+                                "Edit Metadata" on the collection's details page in Jellyfin.
                             </div>
                         </div>
 
-                        <div class="inputContainer" style="flex: 1 1 200px; margin-bottom: 0;">
-                            <label class="inputLabel inputLabelUnfocused" for="MaxDirectors">
-                                Max Directors (0 = All)
+                        <!-- ── Default Collection Sort Order ── -->
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="CollectionSortOrder">
+                                Default Collection Sort Order
                             </label>
-                            <input id="MaxDirectors"
-                                   type="number"
-                                   class="emby-input"
-                                   min="0"
-                                   max="50"
-                                   value="0"
-                            />
+                            <select id="CollectionSortOrder" is="emby-select" class="emby-select-withcolor emby-select">
+                                <option value="Ascending">Ascending</option>
+                                <option value="Descending">Descending</option>
+                            </select>
                             <div class="fieldDescription">
-                                Ranked by number of films directed in the collection. Default: 0 (All).
+                                Sorting direction for the order in which movies are linked into a collection.
+                                Only affects "Creation Order" mode — Jellyfin's native "Release Date" and
+                                "Sort Name" display orders are always ascending.
                             </div>
                         </div>
 
-                        <div class="inputContainer" style="flex: 1 1 200px; margin-bottom: 0;">
-                            <label class="inputLabel inputLabelUnfocused" for="MaxWriters">
-                                Max Writers (0 = All)
+                        <!-- ── Release Date Calculation ── -->
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="CollectionReleaseDate">
+                                Release Date Calculation
                             </label>
-                            <input id="MaxWriters"
-                                   type="number"
-                                   class="emby-input"
-                                   min="0"
-                                   max="50"
-                                   value="0"
-                            />
+                            <select id="CollectionReleaseDate" is="emby-select" class="emby-select-withcolor emby-select">
+                                <option value="DoNotCalculate">Do not calculate</option>
+                                <option value="AlwaysOverwrite">Always overwrite</option>
+                                <option value="SetOnlyIfEmpty">Set only if empty</option>
+                            </select>
                             <div class="fieldDescription">
-                                Ranked by number of films written in the collection. Default: 0 (All).
+                                Automatically calculate the collection's release date based on the oldest movie in it.
                             </div>
                         </div>
                     </div>
 
-                    <!-- ── Aggregate Genres ──────────────────────────────────────── -->
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input id="AggregateGenres"
-                                   type="checkbox"
-                                   is="emby-checkbox"
-                            />
-                            <span>Aggregate genres</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">
-                            When enabled, inherits and aggregates genres from member movies if the collection NFO has none, ranked by frequency across the set.
-                        </div>
-                    </div>
+                    <!-- ── SECTION 3: 🛡️ Safety & Cleanup ────────────────────────── -->
+                    <div class="verticalSection lms-section">
+                        <h3 class="sectionTitle lms-section-title">🛡️ Safety &amp; Cleanup</h3>
 
-                    <div class="inputContainer" style="margin-left: 2em; max-width: 320px;">
-                        <label class="inputLabel inputLabelUnfocused" for="MaxGenres">
-                            Maximum Genres (0 = All / Unlimited)
-                        </label>
-                        <input id="MaxGenres"
-                               type="number"
-                               class="emby-input"
-                               min="0"
-                               max="50"
-                               value="0"
-                        />
-                        <div class="fieldDescription">
-                            Ranked by frequency across member movies so dominant genres appear first. Default: 0 (All).
+                        <!-- ── Enable Mount Guard ── -->
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input id="EnableMountGuard"
+                                       type="checkbox"
+                                       is="emby-checkbox"
+                                />
+                                <span>Enable Mount Guard</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">
+                                When enabled, the plugin checks if all configured movie library folders
+                                are online and not empty before syncing. If a folder goes offline or becomes
+                                empty (e.g. network share drops), the sync is aborted to prevent collections from losing their members.
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- ── Aggregate Studios ─────────────────────────────────────── -->
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input id="AggregateStudios"
-                                   type="checkbox"
-                                   is="emby-checkbox"
-                            />
-                            <span>Aggregate production studios</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">
-                            When enabled, inherits and aggregates production studios from member movies if the collection NFO has none, ranked by frequency across the set.
+                        <!-- ── Enable Auto Sync on Library Updates ── -->
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input id="EnableAutoSyncOnLibraryChange"
+                                       type="checkbox"
+                                       is="emby-checkbox"
+                                />
+                                <span>Automatically sync after library scans and updates</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">
+                                When enabled, automatically triggers a collection sync 30 seconds after movies are added, updated, or scanned in your library.
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="inputContainer" style="margin-left: 2em; max-width: 320px;">
-                        <label class="inputLabel inputLabelUnfocused" for="MaxStudios">
-                            Maximum Studios (0 = All / Unlimited)
-                        </label>
-                        <input id="MaxStudios"
-                               type="number"
-                               class="emby-input"
-                               min="0"
-                               max="50"
-                               value="0"
-                        />
-                        <div class="fieldDescription">
-                            Ranked by frequency across member movies so major recurring studios appear first. Default: 0 (All).
+                        <!-- ── Delete Orphaned Sets ── -->
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input id="DeleteOrphanedSets"
+                                       type="checkbox"
+                                       is="emby-checkbox"
+                                />
+                                <span>Delete orphaned collections</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">
+                                Remove Jellyfin collections that no longer have any movies
+                                with a matching &lt;set&gt; tag. By default, collections with
+                                a TMDB or IMDb provider ID are kept as a safety guard.
+                                Note: when this is disabled and a set is renamed in your NFOs,
+                                the old collection is left untouched — movies may then appear
+                                in both the old and the new collection until you remove the
+                                old one manually (or enable this option).
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- ── Default Collection Sort By ─────────────────────────────────── -->
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="CollectionSortBy">
-                            Default Collection Sort By
-                        </label>
-                        <select id="CollectionSortBy" is="emby-select" class="emby-select-withcolor emby-select">
-                            <option value="Default">Creation Order (Release Date)</option>
-                            <option value="PremiereDate">Release Date</option>
-                            <option value="SortName">Sort Name</option>
-                        </select>
-                        <div class="fieldDescription">
-                            Display order applied to collections. Jellyfin natively supports only
-                            "Release Date" and "Sort Name"; "Creation Order" keeps the order in which
-                            the plugin linked the movies (sorted by release date when created).
-                            You can still manually override this for individual collections by clicking
-                            "Edit Metadata" on the collection's details page in Jellyfin.
+                        <!-- ── Sub-option: Delete Sets With Provider ID ── -->
+                        <div class="lms-sub-options">
+                            <div class="checkboxContainer checkboxContainer-withDescription" style="margin: 0;">
+                                <label class="emby-checkbox-label">
+                                    <input id="DeleteSetsWithProviderId"
+                                           type="checkbox"
+                                           is="emby-checkbox"
+                                    />
+                                    <span>Also delete orphaned collections with provider IDs</span>
+                                </label>
+                                <div class="fieldDescription checkboxFieldDescription">
+                                    When enabled, orphaned collections are deleted even if they
+                                    have a TMDB or IMDb provider ID. Use this if your set NFOs
+                                    contain &lt;tmdbid&gt; tags and you want full automatic cleanup.
+                                </div>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- ── Default Collection Sort Order ─────────────────────────────────── -->
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="CollectionSortOrder">
-                            Default Collection Sort Order
-                        </label>
-                        <select id="CollectionSortOrder" is="emby-select" class="emby-select-withcolor emby-select">
-                            <option value="Ascending">Ascending</option>
-                            <option value="Descending">Descending</option>
-                        </select>
-                        <div class="fieldDescription">
-                            Sorting direction for the order in which movies are linked into a collection.
-                            Only affects "Creation Order" mode — Jellyfin's native "Release Date" and
-                            "Sort Name" display orders are always ascending.
+                        <!-- ── Update Existing Artwork ── -->
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input id="UpdateExistingArtwork"
+                                       type="checkbox"
+                                       is="emby-checkbox"
+                                />
+                                <span>Overwrite existing collection artwork</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">
+                                When enabled, artwork from the TMM set folder is re-copied
+                                on every sync, replacing any existing images on the collection.
+                                When disabled, only collections with no artwork are updated.
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- ── Release Date Calculation ────────────────────────────────────── -->
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="CollectionReleaseDate">
-                            Release Date Calculation
-                        </label>
-                        <select id="CollectionReleaseDate" is="emby-select" class="emby-select-withcolor emby-select">
-                            <option value="DoNotCalculate">Do not calculate</option>
-                            <option value="AlwaysOverwrite">Always overwrite</option>
-                            <option value="SetOnlyIfEmpty">Set only if empty</option>
-                        </select>
-                        <div class="fieldDescription">
-                            Automatically calculate the collection's release date based on the oldest movie in it.
+                        <!-- ── Movie Folder Artwork Fallback ── -->
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input id="EnableMovieFolderArtworkFallback"
+                                       type="checkbox"
+                                       is="emby-checkbox"
+                                />
+                                <span>Search movie folders for set artwork (fallback)</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">
+                                When enabled, the plugin searches for set artwork (e.g. <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code>) directly inside member movie folders if no dedicated set data folder is configured or if no image was found there.
+                            </div>
                         </div>
                     </div>
 
                     <!-- ── Settings Save Action ──────────────────────────────────────── -->
-                    <div style="display:flex; gap: 1em; margin-top: 2em; flex-wrap: wrap; align-items: center;">
+                    <div class="verticalSection" style="margin-top: 2em; display: flex; gap: 1em; align-items: center;">
                         <button is="emby-button"
                                 id="BtnSaveSettings"
                                 type="submit"
@@ -593,15 +671,15 @@
                     <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 1.25em 1.5em; margin-bottom: 1.5em;">
                         <h3 style="margin: 0 0 0.4em 0; font-size: 1.1em; color: #00a4dc; font-weight: 600;">Diagnostic Tools &amp; Maintenance</h3>
                         <p style="margin: 0 0 1.2em 0; color: #ccc; font-size: 0.9em; line-height: 1.5;">
-                            Inspect your local NFO and artwork files for format errors or missing graphics, perform a dry run of the sync, or force rebuild all collections if needed.
+                            Trigger an immediate collection sync, preview pending changes without modifying your library, inspect full diagnostic health data, or force rebuild all collections if needed.
                         </p>
                         <div style="display: flex; gap: 0.8em; flex-wrap: wrap; align-items: center;">
                             <button is="emby-button"
-                                    id="BtnValidate"
+                                    id="BtnSyncNow"
                                     type="button"
                                     class="raised block emby-button"
-                                    style="background: #00a4dc; color: #fff; font-weight: 500;">
-                                <span>🔍 Check NFOs &amp; Artwork</span>
+                                    style="margin: 0; background: #00a4dc; color: #fff; font-weight: 600; padding: 0.5em 1.25em; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.4em;">
+                                <span>▶ Sync Now</span>
                             </button>
                             <button is="emby-button"
                                     id="BtnPreview"
@@ -629,23 +707,6 @@
                     <!-- Preview results -->
                     <div id="PreviewResultPanel"
                          style="display: none; margin-top: 1.5em; background: rgba(255, 255, 255, 0.06); border: 1px solid #333; border-radius: 8px; padding: 1em 1.25em; font-size: 0.95em; line-height: 1.6;">
-                    </div>
-
-                    <!-- Validation diagnostics results panel -->
-                    <div id="ValidationResultPanel"
-                         style="display: none; margin-top: 1.5em; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; padding: 1.25em 1.5em; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1em; flex-wrap: wrap; gap: 0.8em;">
-                            <div style="display: flex; align-items: center; gap: 0.6em;">
-                                <span style="font-size: 1.3em;">🩺</span>
-                                <h3 style="margin: 0; font-size: 1.15em; color: #00a4dc; font-weight: bold;">Local NFO &amp; Artwork Diagnostics</h3>
-                            </div>
-                            <button is="emby-button" type="button" class="raised emby-button" id="BtnCloseValidation" style="font-size: 0.8em; padding: 4px 10px; background: rgba(255, 255, 255, 0.08);">
-                                <span>✕ Close</span>
-                            </button>
-                        </div>
-                        <div id="ValidationSummaryArea"></div>
-                        <div id="ValidationFilterButtons" style="display: none; gap: 0.5em; margin: 1em 0; flex-wrap: wrap;"></div>
-                        <div id="ValidationDetailsArea"></div>
                     </div>
 
                 </div>
@@ -709,10 +770,8 @@
                     <span>•</span>
                     <a href="https://github.com/gitrys/jellyfin-local-movieset-addon/issues" target="_blank" rel="noopener noreferrer" style="color: #aaa; text-decoration: none;">Issues</a>
                 </div>
-                <div>
-                    <a href="https://buymeacoffee.com/gitrys" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 0.4em; padding: 4px 10px; border-radius: 4px; background: rgba(255, 221, 0, 0.12); color: #ffdd00; text-decoration: none; font-weight: 500;">
-                        <span>☕ Buy me a coffee</span>
-                    </a>
+                <div style="color: #666; font-size: 0.9em;">
+                    100% Local &amp; Offline Metadata
                 </div>
             </div>
         </div>
@@ -778,9 +837,9 @@
                     };
                 });
 
-                let savedTab = 'TabDashboard';
+                let savedTab = 'TabSettings';
                 try {
-                    savedTab = sessionStorage.getItem('lms_active_tab') || 'TabDashboard';
+                    savedTab = sessionStorage.getItem('lms_active_tab') || 'TabSettings';
                 } catch (e) {}
 
                 switchTab(savedTab);
@@ -850,294 +909,6 @@
                     .replace(/'/g, '&#039;');
             }
 
-            function formatUtc(iso) {
-                if (!iso) return 'unknown';
-                const d = new Date(iso);
-                return isNaN(d.getTime()) ? 'unknown' : d.toLocaleString();
-            }
-
-            function formatDuration(sec) {
-                if (sec === null || sec === undefined || isNaN(sec)) return '-';
-                sec = Math.round(sec);
-                if (sec < 60) return sec + 's';
-                const m = Math.floor(sec / 60);
-                const s = sec % 60;
-                return m + 'm ' + (s < 10 ? '0' : '') + s + 's';
-            }
-
-            function timeAgo(iso) {
-                if (!iso) return '';
-                const d = new Date(iso);
-                if (isNaN(d.getTime())) return '';
-                const diffSec = Math.round((Date.now() - d.getTime()) / 1000);
-                if (diffSec < 60) return 'just now';
-                const min = Math.floor(diffSec / 60);
-                if (min < 60) return min + ' min. ago';
-                const hours = Math.floor(min / 60);
-                if (hours < 24) return hours + ' hr' + (hours > 1 ? 's' : '') + ' ago';
-                const days = Math.floor(hours / 24);
-                return days + ' day' + (days > 1 ? 's' : '') + ' ago';
-            }
-
-            function renderSyncStatus(page, s) {
-                const badgeContainer = page.querySelector('#SyncStatusBadgeContainer');
-                const subheader = page.querySelector('#SyncStatusSubheader');
-                const content = page.querySelector('#SyncStatusContent');
-                if (!content) return;
-
-                if (badgeContainer) badgeContainer.innerHTML = '';
-                if (subheader) subheader.textContent = '';
-                content.innerHTML = '';
-
-                const outcomeConfig = {
-                    Success: { label: '✓ Success', bg: 'rgba(76, 175, 80, 0.2)', color: '#4CAF50', border: '#4CAF50' },
-                    Failed: { label: '✕ Failed', bg: 'rgba(244, 67, 54, 0.2)', color: '#F44336', border: '#F44336' },
-                    Cancelled: { label: '⏹ Cancelled', bg: 'rgba(255, 152, 0, 0.2)', color: '#FF9800', border: '#FF9800' },
-                    MountGuardAborted: { label: '⚠️ Mount Guard Aborted', bg: 'rgba(255, 152, 0, 0.2)', color: '#FF9800', border: '#FF9800' },
-                    Running: { label: '⏳ Running…', bg: 'rgba(0, 164, 220, 0.2)', color: '#00a4dc', border: '#00a4dc' },
-                    NeverRan: { label: '⚪ Idle', bg: 'rgba(255, 255, 255, 0.1)', color: '#aaa', border: '#555' }
-                };
-
-                const currentOutcome = s.IsRunning ? 'Running' : (s.LastRunOutcome || 'NeverRan');
-                const conf = outcomeConfig[currentOutcome] || { label: currentOutcome, bg: 'rgba(255,255,255,0.1)', color: '#ccc', border: '#555' };
-
-                if (badgeContainer) {
-                    const badge = document.createElement('span');
-                    badge.style.cssText = 'background: ' + conf.bg + '; color: ' + conf.color + '; border: 1px solid ' + conf.border + '; padding: 3px 10px; border-radius: 12px; font-weight: bold; font-size: 0.85em; display: inline-flex; align-items: center; gap: 0.3em;';
-                    badge.textContent = conf.label;
-                    badgeContainer.appendChild(badge);
-                }
-
-                if (s.IsRunning) {
-                    if (subheader) subheader.textContent = 'Sync in progress' + (s.LastRunStartedUtc ? ' (started ' + formatUtc(s.LastRunStartedUtc) + ' — ' + timeAgo(s.LastRunStartedUtc) + ')' : '') + '…';
-                    content.innerHTML = '<div style="background: rgba(0, 164, 220, 0.12); border: 1px solid #00a4dc; border-radius: 8px; padding: 1em; color: #eee; display: flex; align-items: center; gap: 0.8em;">' +
-                        '<div style="font-size: 1.5em;">⏳</div>' +
-                        '<div>' +
-                            '<div style="font-weight: bold; color: #00a4dc;">A sync task is actively running.</div>' +
-                            '<div style="font-size: 0.9em; color: #ccc;">Scanning libraries, updating metadata, and syncing movie sets. This panel will update automatically.</div>' +
-                        '</div>' +
-                    '</div>';
-                    return;
-                }
-
-                if (s.LastRunOutcome === 'NeverRan' && (!s.History || s.History.length === 0)) {
-                    if (subheader) subheader.textContent = 'No sync has been executed yet.';
-                    content.innerHTML = '<div style="color: #888; font-style: italic;">Click "Sync Now" below to run your first library sync.</div>';
-                    return;
-                }
-
-                const completedDate = s.LastRunCompletedUtc || s.LastRunStartedUtc;
-                if (subheader) {
-                    subheader.textContent = 'Last run: ' + formatUtc(completedDate) + ' (' + timeAgo(completedDate) + ') · Duration: ' + formatDuration(s.DurationSeconds);
-                }
-
-                // ── KPI Grid ──
-                const moviesScanned = (s.MoviesScanned || 0).toLocaleString();
-                const moviesInSets = (s.MoviesInSets || 0).toLocaleString();
-                const setsFound = (s.SetsFound || 0).toLocaleString();
-                const collCreated = s.CollectionsCreated || 0;
-                const collUpdated = s.CollectionsUpdated || 0;
-                const collDeleted = s.CollectionsDeleted || 0;
-                const parseErrors = (s.NfoParseErrors > 0) ? s.NfoParseErrors : 0;
-                const parseColor = (s.NfoParseErrors > 0 || s.LastErrorMessage) ? '#FF9800' : '#4CAF50';
-                const parseStatusText = (s.NfoParseErrors > 0) ? 'NFO errors logged' : 'Healthy';
-
-                const kpiHtml = [
-                    '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.85em; margin-bottom: 1em;">',
-                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.85em 1em; text-align: center;">',
-                    '    <div style="font-size: 1.55em; font-weight: bold; color: #fff;">' + moviesScanned + '</div>',
-                    '    <div style="font-size: 0.82em; color: #888; margin-top: 0.2em;">Movies Scanned</div>',
-                    '    <div style="font-size: 0.78em; color: #00a4dc; margin-top: 0.2em;">' + moviesInSets + ' in sets</div>',
-                    '  </div>',
-                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.85em 1em; text-align: center;">',
-                    '    <div style="font-size: 1.55em; font-weight: bold; color: #fff;">' + setsFound + '</div>',
-                    '    <div style="font-size: 0.82em; color: #888; margin-top: 0.2em;">Movie Sets Found</div>',
-                    '    <div style="font-size: 0.78em; color: #aaa; margin-top: 0.2em;">distinct groups</div>',
-                    '  </div>',
-                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.85em 1em; text-align: center;">',
-                    '    <div style="font-size: 1.35em; font-weight: bold; color: #4CAF50;">',
-                    '      +' + collCreated,
-                    '      <span style="font-size:0.8em; color:#666;">/</span>',
-                    '      <span style="color:#2196F3;">~' + collUpdated + '</span>',
-                    '      <span style="font-size:0.8em; color:#666;">/</span>',
-                    '      <span style="color:#F44336;">-' + collDeleted + '</span>',
-                    '    </div>',
-                    '    <div style="font-size: 0.82em; color: #888; margin-top: 0.2em;">Collections</div>',
-                    '    <div style="font-size: 0.78em; color: #aaa; margin-top: 0.2em;">Created / Updated / Deleted</div>',
-                    '  </div>',
-                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.85em 1em; text-align: center;">',
-                    '    <div style="font-size: 1.55em; font-weight: bold; color: ' + parseColor + ';">' + parseErrors + '</div>',
-                    '    <div style="font-size: 0.82em; color: #888; margin-top: 0.2em;">Parse Errors</div>',
-                    '    <div style="font-size: 0.78em; color: ' + parseColor + '; margin-top: 0.2em;">' + parseStatusText + '</div>',
-                    '  </div>',
-                    '</div>'
-                ].join('\n');
-
-                // ── Collection Insights Widget ──
-                let insightsHtml = '';
-                if (s.Insights && (s.Insights.LargestCollectionName || s.Insights.OldestFranchiseName || s.Insights.TopRatedCollectionName)) {
-                    const ins = s.Insights;
-                    insightsHtml = [
-                        '<div style="background: rgba(0, 164, 220, 0.07); border: 1px solid rgba(0, 164, 220, 0.22); border-radius: 8px; padding: 1em 1.25em; margin-bottom: 1.2em;">',
-                        '  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75em; flex-wrap: wrap; gap: 0.5em;">',
-                        '    <div style="font-weight: 600; color: #00a4dc; font-size: 0.95em; display: flex; align-items: center; gap: 0.4em;">',
-                        '      <span>✨</span> Collection Insights &amp; Highlights',
-                        '    </div>',
-                        '    <div style="font-size: 0.8em; color: #888;">Avg ' + (ins.AverageMoviesPerSet || 0) + ' movies per set</div>',
-                        '  </div>',
-                        '  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75em;">',
-                        ins.LargestCollectionName ? (
-                            '    <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 0.7em 0.9em;">' +
-                            '      <div style="font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px;">🏆 Largest Franchise</div>' +
-                            '      <div style="font-size: 0.95em; font-weight: 600; color: #fff; margin-top: 0.25em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHtml(ins.LargestCollectionName) + '">' + escapeHtml(ins.LargestCollectionName) + '</div>' +
-                            '      <div style="font-size: 0.8em; color: #00a4dc; margin-top: 0.15em;">' + ins.LargestCollectionMovieCount + ' movies</div>' +
-                            '    </div>'
-                        ) : '',
-                        ins.TopRatedCollectionName ? (
-                            '    <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 0.7em 0.9em;">' +
-                            '      <div style="font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px;">⭐ Top Rated</div>' +
-                            '      <div style="font-size: 0.95em; font-weight: 600; color: #fff; margin-top: 0.25em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHtml(ins.TopRatedCollectionName) + '">' + escapeHtml(ins.TopRatedCollectionName) + '</div>' +
-                            '      <div style="font-size: 0.8em; color: #FFC107; margin-top: 0.15em;">★ ' + (ins.TopRatedAverageRating ? ins.TopRatedAverageRating.toFixed(1) : 'N/A') + ' / 10</div>' +
-                            '    </div>'
-                        ) : '',
-                        ins.OldestFranchiseName ? (
-                            '    <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 0.7em 0.9em;">' +
-                            '      <div style="font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px;">🕰️ Oldest Franchise</div>' +
-                            '      <div style="font-size: 0.95em; font-weight: 600; color: #fff; margin-top: 0.25em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHtml(ins.OldestFranchiseName) + '">' + escapeHtml(ins.OldestFranchiseName) + '</div>' +
-                            '      <div style="font-size: 0.8em; color: #aaa; margin-top: 0.15em;">Premiered ' + (ins.OldestFranchiseYear || 'N/A') + '</div>' +
-                            '    </div>'
-                        ) : '',
-                        ins.NewestFranchiseName ? (
-                            '    <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 0.7em 0.9em;">' +
-                            '      <div style="font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px;">🚀 Newest Franchise</div>' +
-                            '      <div style="font-size: 0.95em; font-weight: 600; color: #fff; margin-top: 0.25em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHtml(ins.NewestFranchiseName) + '">' + escapeHtml(ins.NewestFranchiseName) + '</div>' +
-                            '      <div style="font-size: 0.8em; color: #4CAF50; margin-top: 0.15em;">Latest ' + (ins.NewestFranchiseYear || 'N/A') + '</div>' +
-                            '    </div>'
-                        ) : '',
-                        '  </div>',
-                        '</div>'
-                    ].filter(Boolean).join('\n');
-                }
-
-                // ── Diagnostic alerts ──
-                let alertsHtml = '';
-                if (s.LastErrorMessage) {
-                    alertsHtml += '<div style="background: rgba(244, 67, 54, 0.15); border: 1px solid #f44336; border-radius: 6px; padding: 0.75em 1em; margin-bottom: 0.8em; color: #ff8a80; font-size: 0.9em;">' +
-                        '<strong>Error:</strong> ' + escapeHtml(s.LastErrorMessage) +
-                    '</div>';
-                }
-                if (s.DuplicateCollectionNames && s.DuplicateCollectionNames.length > 0) {
-                    alertsHtml += '<div style="background: rgba(255, 152, 0, 0.15); border: 1px solid #ff9800; border-radius: 6px; padding: 0.75em 1em; margin-bottom: 0.8em; color: #ffcc80; font-size: 0.9em;">' +
-                        '<strong>Duplicate collection names detected:</strong> ' + escapeHtml(s.DuplicateCollectionNames.join(', ')) +
-                    '</div>';
-                }
-
-                // ── History table ──
-                let historyHtml = '';
-                const historyList = s.History || [];
-                if (historyList.length > 0) {
-                    let rowsHtml = '';
-                    historyList.forEach((h, index) => {
-                        const hOutcome = outcomeConfig[h.LastRunOutcome] || { label: h.LastRunOutcome, color: '#ccc' };
-                        const hTime = formatUtc(h.LastRunCompletedUtc || h.LastRunStartedUtc);
-                        const hDur = formatDuration(h.DurationSeconds);
-                        const issues = (h.NfoParseErrors > 0)
-                            ? ('<span style="color:#FF9800;">' + h.NfoParseErrors + ' parse err</span>')
-                            : (h.LastErrorMessage ? '<span style="color:#F44336;">Failed</span>' : '<span style="color:#4CAF50;">OK</span>');
-                        const isLatest = (index === 0);
-
-                        rowsHtml += [
-                            '<tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.06);' + (isLatest ? ' background: rgba(255,255,255,0.02);' : '') + '">',
-                            '  <td style="padding: 6px 8px; white-space: nowrap;">' + hTime + (isLatest ? ' <span style="color:#00a4dc; font-size:0.8em;">(Latest)</span>' : '') + '</td>',
-                            '  <td style="padding: 6px 8px;"><span style="color: ' + hOutcome.color + '; font-weight: 500;">' + hOutcome.label + '</span></td>',
-                            '  <td style="padding: 6px 8px;">' + hDur + '</td>',
-                            '  <td style="padding: 6px 8px;">' + (h.MoviesScanned || 0).toLocaleString() + '</td>',
-                            '  <td style="padding: 6px 8px;">' + (h.SetsFound || 0).toLocaleString() + '</td>',
-                            '  <td style="padding: 6px 8px;"><span style="color:#4CAF50;">+' + (h.CollectionsCreated || 0) + '</span> / <span style="color:#2196F3;">~' + (h.CollectionsUpdated || 0) + '</span> / <span style="color:#F44336;">-' + (h.CollectionsDeleted || 0) + '</span></td>',
-                            '  <td style="padding: 6px 8px;">' + issues + '</td>',
-                            '</tr>'
-                        ].join('\n');
-                    });
-
-                    const runCountLabel = historyList.length + ' run' + (historyList.length > 1 ? 's' : '');
-                    historyHtml = [
-                        '<details style="margin-top: 1.25em; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 0.8em;">',
-                        '  <summary style="cursor: pointer; color: #00a4dc; font-weight: 600; outline: none; display: flex; align-items: center; justify-content: space-between;">',
-                        '    <span>Recent Sync History (' + runCountLabel + ')</span>',
-                        '    <span style="font-size: 0.85em; color: #888;">(click to toggle)</span>',
-                        '  </summary>',
-                        '  <div style="overflow-x: auto; margin-top: 0.8em;">',
-                        '    <table style="width: 100%; border-collapse: collapse; font-size: 0.88em; text-align: left;">',
-                        '      <thead>',
-                        '        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.15); color: #aaa;">',
-                        '          <th style="padding: 6px 8px;">Date &amp; Time</th>',
-                        '          <th style="padding: 6px 8px;">Status</th>',
-                        '          <th style="padding: 6px 8px;">Duration</th>',
-                        '          <th style="padding: 6px 8px;">Scanned</th>',
-                        '          <th style="padding: 6px 8px;">Sets</th>',
-                        '          <th style="padding: 6px 8px;">Created / Upd / Del</th>',
-                        '          <th style="padding: 6px 8px;">Issues</th>',
-                        '        </tr>',
-                        '      </thead>',
-                        '      <tbody>',
-                        rowsHtml,
-                        '      </tbody>',
-                        '    </table>',
-                        '  </div>',
-                        '  <div style="margin-top: 0.8em; text-align: right;">',
-                        '    <button is="emby-button" type="button" class="raised emby-button" id="BtnClearHistory" style="font-size: 0.8em; padding: 4px 10px; background: rgba(255, 255, 255, 0.08);">',
-                        '      <span>Clear History</span>',
-                        '    </button>',
-                        '  </div>',
-                        '</details>'
-                    ].join('\n');
-                }
-
-                content.innerHTML = kpiHtml + insightsHtml + alertsHtml + historyHtml;
-
-                // Hook up clear history button if rendered
-                const btnClear = content.querySelector('#BtnClearHistory');
-                if (btnClear) {
-                    btnClear.addEventListener('click', function () {
-                        if (confirm('Clear the sync execution history?')) {
-                            ApiClient.ajax({
-                                type: 'POST',
-                                url: ApiClient.getUrl('LocalMovieSets/ClearHistory')
-                            }).then(function () {
-                                loadSyncStatus(page);
-                            }).catch(function (err) {
-                                console.error('Failed to clear history:', err);
-                            });
-                        }
-                    });
-                }
-            }
-
-            function loadSyncStatus(page) {
-                const url = ApiClient.getUrl('LocalMovieSets/Status');
-                ApiClient.getJSON(url).then(function (s) {
-                    renderSyncStatus(page, s);
-                    if (s.IsRunning) {
-                        scheduleStatusPoll(page);
-                    }
-                }).catch(function (err) {
-                    console.error('Failed to load sync status:', err);
-                    const el = page.querySelector('#SyncStatusContent');
-                    if (el) el.textContent = 'Could not load sync status.';
-                });
-            }
-
-            function scheduleStatusPoll(page) {
-                stopStatusPoll();
-                statusPollTimer = setTimeout(function () { loadSyncStatus(page); }, 5000);
-            }
-
-            function stopStatusPoll() {
-                if (statusPollTimer) {
-                    clearTimeout(statusPollTimer);
-                    statusPollTimer = null;
-                }
-            }
 
             /* ── Preview changes ── */
             function renderPreview(page, r) {
@@ -1235,194 +1006,8 @@
                 });
             }
 
-            /* ── Validate NFOs & Artwork ── */
+            /* ── Cached validation report for System Info / Bug Report ── */
             let currentValidationReport = null;
-            let currentValidationFilter = 'all';
-
-            function validateNfos(page) {
-                const btn = page.querySelector('#BtnValidate');
-                const panel = page.querySelector('#ValidationResultPanel');
-                const summaryArea = page.querySelector('#ValidationSummaryArea');
-                const detailsArea = page.querySelector('#ValidationDetailsArea');
-                const filterArea = page.querySelector('#ValidationFilterButtons');
-
-                if (!panel) return;
-                panel.style.display = 'block';
-                summaryArea.innerHTML = '<div style="color: #00a4dc; font-weight: 500;">⏳ Scanning Movie Set Data Folder and running deep diagnostics… Please wait.</div>';
-                detailsArea.innerHTML = '';
-                if (filterArea) filterArea.style.display = 'none';
-
-                const originalBtnText = btn ? btn.innerHTML : '';
-                if (btn) {
-                    btn.innerHTML = '<span>Scanning...</span>';
-                    btn.disabled = true;
-                }
-
-                const folderInput = page.querySelector('#SetDataFolder');
-                const folderVal = folderInput ? folderInput.value.trim() : '';
-                const queryParams = folderVal ? { folderPath: folderVal } : {};
-                const url = ApiClient.getUrl('LocalMovieSets/Validate', queryParams);
-
-                ApiClient.getJSON(url).then(function (report) {
-                    if (btn) {
-                        btn.innerHTML = originalBtnText;
-                        btn.disabled = false;
-                    }
-                    currentValidationReport = report;
-                    currentValidationFilter = 'all';
-                    renderValidation(page, report, 'all');
-                }).catch(function (err) {
-                    if (btn) {
-                        btn.innerHTML = originalBtnText;
-                        btn.disabled = false;
-                    }
-                    console.error('Validation failed:', err);
-                    summaryArea.innerHTML = '<div style="color: #f44336; font-weight: bold;">✕ Validation request failed. Check server logs or verify that the folder exists.</div>';
-                });
-            }
-
-            function renderValidation(page, report, filter) {
-                const summaryArea = page.querySelector('#ValidationSummaryArea');
-                const detailsArea = page.querySelector('#ValidationDetailsArea');
-                const filterArea = page.querySelector('#ValidationFilterButtons');
-                if (!summaryArea || !detailsArea) return;
-
-                const scanned = report.ScannedSetsCount || 0;
-                const healthy = report.HealthySetsCount || 0;
-                const errors = report.ErrorCount || 0;
-                const warnings = report.WarningCount || 0;
-                const infos = report.InfoCount || 0;
-                const timeMs = report.ExecutionTimeMs || 0;
-
-                const summaryHtml = [
-                    '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.85em; margin-bottom: 1em;">',
-                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75em 1em; text-align: center;">',
-                    '    <div style="font-size: 1.45em; font-weight: bold; color: #fff;">' + scanned + '</div>',
-                    '    <div style="font-size: 0.8em; color: #aaa; margin-top: 0.2em;">Sets / Folders Scanned</div>',
-                    '    <div style="font-size: 0.75em; color: #888; margin-top: 0.2em;">in ' + timeMs + ' ms</div>',
-                    '  </div>',
-                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75em 1em; text-align: center;">',
-                    '    <div style="font-size: 1.45em; font-weight: bold; color: #4CAF50;">' + healthy + '</div>',
-                    '    <div style="font-size: 0.8em; color: #aaa; margin-top: 0.2em;">Healthy Sets</div>',
-                    '    <div style="font-size: 0.75em; color: #4CAF50; margin-top: 0.2em;">100% Valid</div>',
-                    '  </div>',
-                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75em 1em; text-align: center;">',
-                    '    <div style="font-size: 1.45em; font-weight: bold; color: ' + (errors > 0 ? '#F44336' : '#888') + ';">' + errors + '</div>',
-                    '    <div style="font-size: 0.8em; color: #aaa; margin-top: 0.2em;">Errors (🔴)</div>',
-                    '    <div style="font-size: 0.75em; color: ' + (errors > 0 ? '#F44336' : '#888') + '; margin-top: 0.2em;">' + (errors > 0 ? 'Action required' : 'None') + '</div>',
-                    '  </div>',
-                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75em 1em; text-align: center;">',
-                    '    <div style="font-size: 1.45em; font-weight: bold; color: ' + (warnings > 0 ? '#FF9800' : '#888') + ';">' + warnings + '</div>',
-                    '    <div style="font-size: 0.8em; color: #aaa; margin-top: 0.2em;">Warnings (🟡)</div>',
-                    '    <div style="font-size: 0.75em; color: ' + (warnings > 0 ? '#FF9800' : '#888') + '; margin-top: 0.2em;">' + (warnings > 0 ? 'Artwork/Metadata' : 'None') + '</div>',
-                    '  </div>',
-                    '  <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75em 1em; text-align: center;">',
-                    '    <div style="font-size: 1.45em; font-weight: bold; color: ' + (infos > 0 ? '#2196F3' : '#888') + ';">' + infos + '</div>',
-                    '    <div style="font-size: 0.8em; color: #aaa; margin-top: 0.2em;">Infos (🔵)</div>',
-                    '    <div style="font-size: 0.75em; color: ' + (infos > 0 ? '#2196F3' : '#888') + '; margin-top: 0.2em;">' + (infos > 0 ? 'Tips & Naming' : 'None') + '</div>',
-                    '  </div>',
-                    '</div>'
-                ].join('\n');
-
-                summaryArea.innerHTML = summaryHtml;
-
-                const issues = report.Issues || [];
-                if (filterArea) {
-                    if (issues.length > 0) {
-                        filterArea.style.display = 'flex';
-                        filterArea.innerHTML = [
-                            '<button type="button" class="raised emby-button" data-valfilter="all" style="font-size: 0.82em; padding: 4px 12px; background: ' + (filter === 'all' ? '#00a4dc' : 'rgba(255,255,255,0.08)') + '; color: #fff;">All (' + issues.length + ')</button>',
-                            '<button type="button" class="raised emby-button" data-valfilter="errors" style="font-size: 0.82em; padding: 4px 12px; background: ' + (filter === 'errors' ? '#F44336' : 'rgba(244, 67, 54, 0.15)') + '; color: ' + (filter === 'errors' ? '#fff' : '#f44336') + '; border: 1px solid #f44336;">Errors (' + errors + ')</button>',
-                            '<button type="button" class="raised emby-button" data-valfilter="warnings" style="font-size: 0.82em; padding: 4px 12px; background: ' + (filter === 'warnings' ? '#FF9800' : 'rgba(255, 152, 0, 0.15)') + '; color: ' + (filter === 'warnings' ? '#fff' : '#ff9800') + '; border: 1px solid #ff9800;">Warnings (' + warnings + ')</button>',
-                            '<button type="button" class="raised emby-button" data-valfilter="infos" style="font-size: 0.82em; padding: 4px 12px; background: ' + (filter === 'infos' ? '#2196F3' : 'rgba(33, 150, 243, 0.15)') + '; color: ' + (filter === 'infos' ? '#fff' : '#2196f3') + '; border: 1px solid #2196f3;">Infos (' + infos + ')</button>'
-                        ].join('\n');
-
-                        filterArea.querySelectorAll('button[data-valfilter]').forEach(function (btn) {
-                            btn.addEventListener('click', function () {
-                                const f = btn.getAttribute('data-valfilter');
-                                currentValidationFilter = f;
-                                renderValidation(page, currentValidationReport, f);
-                            });
-                        });
-                    } else {
-                        filterArea.style.display = 'none';
-                    }
-                }
-
-                if (issues.length === 0) {
-                    detailsArea.innerHTML = '<div style="background: rgba(76, 175, 80, 0.15); border: 1px solid #4CAF50; border-radius: 8px; padding: 1em; color: #a5d6a7; display: flex; align-items: center; gap: 0.8em; margin-top: 0.5em;">' +
-                        '<div style="font-size: 1.5em;">✓</div>' +
-                        '<div>' +
-                            '<div style="font-weight: bold; color: #4CAF50;">All scanned sets and artwork files are healthy and valid!</div>' +
-                            '<div style="font-size: 0.9em; color: #ccc;">No XML syntax errors, no missing posters, and no malformed files were found.</div>' +
-                        '</div>' +
-                    '</div>';
-                    return;
-                }
-
-                // Filter issues
-                let filtered = issues;
-                if (filter === 'errors') {
-                    filtered = issues.filter(function (i) { return i.Severity === 0 || i.Severity === 'Error'; });
-                } else if (filter === 'warnings') {
-                    filtered = issues.filter(function (i) { return i.Severity === 1 || i.Severity === 'Warning'; });
-                } else if (filter === 'infos') {
-                    filtered = issues.filter(function (i) { return i.Severity === 2 || i.Severity === 'Info'; });
-                }
-
-                if (filtered.length === 0) {
-                    detailsArea.innerHTML = '<div style="color: #aaa; font-style: italic; padding: 1em 0;">No items in this category.</div>';
-                    return;
-                }
-
-                let rowsHtml = '';
-                filtered.forEach(function (issue) {
-                    const isError = (issue.Severity === 0 || issue.Severity === 'Error');
-                    const isWarning = (issue.Severity === 1 || issue.Severity === 'Warning');
-                    const badgeBg = isError ? 'rgba(244, 67, 54, 0.2)' : (isWarning ? 'rgba(255, 152, 0, 0.2)' : 'rgba(33, 150, 243, 0.2)');
-                    const badgeColor = isError ? '#F44336' : (isWarning ? '#FF9800' : '#2196F3');
-                    const badgeBorder = isError ? '#F44336' : (isWarning ? '#FF9800' : '#2196F3');
-                    const badgeLabel = isError ? '🔴 Error' : (isWarning ? '🟡 Warning' : '🔵 Info');
-
-                    const collectionText = escapeHtml(issue.CollectionName || '—');
-                    const fileText = escapeHtml(issue.FilePath ? issue.FilePath.split(/[\\/]/).pop() : (issue.FolderPath ? issue.FolderPath.split(/[\\/]/).pop() : '—'));
-                    const fullPathTooltip = escapeHtml(issue.FilePath || issue.FolderPath || '');
-                    const messageText = escapeHtml(issue.Message || '');
-                    const suggestionText = escapeHtml(issue.Suggestion || '');
-
-                    rowsHtml += [
-                        '<tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.06); vertical-align: top;">',
-                        '  <td style="padding: 8px 10px; white-space: nowrap;">',
-                        '    <span style="background: ' + badgeBg + '; color: ' + badgeColor + '; border: 1px solid ' + badgeBorder + '; padding: 2px 8px; border-radius: 10px; font-weight: bold; font-size: 0.82em; display: inline-block;">' + badgeLabel + '</span>',
-                        '  </td>',
-                        '  <td style="padding: 8px 10px; font-weight: 600; color: #fff; max-width: 180px; word-break: break-word;">' + collectionText + '</td>',
-                        '  <td style="padding: 8px 10px; color: #ccc;">',
-                        '    <div style="font-weight: 500; color: #eee; margin-bottom: 0.25em;">' + messageText + '</div>',
-                        '    <div style="font-size: 0.85em; color: #81c784;"><strong>Suggestion:</strong> ' + suggestionText + '</div>',
-                        '  </td>',
-                        '  <td style="padding: 8px 10px; font-size: 0.82em; color: #aaa; max-width: 150px; word-break: break-all;" title="' + fullPathTooltip + '">' + fileText + '</td>',
-                        '</tr>'
-                    ].join('\n');
-                });
-
-                detailsArea.innerHTML = [
-                    '<div class="lms-table-container">',
-                    '  <table style="width: 100%; border-collapse: collapse; font-size: 0.88em; text-align: left;">',
-                    '    <thead class="lms-sticky-header">',
-                    '      <tr style="color: #aaa;">',
-                    '        <th style="padding: 10px; background: #1e1e20;">Severity</th>',
-                    '        <th style="padding: 10px; background: #1e1e20;">Collection</th>',
-                    '        <th style="padding: 10px; background: #1e1e20;">Issue &amp; Suggestion</th>',
-                    '        <th style="padding: 10px; background: #1e1e20;">File / Folder</th>',
-                    '      </tr>',
-                    '    </thead>',
-                    '    <tbody>',
-                    rowsHtml,
-                    '    </tbody>',
-                    '  </table>',
-                    '</div>'
-                ].join('\n');
-            }
 
             /* ── Load config ── */
             function loadConfig(page) {
@@ -1441,8 +1026,8 @@
                     page.querySelector('#AggregatePeople').checked = config.AggregatePeople === true;
                     page.querySelector('#AggregateGenres').checked = config.AggregateGenres === true;
                     page.querySelector('#AggregateStudios').checked = config.AggregateStudios === true;
-                    page.querySelector('#MaxTags').value = config.MaxTags !== undefined ? config.MaxTags : 15;
-                    page.querySelector('#MaxActors').value = config.MaxActors !== undefined ? config.MaxActors : 20;
+                    page.querySelector('#MaxTags').value = config.MaxTags !== undefined ? config.MaxTags : 0;
+                    page.querySelector('#MaxActors').value = config.MaxActors !== undefined ? config.MaxActors : 0;
                     page.querySelector('#MaxDirectors').value = config.MaxDirectors !== undefined ? config.MaxDirectors : 0;
                     page.querySelector('#MaxWriters').value = config.MaxWriters !== undefined ? config.MaxWriters : 0;
                     page.querySelector('#MaxGenres').value = config.MaxGenres !== undefined ? config.MaxGenres : 0;
@@ -1529,19 +1114,45 @@
 
             /* ── Trigger sync task ── */
             function syncNow(page) {
-                // Get the task by key, then run it
+                const btnSync = page.querySelector('#BtnSyncNow');
+                const origHtml = btnSync ? btnSync.innerHTML : '<span>▶ Sync Now</span>';
+                if (btnSync) {
+                    btnSync.disabled = true;
+                    btnSync.innerHTML = '<span>⏳ Starting…</span>';
+                }
+
                 ApiClient.getScheduledTasks(false, false).then(function (tasks) {
                     const task = tasks.find(t => t.Key === TASK_KEY);
                     if (!task) {
+                        if (btnSync) {
+                            btnSync.disabled = false;
+                            btnSync.innerHTML = origHtml;
+                        }
                         showStatus('Sync task not found. Please restart Jellyfin.', true);
                         return;
                     }
                     ApiClient.startScheduledTask(task.Id).then(function () {
-                        showStatus('Sync started! Check Scheduled Tasks for progress.', false);
-                        scheduleStatusPoll(page);
+                        if (btnSync) {
+                            btnSync.innerHTML = '<span>✓ Sync Started</span>';
+                            setTimeout(function () {
+                                btnSync.disabled = false;
+                                btnSync.innerHTML = origHtml;
+                            }, 3000);
+                        }
+                        showStatus('Collection sync started in background! Check Dashboard activity feed.', false);
                     }).catch(function () {
+                        if (btnSync) {
+                            btnSync.disabled = false;
+                            btnSync.innerHTML = origHtml;
+                        }
                         showStatus('Failed to start sync. Is the task already running?', true);
                     });
+                }).catch(function () {
+                    if (btnSync) {
+                        btnSync.disabled = false;
+                        btnSync.innerHTML = origHtml;
+                    }
+                    showStatus('Could not query scheduled tasks.', true);
                 });
             }
 
@@ -1727,10 +1338,10 @@
 
                     const modal = document.createElement('div');
                     modal.id = 'SystemInfoModal';
-                    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 99999; font-family: inherit;';
+                    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 99999; font-family: inherit;';
 
                     const modalContent = document.createElement('div');
-                    modalContent.style.cssText = 'background: #1c1c1e; border: 1px solid #2c2c2e; border-radius: 12px; width: 92%; max-width: 780px; max-height: 88%; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); overflow: hidden;';
+                    modalContent.style.cssText = 'background: #1c1c1e; border: 1px solid #2c2c2e; border-radius: 12px; width: 92%; max-width: 820px; max-height: 88%; display: flex; flex-direction: column; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6); overflow: hidden;';
 
                     const header = document.createElement('div');
                     header.style.cssText = 'padding: 1em 1.25em; border-bottom: 1px solid #2c2c2e; display: flex; justify-content: space-between; align-items: center; background: #252528;';
@@ -1740,29 +1351,51 @@
                     title.style.cssText = 'margin: 0; font-size: 1.1em; color: #fff; display: flex; align-items: center; gap: 0.5em;';
                     header.appendChild(title);
 
+                    function closeModal() {
+                        if (document.body.contains(modal)) {
+                            document.body.removeChild(modal);
+                        }
+                        window.removeEventListener('keydown', onKeyDown);
+                    }
+
+                    function onKeyDown(e) {
+                        if (e.key === 'Escape') closeModal();
+                    }
+                    window.addEventListener('keydown', onKeyDown);
+
+                    modal.onclick = function (e) {
+                        if (e.target === modal) closeModal();
+                    };
+
                     const btnClose = document.createElement('button');
                     btnClose.innerHTML = '&times;';
                     btnClose.style.cssText = 'background: none; border: none; color: #aaa; font-size: 1.5em; cursor: pointer; padding: 0; line-height: 1;';
-                    btnClose.onclick = function () { document.body.removeChild(modal); };
+                    btnClose.onclick = closeModal;
                     header.appendChild(btnClose);
                     modalContent.appendChild(header);
 
-                    // Privacy Controls Toolbar
+                    // Privacy & Display Controls Toolbar
                     const toolbar = document.createElement('div');
                     toolbar.style.cssText = 'padding: 0.85em 1.25em; background: rgba(255, 255, 255, 0.04); border-bottom: 1px solid rgba(255, 255, 255, 0.08);';
                     toolbar.innerHTML = [
-                        '<div style="font-size: 0.8em; color: #888; margin-bottom: 0.45em; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Interactive Privacy &amp; Data Filters:</div>',
+                        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em; flex-wrap: wrap; gap: 0.5em;">',
+                        '  <div style="font-size: 0.78em; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Interactive Privacy &amp; Output Filters:</div>',
+                        '  <label class="emby-checkbox-label" style="font-size: 0.85em; color: #00a4dc;">',
+                        '    <input type="checkbox" id="LmsWordWrap" checked class="lms-checkbox" />',
+                        '    <span>↩️ Wrap Long Lines</span>',
+                        '  </label>',
+                        '</div>',
                         '<div style="display: flex; gap: 1.2em; flex-wrap: wrap;">',
-                        '  <label style="display: inline-flex; align-items: center; gap: 0.45em; cursor: pointer; font-size: 0.88em; color: #eee;">',
-                        '    <input type="checkbox" id="LmsMaskPaths" checked style="margin: 0; cursor: pointer;" />',
+                        '  <label class="emby-checkbox-label" style="font-size: 0.88em;">',
+                        '    <input type="checkbox" id="LmsMaskPaths" checked class="lms-checkbox" />',
                         '    <span>📁 Mask File Paths</span>',
                         '  </label>',
-                        '  <label style="display: inline-flex; align-items: center; gap: 0.45em; cursor: pointer; font-size: 0.88em; color: #eee;">',
-                        '    <input type="checkbox" id="LmsMaskTitles" style="margin: 0; cursor: pointer;" />',
+                        '  <label class="emby-checkbox-label" style="font-size: 0.88em;">',
+                        '    <input type="checkbox" id="LmsMaskTitles" class="lms-checkbox" />',
                         '    <span>🎬 Mask Set &amp; Movie Titles</span>',
                         '  </label>',
-                        '  <label style="display: inline-flex; align-items: center; gap: 0.45em; cursor: pointer; font-size: 0.88em; color: #eee;">',
-                        '    <input type="checkbox" id="LmsIncludeErrors" checked style="margin: 0; cursor: pointer;" />',
+                        '  <label class="emby-checkbox-label" style="font-size: 0.88em;">',
+                        '    <input type="checkbox" id="LmsIncludeErrors" checked class="lms-checkbox" />',
                         '    <span>⚠️ Include Diagnostics &amp; Logs</span>',
                         '  </label>',
                         '</div>'
@@ -1775,12 +1408,29 @@
                     const textarea = document.createElement('textarea');
                     textarea.readOnly = true;
                     textarea.value = generateMarkdown();
-                    textarea.style.cssText = 'width: 100%; height: 360px; box-sizing: border-box; background: #141416; color: #eee; border: 1px solid #333; border-radius: 6px; padding: 0.75em; font-family: monospace; font-size: 0.88em; line-height: 1.45; resize: none; outline: none;';
+                    textarea.style.cssText = 'width: 100%; height: 380px; box-sizing: border-box; background: #141416; color: #eee; border: 1px solid #333; border-radius: 6px; padding: 0.75em; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.88em; line-height: 1.45; resize: none; outline: none; white-space: pre-wrap; word-break: break-word;';
                     body.appendChild(textarea);
                     modalContent.appendChild(body);
 
                     function updateText() {
                         textarea.value = generateMarkdown();
+                    }
+
+                    const chkWrap = toolbar.querySelector('#LmsWordWrap');
+                    function applyWrap() {
+                        if (chkWrap && chkWrap.checked) {
+                            textarea.style.whiteSpace = 'pre-wrap';
+                            textarea.style.wordBreak = 'break-word';
+                            textarea.style.overflowX = 'hidden';
+                        } else {
+                            textarea.style.whiteSpace = 'pre';
+                            textarea.style.wordBreak = 'normal';
+                            textarea.style.overflowX = 'auto';
+                        }
+                    }
+                    if (chkWrap) {
+                        chkWrap.onchange = applyWrap;
+                        applyWrap();
                     }
 
                     const chkPaths = toolbar.querySelector('#LmsMaskPaths');
@@ -1801,51 +1451,48 @@
                     };
 
                     const footer = document.createElement('div');
-                    footer.style.cssText = 'padding: 0.85em 1.25em; border-top: 1px solid #2c2c2e; display: flex; justify-content: space-between; align-items: center; background: #252528;';
+                    footer.style.cssText = 'padding: 0.85em 1.25em; border-top: 1px solid #2c2c2e; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8em; background: #252528;';
 
                     const hint = document.createElement('div');
-                    hint.style.cssText = 'font-size: 0.8em; color: #888;';
+                    hint.style.cssText = 'font-size: 0.8em; color: #888; white-space: nowrap;';
                     hint.textContent = '🔒 100% offline & zero telemetry';
                     footer.appendChild(hint);
 
                     const actions = document.createElement('div');
-                    actions.style.cssText = 'display: flex; gap: 0.8em; align-items: center;';
+                    actions.style.cssText = 'display: flex; gap: 0.8em; align-items: center; flex-wrap: wrap;';
 
                     const linkReport = document.createElement('a');
                     linkReport.href = 'https://github.com/gitrys/jellyfin-local-movieset-addon/issues/new';
                     linkReport.target = '_blank';
                     linkReport.rel = 'noopener noreferrer';
                     linkReport.className = 'raised emby-button';
-                    linkReport.style.cssText = 'display: inline-flex; align-items: center; gap: 0.4em; padding: 0.5em 1.1em; font-size: 0.88em; text-decoration: none; color: #fff; background: rgba(255, 255, 255, 0.08); border-radius: 4px;';
-                    linkReport.innerHTML = '<span>🐛 Open GitHub Issues</span>';
+                    linkReport.style.cssText = 'display: inline-flex; align-items: center; gap: 0.4em; padding: 0.5em 1.1em; font-size: 0.88em; text-decoration: none; color: #fff; background: rgba(255, 255, 255, 0.08); border-radius: 4px; white-space: nowrap;';
+                    linkReport.innerHTML = '<span>🐛 Report Issue on GitHub</span>';
                     actions.appendChild(linkReport);
 
                     const btnCopy = document.createElement('button');
                     btnCopy.className = 'raised button-submit block emby-button';
                     btnCopy.innerHTML = '<span>📋 Copy to Clipboard</span>';
-                    btnCopy.style.cssText = 'margin: 0; padding: 0.5em 1.2em; font-size: 0.9em; background: #00a4dc; color: #fff; cursor: pointer;';
+                    btnCopy.style.cssText = 'margin: 0; padding: 0.5em 1.2em; font-size: 0.9em; background: #00a4dc; color: #fff; cursor: pointer; transition: background 0.2s ease; white-space: nowrap;';
                     btnCopy.onclick = function () {
                         textarea.select();
                         const currentText = textarea.value;
+                        function showCopied() {
+                            btnCopy.innerHTML = '<span>✓ Copied!</span>';
+                            btnCopy.style.background = '#4CAF50';
+                            setTimeout(function () {
+                                btnCopy.innerHTML = '<span>📋 Copy to Clipboard</span>';
+                                btnCopy.style.background = '#00a4dc';
+                            }, 2500);
+                        }
                         if (navigator.clipboard && navigator.clipboard.writeText) {
-                            navigator.clipboard.writeText(currentText).then(function () {
-                                btnCopy.innerHTML = '<span>✓ Copied!</span>';
-                                setTimeout(function () {
-                                    btnCopy.innerHTML = '<span>📋 Copy to Clipboard</span>';
-                                }, 2500);
-                            }).catch(function () {
+                            navigator.clipboard.writeText(currentText).then(showCopied).catch(function () {
                                 document.execCommand('copy');
-                                btnCopy.innerHTML = '<span>✓ Copied!</span>';
-                                setTimeout(function () {
-                                    btnCopy.innerHTML = '<span>📋 Copy to Clipboard</span>';
-                                }, 2500);
+                                showCopied();
                             });
                         } else {
                             document.execCommand('copy');
-                            btnCopy.innerHTML = '<span>✓ Copied!</span>';
-                            setTimeout(function () {
-                                btnCopy.innerHTML = '<span>📋 Copy to Clipboard</span>';
-                            }, 2500);
+                            showCopied();
                         }
                     };
                     actions.appendChild(btnCopy);
@@ -1865,6 +1512,21 @@
                 const container = page.querySelector('#LibrarySelectionContainer');
                 if (!container) return;
 
+                const btnAll = page.querySelector('#BtnSelectAllLibs');
+                if (btnAll) {
+                    btnAll.onclick = function (e) {
+                        e.preventDefault();
+                        container.querySelectorAll('.lms-lib-checkbox').forEach(function (cb) { cb.checked = true; });
+                    };
+                }
+                const btnNone = page.querySelector('#BtnDeselectAllLibs');
+                if (btnNone) {
+                    btnNone.onclick = function (e) {
+                        e.preventDefault();
+                        container.querySelectorAll('.lms-lib-checkbox').forEach(function (cb) { cb.checked = false; });
+                    };
+                }
+
                 const url = ApiClient.getUrl('LocalMovieSets/Libraries');
                 ApiClient.getJSON(url).then(function (libraries) {
                     if (!libraries || libraries.length === 0) {
@@ -1877,8 +1539,8 @@
                     libraries.forEach(function (lib) {
                         const isChecked = selected.has(lib.Id) ? 'checked' : '';
                         const locs = (lib.Locations && lib.Locations.length > 0) ? ' (' + escapeHtml(lib.Locations.join(', ')) + ')' : '';
-                        html += '<label class="emby-checkbox-label" style="display: flex; align-items: center; gap: 0.6em; cursor: pointer;">' +
-                            '<input type="checkbox" class="lms-lib-checkbox" value="' + escapeHtml(lib.Id) + '" ' + isChecked + ' style="margin: 0;" />' +
+                        html += '<label class="emby-checkbox-label" style="display: flex; align-items: center; gap: 0.65em; cursor: pointer; padding: 0.25em 0;">' +
+                            '<input type="checkbox" class="lms-lib-checkbox" value="' + escapeHtml(lib.Id) + '" ' + isChecked + ' />' +
                             '<span><strong>' + escapeHtml(lib.Name) + '</strong><span style="color: #888; font-size: 0.85em;">' + locs + '</span></span>' +
                         '</label>';
                     });
@@ -2169,7 +1831,6 @@
                 initTabs(page);
                 loadConfig(page);
                 checkConflicts(page);
-                loadSyncStatus(page);
 
                 const form = page.querySelector('#LocalMovieSetsConfigForm');
                 form.removeEventListener('submit', form._saveHandler);
@@ -2212,28 +1873,11 @@
                 btnDetect._clickHandler = () => detectNamingConvention(page);
                 btnDetect.addEventListener('click', btnDetect._clickHandler);
 
-                const btnValidate = page.querySelector('#BtnValidate');
-                if (btnValidate) {
-                    btnValidate.removeEventListener('click', btnValidate._clickHandler);
-                    btnValidate._clickHandler = () => validateNfos(page);
-                    btnValidate.addEventListener('click', btnValidate._clickHandler);
-                }
-
                 const btnSystemInfo = page.querySelector('#BtnSystemInfo');
                 if (btnSystemInfo) {
                     btnSystemInfo.removeEventListener('click', btnSystemInfo._clickHandler);
                     btnSystemInfo._clickHandler = () => openSystemInfoModal(page);
                     btnSystemInfo.addEventListener('click', btnSystemInfo._clickHandler);
-                }
-
-                const btnCloseVal = page.querySelector('#BtnCloseValidation');
-                if (btnCloseVal) {
-                    btnCloseVal.removeEventListener('click', btnCloseVal._clickHandler);
-                    btnCloseVal._clickHandler = function () {
-                        const panel = page.querySelector('#ValidationResultPanel');
-                        if (panel) panel.style.display = 'none';
-                    };
-                    btnCloseVal.addEventListener('click', btnCloseVal._clickHandler);
                 }
             });
 
