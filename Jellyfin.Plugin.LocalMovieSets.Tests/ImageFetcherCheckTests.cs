@@ -60,4 +60,29 @@ public class ImageFetcherCheckTests
         Assert.Equal(ImageFetcherCheck.NoBoxSetOptions, result.Reason);
         Assert.Empty(result.EnabledFetchers);
     }
+
+    [Fact]
+    public void Combine_OtherMetadataDownloader_HasConflict()
+    {
+        var images = ImageFetcherCheck.Evaluate(true, [BoxSetImageProvider.ProviderName]);
+        var metadata = ImageFetcherCheck.EvaluateMetadataDownloaders(true, ["TheMovieDb"]);
+
+        var result = ImageFetcherCheck.Combine(images, metadata);
+
+        Assert.True(result.HasConflict);
+        Assert.Equal(string.Empty, result.Reason);
+        Assert.Equal(ImageFetcherCheck.NotOnlyLocalMovieSets, result.MetadataReason);
+        Assert.Equal(["TheMovieDb"], result.EnabledMetadataFetchers);
+    }
+
+    [Fact]
+    public void Combine_EmptyMetadataDownloaders_HasNoConflict()
+    {
+        var images = ImageFetcherCheck.Evaluate(true, [BoxSetImageProvider.ProviderName]);
+        var metadata = ImageFetcherCheck.EvaluateMetadataDownloaders(true, []);
+
+        var result = ImageFetcherCheck.Combine(images, metadata);
+
+        Assert.False(result.HasConflict);
+    }
 }

@@ -100,7 +100,7 @@ public class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>
     /// Gets or sets a value indicating whether to overwrite existing collection
-    /// artwork with images found in the TMM set folder.
+    /// artwork with images found in the set folder.
     /// </summary>
     public bool UpdateExistingArtwork { get; set; } = false;
 
@@ -191,9 +191,16 @@ public class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>
     /// Gets or sets the list of library IDs to include in the sync.
-    /// If empty, all movie libraries are scanned.
+    /// An empty list scans every movie library only while <see cref="IncludeAllLibraries"/> is true.
+    /// After an explicit save, an empty list means no library is selected and nothing is scanned.
     /// </summary>
     public string[] IncludedLibraryIds { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether an empty <see cref="IncludedLibraryIds"/> list means every movie library.
+    /// Older configs omit this and keep scanning all libraries. Saving with no library checked sets it to false.
+    /// </summary>
+    public bool IncludeAllLibraries { get; set; } = true;
 
     /// <summary>
     /// Gets or sets a value indicating whether to automatically trigger a sync

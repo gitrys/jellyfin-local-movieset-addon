@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.LocalMovieSets.Services;
+using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
@@ -28,6 +29,7 @@ public class LocalMovieSetsController : ControllerBase
     private readonly LocalMovieSetManager _manager;
     private readonly Jellyfin.Plugin.LocalMovieSets.Services.Validation.NfoValidator _validator;
     private readonly MediaBrowser.Controller.IServerApplicationHost _applicationHost;
+    private readonly IServerConfigurationManager _serverConfigurationManager;
     private readonly ILogger<LocalMovieSetsController> _logger;
 
     /// <summary>
@@ -37,18 +39,21 @@ public class LocalMovieSetsController : ControllerBase
     /// <param name="manager">LocalMovieSetManager instance (injected).</param>
     /// <param name="validator">NFO and artwork validator instance (injected).</param>
     /// <param name="applicationHost">Jellyfin server application host (injected).</param>
+    /// <param name="serverConfigurationManager">Jellyfin server configuration (injected).</param>
     /// <param name="logger">Logger instance (injected).</param>
     public LocalMovieSetsController(
         ILibraryManager libraryManager,
         LocalMovieSetManager manager,
         Jellyfin.Plugin.LocalMovieSets.Services.Validation.NfoValidator validator,
         MediaBrowser.Controller.IServerApplicationHost applicationHost,
+        IServerConfigurationManager serverConfigurationManager,
         ILogger<LocalMovieSetsController> logger)
     {
         _libraryManager = libraryManager;
         _manager = manager;
         _validator = validator;
         _applicationHost = applicationHost;
+        _serverConfigurationManager = serverConfigurationManager;
         _logger = logger;
     }
 
@@ -133,9 +138,9 @@ public class LocalMovieSetsController : ControllerBase
     }
 
     /// <summary>
-    /// Checks whether the collections library enables only this plugin as a BoxSet image fetcher.
+    /// Checks whether the collections library limits BoxSet image fetchers to this plugin and leaves other metadata downloaders off.
     /// </summary>
-    /// <returns>A conflict when online or other image fetchers are still enabled, or when no BoxSet list is saved.</returns>
+    /// <returns>A conflict when another image fetcher or metadata downloader is enabled, or when no BoxSet list is saved.</returns>
     [HttpGet("CheckImageFetchers")]
     public ActionResult<ImageFetcherCheckResult> CheckImageFetchers()
     {
@@ -159,7 +164,10 @@ public class LocalMovieSetsController : ControllerBase
             var typeOptions = library.GetLibraryOptions().TypeOptions?
                 .FirstOrDefault(option => string.Equals(option.Type, "BoxSet", StringComparison.OrdinalIgnoreCase));
 
-            var result = ImageFetcherCheck.Evaluate(typeOptions is not null, typeOptions?.ImageFetchers);
+            var hasBoxSetOptions = typeOptions is not null;
+            var result = ImageFetcherCheck.Combine(
+                ImageFetcherCheck.Evaluate(hasBoxSetOptions, typeOptions?.ImageFetchers),
+                ImageFetcherCheck.EvaluateMetadataDownloaders(hasBoxSetOptions, typeOptions?.MetadataFetchers));
             if (!result.HasConflict)
             {
                 continue;
@@ -170,6 +178,21 @@ public class LocalMovieSetsController : ControllerBase
         }
 
         return Ok(new ImageFetcherCheckResult { HasConflict = false });
+    }
+
+    /// <summary>
+    /// Checks whether Jellyfin groups movies into collections in movie-library lists.
+    /// </summary>
+    /// <returns>A conflict when the display setting is off.</returns>
+    [HttpGet("CheckGrouping")]
+    public ActionResult<GroupingCheckResult> CheckGrouping()
+    {
+        var enabled = _serverConfigurationManager.Configuration.EnableGroupingMoviesIntoCollections;
+        return Ok(new GroupingCheckResult
+        {
+            HasConflict = !enabled,
+            IsEnabled = enabled
+        });
     }
 
     /// <summary>
@@ -609,6 +632,22 @@ public class PathValidationResult
     /// Gets or sets status or error message.
     /// </summary>
     public string Message { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Data model returned by the movie-grouping check.
+/// </summary>
+public class GroupingCheckResult
+{
+    /// <summary>
+    /// Gets or sets a value indicating whether movies are shown individually in movie lists.
+    /// </summary>
+    public bool HasConflict { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether "Group movies into collections" is enabled.
+    /// </summary>
+    public bool IsEnabled { get; set; }
 }
 
 /// <summary>

@@ -288,6 +288,14 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 return;
             }
 
+            if (LibrarySelection.IsNoneSelected(config.IncludedLibraryIds, config.IncludeAllLibraries))
+            {
+                LogMessage(LogLevel.Information, "Sync skipped because no movie library is selected.");
+                stats.LastRunOutcome = SyncOutcomes.NoLibrariesSelected;
+                stats.LastErrorMessage = "No movie library is selected.";
+                return;
+            }
+
             LogMessage(LogLevel.Information, $"Starting sync run (Mount Guard: {(config.EnableMountGuard ? "enabled" : "disabled")})");
 
             if (config.EnableMountGuard && !CheckMounts())
@@ -304,6 +312,17 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             // ── Step 1: Query all movies ──────────────────────────────────────
             var allMovies = QueryAllMovies();
             stats.MoviesScanned = allMovies.Count;
+
+            if (allMovies.Count == 0)
+            {
+                // Libraries are selected but none of them returned a movie. That
+                // almost always means a stale library selection, not an empty
+                // collection set, so stop here before anything gets deleted.
+                LogMessage(LogLevel.Warning, "Sync aborted because the selected libraries returned no movies. Check the library selection in the plugin settings.");
+                stats.LastRunOutcome = SyncOutcomes.FilterMissAborted;
+                stats.LastErrorMessage = "The selected libraries returned no movies.";
+                return;
+            }
 
             LogMessage(LogLevel.Information, $"Scanned {allMovies.Count} movies across configured libraries.");
             progress?.Report(5);
@@ -462,6 +481,18 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     severity = LogLevel.Warning;
                     break;
 
+                case SyncOutcomes.NoLibrariesSelected:
+                    name = "Local Movie Sets Sync Skipped";
+                    overview = "Sync did not run because no movie library is selected.";
+                    severity = LogLevel.Information;
+                    break;
+
+                case SyncOutcomes.FilterMissAborted:
+                    name = "Local Movie Sets Sync Aborted";
+                    overview = "Sync was aborted because the selected libraries returned no movies. Check the library selection in the plugin settings.";
+                    severity = LogLevel.Warning;
+                    break;
+
                 case SyncOutcomes.Cancelled:
                     name = "Local Movie Sets Sync Cancelled";
                     overview = "Sync operation was cancelled.";
@@ -605,6 +636,13 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     /// </summary>
     private List<Movie> QueryAllMovies()
     {
+        var config = Plugin.Instance?.Configuration;
+        var includedLibraryIds = config?.IncludedLibraryIds;
+        if (LibrarySelection.IsNoneSelected(includedLibraryIds, config?.IncludeAllLibraries ?? true))
+        {
+            return [];
+        }
+
         var allMovies = _libraryManager
             .GetItemsResult(new InternalItemsQuery
             {
@@ -615,7 +653,6 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             .OfType<Movie>()
             .ToList();
 
-        var includedLibraryIds = Plugin.Instance?.Configuration.IncludedLibraryIds;
         if (includedLibraryIds == null || includedLibraryIds.Length == 0)
         {
             return allMovies;
@@ -809,6 +846,12 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             return result;
         }
 
+        if (LibrarySelection.IsNoneSelected(config.IncludedLibraryIds, config.IncludeAllLibraries))
+        {
+            result.NoLibrariesSelected = true;
+            return result;
+        }
+
         if (config.EnableMountGuard && !CheckMounts())
         {
             result.MountGuardBlocked = true;
@@ -816,6 +859,12 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         }
 
         var allMovies = QueryAllMovies();
+        if (allMovies.Count == 0)
+        {
+            result.FilterMissBlocked = true;
+            return result;
+        }
+
         var setGroups = BuildSetGroups(allMovies, cancellationToken);
         var (existingBoxSets, existingByName, _) = LoadExistingBoxSets();
         var minimumMovies = Math.Max(1, config.MinimumMovies);

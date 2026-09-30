@@ -26,6 +26,9 @@ namespace Jellyfin.Plugin.LocalMovieSets.Providers;
 /// </summary>
 public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
 {
+    /// <summary>Provider name. This provider does not appear in the metadata downloader list.</summary>
+    public const string ProviderName = "Local Movie Sets";
+
     private readonly ILibraryManager _libraryManager;
     private readonly LocalMovieSetManager _setManager;
     private readonly SetNfoParser _setNfoParser;
@@ -47,7 +50,7 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
     }
 
     /// <inheritdoc />
-    public string Name => "Local Movie Sets";
+    public string Name => ProviderName;
 
     /// <inheritdoc />
     public async Task<ItemUpdateType> FetchAsync(BoxSet item, MetadataRefreshOptions options, CancellationToken cancellationToken)

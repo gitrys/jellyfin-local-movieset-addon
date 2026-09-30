@@ -25,9 +25,13 @@ internal static class ImageFetcherCheck
     /// Returns whether the saved BoxSet image fetchers are exactly <c>Local Movie Sets</c>.
     /// </summary>
     /// <param name="hasBoxSetTypeOptions"><c>false</c> when the library has no BoxSet type options.</param>
-    /// <param name="imageFetchers">Enabled image fetcher names. Ignored when <paramref name="hasBoxSetTypeOptions"/> is <c>false</c>.</param>
+    /// <param name="fetchers">Enabled fetcher names. Ignored when <paramref name="hasBoxSetTypeOptions"/> is <c>false</c>.</param>
+    /// <param name="expectedName">The single allowed provider name. Defaults to the image provider.</param>
     /// <returns>A result with <see cref="ImageFetcherCheckResult.HasConflict"/> set when the list is not local-only.</returns>
-    public static ImageFetcherCheckResult Evaluate(bool hasBoxSetTypeOptions, IEnumerable<string>? imageFetchers)
+    public static ImageFetcherCheckResult Evaluate(
+        bool hasBoxSetTypeOptions,
+        IEnumerable<string>? fetchers,
+        string? expectedName = null)
     {
         if (!hasBoxSetTypeOptions)
         {
@@ -38,14 +42,18 @@ internal static class ImageFetcherCheck
             };
         }
 
-        var names = (imageFetchers ?? [])
+        var allowedName = string.IsNullOrWhiteSpace(expectedName)
+            ? BoxSetImageProvider.ProviderName
+            : expectedName;
+
+        var names = (fetchers ?? [])
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Select(name => name.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var onlyLocal = names.Count == 1
-            && string.Equals(names[0], BoxSetImageProvider.ProviderName, StringComparison.OrdinalIgnoreCase);
+            && string.Equals(names[0], allowedName, StringComparison.OrdinalIgnoreCase);
 
         if (onlyLocal)
         {
@@ -57,6 +65,64 @@ internal static class ImageFetcherCheck
             HasConflict = true,
             Reason = NotOnlyLocalMovieSets,
             EnabledFetchers = names
+        };
+    }
+
+    /// <summary>
+    /// Returns whether any internet metadata downloader is enabled for BoxSets.
+    /// An empty list is fine: this plugin is a custom provider and does not appear in that list.
+    /// </summary>
+    /// <param name="hasBoxSetTypeOptions"><c>false</c> when the library has no BoxSet type options.</param>
+    /// <param name="metadataDownloaders">Enabled metadata downloader names.</param>
+    /// <returns>A conflict when a downloader other than this plugin is enabled, or when no BoxSet list is saved.</returns>
+    public static ImageFetcherCheckResult EvaluateMetadataDownloaders(
+        bool hasBoxSetTypeOptions,
+        IEnumerable<string>? metadataDownloaders)
+    {
+        if (!hasBoxSetTypeOptions)
+        {
+            return new ImageFetcherCheckResult
+            {
+                HasConflict = true,
+                Reason = NoBoxSetOptions
+            };
+        }
+
+        var others = (metadataDownloaders ?? [])
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(name => !string.Equals(name, BoxSetMetadataProvider.ProviderName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (others.Count == 0)
+        {
+            return new ImageFetcherCheckResult { HasConflict = false };
+        }
+
+        return new ImageFetcherCheckResult
+        {
+            HasConflict = true,
+            Reason = NotOnlyLocalMovieSets,
+            EnabledFetchers = others
+        };
+    }
+
+    /// <summary>
+    /// Merges the image-fetcher and metadata-downloader checks into one banner result.
+    /// </summary>
+    /// <param name="images">Image fetcher check.</param>
+    /// <param name="metadata">Metadata downloader check. Its fetcher names are copied to <see cref="ImageFetcherCheckResult.EnabledMetadataFetchers"/>.</param>
+    /// <returns>A conflict when either list is not local-only.</returns>
+    public static ImageFetcherCheckResult Combine(ImageFetcherCheckResult images, ImageFetcherCheckResult metadata)
+    {
+        return new ImageFetcherCheckResult
+        {
+            HasConflict = images.HasConflict || metadata.HasConflict,
+            Reason = images.Reason,
+            EnabledFetchers = images.EnabledFetchers,
+            MetadataReason = metadata.Reason,
+            EnabledMetadataFetchers = metadata.EnabledFetchers
         };
     }
 }
@@ -77,4 +143,10 @@ public class ImageFetcherCheckResult
 
     /// <summary>Gets or sets the enabled image fetcher names from the saved list.</summary>
     public List<string> EnabledFetchers { get; set; } = [];
+
+    /// <summary>Gets or sets why the metadata-downloader check failed. Empty when that list is local-only.</summary>
+    public string MetadataReason { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the enabled metadata downloader names from the saved list.</summary>
+    public List<string> EnabledMetadataFetchers { get; set; } = [];
 }
