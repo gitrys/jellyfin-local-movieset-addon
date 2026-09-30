@@ -162,6 +162,12 @@ public class PreviewUpdateInfo
 
     /// <summary>Gets or sets the number of movies that would be removed.</summary>
     public int MoviesToRemove { get; set; }
+
+    /// <summary>Gets or sets the titles of movies that would be added.</summary>
+    public List<string> AddedMovieTitles { get; set; } = [];
+
+    /// <summary>Gets or sets the titles of movies that would be removed.</summary>
+    public List<string> RemovedMovieTitles { get; set; } = [];
 }
 
 /// <summary>
@@ -191,6 +197,15 @@ public class SyncPreviewResult
     /// <summary>Gets or sets an error message when the preview could not be computed.</summary>
     public string? ErrorMessage { get; set; }
 
+    /// <summary>Gets or sets the total number of movies scanned across libraries.</summary>
+    public int ScannedMoviesCount { get; set; }
+
+    /// <summary>Gets or sets the total number of distinct movie sets identified in the library.</summary>
+    public int TotalSetsCount { get; set; }
+
+    /// <summary>Gets or sets the number of libraries scanned.</summary>
+    public int ScannedLibrariesCount { get; set; }
+
     /// <summary>Gets or sets the collections that would be created.</summary>
     public List<PreviewSetInfo> ToCreate { get; set; } = [];
 
@@ -202,6 +217,9 @@ public class SyncPreviewResult
 
     /// <summary>Gets or sets the number of existing collections with no membership changes.</summary>
     public int UnchangedCount { get; set; }
+
+    /// <summary>Gets or sets the list of existing collections that are completely unchanged and up to date.</summary>
+    public List<PreviewSetInfo> UnchangedSets { get; set; } = [];
 
     /// <summary>Gets or sets the orphaned collections that would be deleted.</summary>
     public List<string> ToDelete { get; set; } = [];

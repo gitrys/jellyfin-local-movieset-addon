@@ -820,6 +820,17 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         var (existingBoxSets, existingByName, _) = LoadExistingBoxSets();
         var minimumMovies = Math.Max(1, config.MinimumMovies);
 
+        result.ScannedMoviesCount = allMovies.Count;
+        result.TotalSetsCount = setGroups.Count;
+
+        var allMovieFolders = _libraryManager.GetVirtualFolders()
+            .Where(vf => vf.CollectionType == MediaBrowser.Model.Entities.CollectionTypeOptions.movies ||
+                         string.Equals(vf.CollectionType?.ToString(), "movies", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        result.ScannedLibrariesCount = (config.IncludedLibraryIds is { Length: > 0 } inc)
+            ? Math.Max(1, allMovieFolders.Count(vf => inc.Contains(vf.ItemId) || inc.Contains(vf.Name)))
+            : Math.Max(1, allMovieFolders.Count);
+
         foreach (var (setName, movies) in setGroups)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -827,19 +838,39 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             if (existingByName.TryGetValue(setName, out var boxSet))
             {
                 var sortedMovies = SortMovies(movies, config.CollectionSortBy, config.CollectionSortOrder);
-                var (toAdd, toRemove, _) = ComputeMembershipDiff(boxSet, sortedMovies);
+                var (toAdd, toRemove, existingMovieItems) = ComputeMembershipDiff(boxSet, sortedMovies);
 
                 if (toAdd.Length == 0 && toRemove.Length == 0)
                 {
                     result.UnchangedCount++;
+                    result.UnchangedSets.Add(new PreviewSetInfo
+                    {
+                        Name = setName,
+                        MovieCount = movies.Count
+                    });
                 }
                 else
                 {
+                    var addedSet = toAdd.ToHashSet();
+                    var removedSet = toRemove.ToHashSet();
+
+                    var addedTitles = sortedMovies
+                        .Where(m => addedSet.Contains(m.Id))
+                        .Select(m => m.Name + (m.ProductionYear.HasValue ? $" ({m.ProductionYear.Value})" : ""))
+                        .ToList();
+
+                    var removedTitles = existingMovieItems
+                        .Where(m => removedSet.Contains(m.Id))
+                        .Select(m => m.Name + (m.ProductionYear.HasValue ? $" ({m.ProductionYear.Value})" : ""))
+                        .ToList();
+
                     result.ToUpdate.Add(new PreviewUpdateInfo
                     {
                         Name = setName,
                         MoviesToAdd = toAdd.Length,
-                        MoviesToRemove = toRemove.Length
+                        MoviesToRemove = toRemove.Length,
+                        AddedMovieTitles = addedTitles,
+                        RemovedMovieTitles = removedTitles
                     });
                 }
             }
@@ -852,6 +883,8 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 result.BelowMinimum.Add(new PreviewSetInfo { Name = setName, MovieCount = movies.Count });
             }
         }
+
+        result.UnchangedSets.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
 
         foreach (var boxSet in existingBoxSets)
         {

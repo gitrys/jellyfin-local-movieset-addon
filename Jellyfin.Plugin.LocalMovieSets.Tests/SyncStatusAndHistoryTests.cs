@@ -154,4 +154,55 @@ public class SyncStatusAndHistoryTests
         // Oldest remaining should be at index 9 (MoviesScanned = 6)
         Assert.Equal(6, list[9].MoviesScanned);
     }
+
+    [Fact]
+    public void SyncPreviewResult_JsonSerialization_RoundtripsSuccessfully()
+    {
+        var preview = new SyncPreviewResult
+        {
+            ScannedMoviesCount = 1248,
+            TotalSetsCount = 110,
+            ScannedLibrariesCount = 2,
+            UnchangedCount = 108,
+            UnchangedSets =
+            [
+                new PreviewSetInfo { Name = "Alien Collection", MovieCount = 6 },
+                new PreviewSetInfo { Name = "Star Wars Collection", MovieCount = 9 }
+            ],
+            ToCreate =
+            [
+                new PreviewSetInfo { Name = "Dune Collection", MovieCount = 2 }
+            ],
+            ToUpdate =
+            [
+                new PreviewUpdateInfo
+                {
+                    Name = "Spider-Man Collection",
+                    MoviesToAdd = 1,
+                    MoviesToRemove = 0,
+                    AddedMovieTitles = ["Spider-Man: No Way Home (2021)"],
+                    RemovedMovieTitles = []
+                }
+            ],
+            ToDelete = ["Old Collection"]
+        };
+
+        var json = JsonSerializer.Serialize(preview);
+        var deserialized = JsonSerializer.Deserialize<SyncPreviewResult>(json);
+
+        Assert.NotNull(deserialized);
+        Assert.Equal(1248, deserialized.ScannedMoviesCount);
+        Assert.Equal(110, deserialized.TotalSetsCount);
+        Assert.Equal(2, deserialized.ScannedLibrariesCount);
+        Assert.Equal(108, deserialized.UnchangedCount);
+        Assert.Equal(2, deserialized.UnchangedSets.Count);
+        Assert.Equal("Alien Collection", deserialized.UnchangedSets[0].Name);
+        Assert.Single(deserialized.ToCreate);
+        Assert.Single(deserialized.ToUpdate);
+        Assert.Equal("Spider-Man Collection", deserialized.ToUpdate[0].Name);
+        Assert.Single(deserialized.ToUpdate[0].AddedMovieTitles);
+        Assert.Equal("Spider-Man: No Way Home (2021)", deserialized.ToUpdate[0].AddedMovieTitles[0]);
+        Assert.Single(deserialized.ToDelete);
+    }
 }
+
