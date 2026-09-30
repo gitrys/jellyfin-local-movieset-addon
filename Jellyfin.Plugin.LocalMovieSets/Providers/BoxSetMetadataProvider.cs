@@ -394,7 +394,7 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
 
         var rankedDirectors = RankPeopleByFrequency(moviePeopleSources, PersonKind.Director, 0, config.MaxDirectors);
         var rankedWriters = RankPeopleByFrequency(moviePeopleSources, PersonKind.Writer, 0, config.MaxWriters);
-        var rankedActors = RankPeopleByFrequency(moviePeopleSources, PersonKind.Actor, 10, config.MaxActors);
+        var rankedActors = RankPeopleByFrequency(moviePeopleSources, PersonKind.Actor, 0, config.MaxActors);
 
         var aggregatedPeople = rankedDirectors
             .Concat(rankedWriters)

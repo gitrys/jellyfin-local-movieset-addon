@@ -408,6 +408,14 @@ public class LocalMovieSetsController : ControllerBase
             AggregateRatings = config?.AggregateRatings ?? false,
             AggregateTags = config?.AggregateTags ?? false,
             AggregatePeople = config?.AggregatePeople ?? false,
+            AggregateGenres = config?.AggregateGenres ?? false,
+            AggregateStudios = config?.AggregateStudios ?? false,
+            MaxTags = config?.MaxTags ?? 15,
+            MaxActors = config?.MaxActors ?? 20,
+            MaxDirectors = config?.MaxDirectors ?? 0,
+            MaxWriters = config?.MaxWriters ?? 0,
+            MaxGenres = config?.MaxGenres ?? 0,
+            MaxStudios = config?.MaxStudios ?? 0,
             CollectionSortBy = config?.CollectionSortBy ?? "Default",
             LastRunOutcome = status.LastRunOutcome,
             ScannedMoviesCount = status.MoviesScanned,
@@ -469,6 +477,30 @@ public class SystemInfoDto
 
     /// <summary>Gets or sets a value indicating whether people aggregation is enabled.</summary>
     public bool AggregatePeople { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether genre aggregation is enabled.</summary>
+    public bool AggregateGenres { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether studio aggregation is enabled.</summary>
+    public bool AggregateStudios { get; set; }
+
+    /// <summary>Gets or sets the maximum tags limit.</summary>
+    public int MaxTags { get; set; }
+
+    /// <summary>Gets or sets the maximum actors limit.</summary>
+    public int MaxActors { get; set; }
+
+    /// <summary>Gets or sets the maximum directors limit.</summary>
+    public int MaxDirectors { get; set; }
+
+    /// <summary>Gets or sets the maximum writers limit.</summary>
+    public int MaxWriters { get; set; }
+
+    /// <summary>Gets or sets the maximum genres limit.</summary>
+    public int MaxGenres { get; set; }
+
+    /// <summary>Gets or sets the maximum studios limit.</summary>
+    public int MaxStudios { get; set; }
 
     /// <summary>Gets or sets the collection sort by setting.</summary>
     public string CollectionSortBy { get; set; } = string.Empty;

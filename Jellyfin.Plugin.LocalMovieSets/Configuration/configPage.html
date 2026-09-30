@@ -115,6 +115,9 @@
             <!-- ── Global Status Notification ── -->
             <div id="StatusMsg" style="margin: -0.6em 0 1.4em 0; padding: 0.75em 1em; border-radius: 6px; font-weight: 500; font-size: 0.95em; display: none;"></div>
 
+            <!-- ── Floating Action Toast (Always visible regardless of scroll) ── -->
+            <div id="FloatingToast" style="display: none; position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px); z-index: 99999; padding: 0.75em 1.6em; border-radius: 8px; font-weight: 600; font-size: 0.95em; box-shadow: 0 8px 30px rgba(0,0,0,0.6); pointer-events: none; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); opacity: 0; backdrop-filter: blur(8px);"></div>
+
             <!-- ── Global Conflict Warning (visible across all tabs) ── -->
             <div id="ConflictWarningBox" style="display: none; background: rgba(244, 67, 54, 0.15); border: 1px solid #f44336; border-radius: 8px; padding: 1.25em; margin-bottom: 1.5em; font-size: 0.95em; line-height: 1.5;">
                 <h3 style="margin-top: 0; margin-bottom: 0.5em; color: #f44336; display: flex; align-items: center; gap: 0.5em; font-weight: bold;">
@@ -375,7 +378,23 @@
                             <span>Aggregate tags</span>
                         </label>
                         <div class="fieldDescription checkboxFieldDescription">
-                            When enabled, aggregates all unique tags from member movies and applies them to the collection.
+                            When enabled, aggregates tags from member movies and applies them to the collection, ranked by frequency across member movies.
+                        </div>
+                    </div>
+
+                    <div class="inputContainer" style="margin-left: 2em; max-width: 320px;">
+                        <label class="inputLabel inputLabelUnfocused" for="MaxTags">
+                            Maximum Tags (0 = All / Unlimited)
+                        </label>
+                        <input id="MaxTags"
+                               type="number"
+                               class="emby-input"
+                               min="0"
+                               max="100"
+                               value="15"
+                        />
+                        <div class="fieldDescription">
+                            Sorted by frequency across member movies so franchise-defining tags appear first. Default: 15.
                         </div>
                     </div>
 
@@ -389,7 +408,117 @@
                             <span>Aggregate cast and crew</span>
                         </label>
                         <div class="fieldDescription checkboxFieldDescription">
-                            When enabled, aggregates unique directors and writers, and the first 10 actors from each member movie, and displays them on the collection card.
+                            When enabled, aggregates actors, directors, and writers from member movies and displays them on the collection card, ranked by franchise frequency.
+                        </div>
+                    </div>
+
+                    <div style="margin-left: 2em; display: flex; flex-wrap: wrap; gap: 1.5em; max-width: 750px; margin-bottom: 0.5em;">
+                        <div class="inputContainer" style="flex: 1 1 200px; margin-bottom: 0;">
+                            <label class="inputLabel inputLabelUnfocused" for="MaxActors">
+                                Max Actors (0 = All)
+                            </label>
+                            <input id="MaxActors"
+                                   type="number"
+                                   class="emby-input"
+                                   min="0"
+                                   max="100"
+                                   value="20"
+                            />
+                            <div class="fieldDescription">
+                                Top recurring stars across member movies appear first. Set to 0 for unlimited / all. Default: 20.
+                            </div>
+                        </div>
+
+                        <div class="inputContainer" style="flex: 1 1 200px; margin-bottom: 0;">
+                            <label class="inputLabel inputLabelUnfocused" for="MaxDirectors">
+                                Max Directors (0 = All)
+                            </label>
+                            <input id="MaxDirectors"
+                                   type="number"
+                                   class="emby-input"
+                                   min="0"
+                                   max="50"
+                                   value="0"
+                            />
+                            <div class="fieldDescription">
+                                Ranked by number of films directed in the collection. Default: 0 (All).
+                            </div>
+                        </div>
+
+                        <div class="inputContainer" style="flex: 1 1 200px; margin-bottom: 0;">
+                            <label class="inputLabel inputLabelUnfocused" for="MaxWriters">
+                                Max Writers (0 = All)
+                            </label>
+                            <input id="MaxWriters"
+                                   type="number"
+                                   class="emby-input"
+                                   min="0"
+                                   max="50"
+                                   value="0"
+                            />
+                            <div class="fieldDescription">
+                                Ranked by number of films written in the collection. Default: 0 (All).
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── Aggregate Genres ──────────────────────────────────────── -->
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="AggregateGenres"
+                                   type="checkbox"
+                                   is="emby-checkbox"
+                            />
+                            <span>Aggregate genres</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            When enabled, inherits and aggregates genres from member movies if the collection NFO has none, ranked by frequency across the set.
+                        </div>
+                    </div>
+
+                    <div class="inputContainer" style="margin-left: 2em; max-width: 320px;">
+                        <label class="inputLabel inputLabelUnfocused" for="MaxGenres">
+                            Maximum Genres (0 = All / Unlimited)
+                        </label>
+                        <input id="MaxGenres"
+                               type="number"
+                               class="emby-input"
+                               min="0"
+                               max="50"
+                               value="0"
+                        />
+                        <div class="fieldDescription">
+                            Ranked by frequency across member movies so dominant genres appear first. Default: 0 (All).
+                        </div>
+                    </div>
+
+                    <!-- ── Aggregate Studios ─────────────────────────────────────── -->
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="AggregateStudios"
+                                   type="checkbox"
+                                   is="emby-checkbox"
+                            />
+                            <span>Aggregate production studios</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            When enabled, inherits and aggregates production studios from member movies if the collection NFO has none, ranked by frequency across the set.
+                        </div>
+                    </div>
+
+                    <div class="inputContainer" style="margin-left: 2em; max-width: 320px;">
+                        <label class="inputLabel inputLabelUnfocused" for="MaxStudios">
+                            Maximum Studios (0 = All / Unlimited)
+                        </label>
+                        <input id="MaxStudios"
+                               type="number"
+                               class="emby-input"
+                               min="0"
+                               max="50"
+                               value="0"
+                        />
+                        <div class="fieldDescription">
+                            Ranked by frequency across member movies so major recurring studios appear first. Default: 0 (All).
                         </div>
                     </div>
 
@@ -446,11 +575,13 @@
                     <!-- ── Settings Save Action ──────────────────────────────────────── -->
                     <div style="display:flex; gap: 1em; margin-top: 2em; flex-wrap: wrap; align-items: center;">
                         <button is="emby-button"
+                                id="BtnSaveSettings"
                                 type="submit"
                                 class="raised button-submit block emby-button"
-                                style="background: #00a4dc; color: #fff; font-weight: 600; padding: 0.6em 2em;">
+                                style="background: #00a4dc; color: #fff; font-weight: 600; padding: 0.6em 2em; transition: all 0.25s ease;">
                             <span>Save Settings</span>
                         </button>
+                        <span id="SaveStatusIndicator" style="display: none; align-items: center; gap: 0.5em; font-weight: 600; font-size: 0.95em; padding: 0.5em 1em; border-radius: 6px; transition: opacity 0.3s ease;"></span>
                     </div>
 
                 </div>
@@ -657,14 +788,52 @@
             }
 
             function showStatus(msg, isError) {
+                // 1. Top banner
                 const el = document.getElementById('StatusMsg');
-                if (!el) return;
-                el.textContent = msg;
-                el.style.background = isError ? 'rgba(244, 67, 54, 0.15)' : 'rgba(76, 175, 80, 0.15)';
-                el.style.border = isError ? '1px solid #f44336' : '1px solid #4CAF50';
-                el.style.color = isError ? '#F44336' : '#4CAF50';
-                el.style.display = 'block';
-                setTimeout(function () { el.style.display = 'none'; }, 6000);
+                if (el) {
+                    el.textContent = msg;
+                    el.style.background = isError ? 'rgba(244, 67, 54, 0.15)' : 'rgba(76, 175, 80, 0.15)';
+                    el.style.border = isError ? '1px solid #f44336' : '1px solid #4CAF50';
+                    el.style.color = isError ? '#F44336' : '#4CAF50';
+                    el.style.display = 'block';
+                    setTimeout(function () { el.style.display = 'none'; }, 6000);
+                }
+
+                // 2. In-line button feedback indicator
+                const indicator = document.getElementById('SaveStatusIndicator');
+                if (indicator) {
+                    indicator.innerHTML = isError
+                        ? '<span style="color: #f44336; background: rgba(244, 67, 54, 0.15); border: 1px solid #f44336; padding: 0.4em 0.8em; border-radius: 4px;">❌ ' + escapeHtml(msg) + '</span>'
+                        : '<span style="color: #4CAF50; background: rgba(76, 175, 80, 0.15); border: 1px solid #4CAF50; padding: 0.4em 0.8em; border-radius: 4px;">✅ ' + escapeHtml(msg) + '</span>';
+                    indicator.style.display = 'inline-flex';
+                    indicator.style.opacity = '1';
+                    if (indicator._timer) clearTimeout(indicator._timer);
+                    indicator._timer = setTimeout(function () {
+                        indicator.style.opacity = '0';
+                        setTimeout(function () { indicator.style.display = 'none'; }, 300);
+                    }, 4000);
+                }
+
+                // 3. Floating center-bottom toast (visible regardless of scroll position)
+                const toast = document.getElementById('FloatingToast');
+                if (toast) {
+                    toast.innerHTML = (isError ? '❌ ' : '✅ ') + escapeHtml(msg);
+                    toast.style.background = isError ? 'rgba(211, 47, 47, 0.95)' : 'rgba(46, 125, 50, 0.95)';
+                    toast.style.color = '#ffffff';
+                    toast.style.border = isError ? '1px solid #f44336' : '1px solid #4caf50';
+                    toast.style.display = 'block';
+                    // Trigger reflow for CSS transition
+                    void toast.offsetHeight;
+                    toast.style.opacity = '1';
+                    toast.style.transform = 'translateX(-50%) translateY(0)';
+
+                    if (toast._timer) clearTimeout(toast._timer);
+                    toast._timer = setTimeout(function () {
+                        toast.style.opacity = '0';
+                        toast.style.transform = 'translateX(-50%) translateY(20px)';
+                        setTimeout(function () { toast.style.display = 'none'; }, 300);
+                    }, 3500);
+                }
             }
 
             /* ── Check Conflicts ── */
@@ -1240,6 +1409,14 @@
                     page.querySelector('#AggregateRatings').checked = config.AggregateRatings === true;
                     page.querySelector('#AggregateTags').checked = config.AggregateTags === true;
                     page.querySelector('#AggregatePeople').checked = config.AggregatePeople === true;
+                    page.querySelector('#AggregateGenres').checked = config.AggregateGenres === true;
+                    page.querySelector('#AggregateStudios').checked = config.AggregateStudios === true;
+                    page.querySelector('#MaxTags').value = config.MaxTags !== undefined ? config.MaxTags : 15;
+                    page.querySelector('#MaxActors').value = config.MaxActors !== undefined ? config.MaxActors : 20;
+                    page.querySelector('#MaxDirectors').value = config.MaxDirectors !== undefined ? config.MaxDirectors : 0;
+                    page.querySelector('#MaxWriters').value = config.MaxWriters !== undefined ? config.MaxWriters : 0;
+                    page.querySelector('#MaxGenres').value = config.MaxGenres !== undefined ? config.MaxGenres : 0;
+                    page.querySelector('#MaxStudios').value = config.MaxStudios !== undefined ? config.MaxStudios : 0;
                     // Legacy configs may contain values that are no longer offered
                     // (Name, CommunityRating, ...) — map those to Default.
                     const sortBy = config.CollectionSortBy;
@@ -1256,6 +1433,13 @@
             /* ── Save config ── */
             function saveConfig(page, e) {
                 e.preventDefault();
+                const saveBtn = page.querySelector('#BtnSaveSettings') || page.querySelector('button[type="submit"]');
+                const originalHtml = saveBtn ? saveBtn.innerHTML : '<span>Save Settings</span>';
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.innerHTML = '<span>Saving…</span>';
+                }
+
                 ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
                     config.SetDataFolder        = page.querySelector('#SetDataFolder').value.trim();
                     config.NfoNaming            = page.querySelector('#NfoNaming').value;
@@ -1269,6 +1453,14 @@
                     config.AggregateRatings     = page.querySelector('#AggregateRatings').checked;
                     config.AggregateTags        = page.querySelector('#AggregateTags').checked;
                     config.AggregatePeople      = page.querySelector('#AggregatePeople').checked;
+                    config.AggregateGenres      = page.querySelector('#AggregateGenres').checked;
+                    config.AggregateStudios     = page.querySelector('#AggregateStudios').checked;
+                    config.MaxTags              = Math.max(0, parseInt(page.querySelector('#MaxTags').value, 10) || 0);
+                    config.MaxActors            = Math.max(0, parseInt(page.querySelector('#MaxActors').value, 10) || 0);
+                    config.MaxDirectors         = Math.max(0, parseInt(page.querySelector('#MaxDirectors').value, 10) || 0);
+                    config.MaxWriters           = Math.max(0, parseInt(page.querySelector('#MaxWriters').value, 10) || 0);
+                    config.MaxGenres            = Math.max(0, parseInt(page.querySelector('#MaxGenres').value, 10) || 0);
+                    config.MaxStudios           = Math.max(0, parseInt(page.querySelector('#MaxStudios').value, 10) || 0);
                     config.CollectionSortBy     = page.querySelector('#CollectionSortBy').value;
                     config.CollectionSortOrder  = page.querySelector('#CollectionSortOrder').value;
                     config.CollectionReleaseDate = page.querySelector('#CollectionReleaseDate').value;
@@ -1279,8 +1471,27 @@
                     config.IncludedLibraryIds = (checkedLibs.length === allLibCheckboxes.length) ? [] : checkedLibs;
 
                     ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function () {
-                        showStatus('Settings saved.', false);
-                    }).catch(function () {
+                        if (saveBtn) {
+                            saveBtn.disabled = false;
+                            saveBtn.style.background = '#4CAF50';
+                            saveBtn.innerHTML = '<span>✓ Saved!</span>';
+                            setTimeout(function () {
+                                saveBtn.style.background = '#00a4dc';
+                                saveBtn.innerHTML = originalHtml;
+                            }, 2000);
+                        }
+                        showStatus('Settings saved successfully.', false);
+                    }).catch(function (err) {
+                        console.error('Failed to save settings:', err);
+                        if (saveBtn) {
+                            saveBtn.disabled = false;
+                            saveBtn.style.background = '#f44336';
+                            saveBtn.innerHTML = '<span>❌ Failed</span>';
+                            setTimeout(function () {
+                                saveBtn.style.background = '#00a4dc';
+                                saveBtn.innerHTML = originalHtml;
+                            }, 2500);
+                        }
                         showStatus('Failed to save settings.', true);
                     });
                 });
@@ -1421,6 +1632,11 @@
                             '- **Movie Folder Fallback:** ' + (info.MovieFolderFallbackEnabled ? 'Enabled' : 'Disabled'),
                             '- **Delete Orphaned Sets:** ' + (info.DeleteOrphanedSets ? 'Enabled' : 'Disabled'),
                             '- **Sort By:** ' + (info.CollectionSortBy || 'Default'),
+                            '- **Aggregate Ratings:** ' + (info.AggregateRatings ? 'Enabled' : 'Disabled'),
+                            '- **Aggregate Tags:** ' + (info.AggregateTags ? 'Enabled (Limit: ' + (info.MaxTags === 0 ? 'All' : info.MaxTags) + ')' : 'Disabled'),
+                            '- **Aggregate Cast & Crew:** ' + (info.AggregatePeople ? 'Enabled (Actors: ' + (info.MaxActors === 0 ? 'All' : info.MaxActors) + ', Directors: ' + (info.MaxDirectors === 0 ? 'All' : info.MaxDirectors) + ', Writers: ' + (info.MaxWriters === 0 ? 'All' : info.MaxWriters) + ')' : 'Disabled'),
+                            '- **Aggregate Genres:** ' + (info.AggregateGenres ? 'Enabled (Limit: ' + (info.MaxGenres === 0 ? 'All' : info.MaxGenres) + ')' : 'Disabled'),
+                            '- **Aggregate Studios:** ' + (info.AggregateStudios ? 'Enabled (Limit: ' + (info.MaxStudios === 0 ? 'All' : info.MaxStudios) + ')' : 'Disabled'),
                             '',
                             '### Last Sync Metrics',
                             '- **Last Run Outcome:** ' + (info.LastRunOutcome || 'None'),

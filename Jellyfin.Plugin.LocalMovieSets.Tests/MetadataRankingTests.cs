@@ -80,7 +80,7 @@ public class MetadataRankingTests
     }
 
     [Fact]
-    public void RankPeopleByFrequency_Actors_RanksRecurringCastFirst_AndLimitsPerMovie()
+    public void RankPeopleByFrequency_Actors_RanksRecurringCastFirst()
     {
         var m1 = new[]
         {
@@ -108,8 +108,8 @@ public class MetadataRankingTests
 
         var sources = new[] { m1, m2, m3, m4 };
 
-        // Take top 2 recurring actors
-        var topActors = BoxSetMetadataProvider.RankPeopleByFrequency(sources, PersonKind.Actor, 10, 2);
+        // Take top 2 recurring actors across all movies
+        var topActors = BoxSetMetadataProvider.RankPeopleByFrequency(sources, PersonKind.Actor, 0, 2);
 
         Assert.Equal(2, topActors.Count);
         Assert.Equal("Sigourney Weaver", topActors[0].Name);  // 4 movies
