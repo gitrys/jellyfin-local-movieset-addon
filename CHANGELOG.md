@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.35.0] - 2026-09-30
+### Added
+- **Interactive Dry-Run Sync Preview:** Comprehensive redesign of the preview tool in the Diagnostics tab:
+  - Scanned movies and library summary metrics (`ScannedMoviesCount`, `ScannedLibrariesCount`, `TotalSetsCount`).
+  - Color-coded KPI badges (`Up to Date`, `To Create`, `To Update`, `Below Min`, `To Delete`).
+  - Movie-level diff display (`+ Added Title (Year)`, `− Removed Title (Year)`) for updating collections.
+  - Collapsible detail list of all currently up-to-date collections with member movie counts.
+  - One-click `[ ▶ Apply Changes Now (Sync) ]` trigger button directly beneath preview results when changes are pending.
+- **Clarified NFO File Naming Conventions:** Replaced ambiguous dropdown options with explicit, self-explanatory labels distinguishing directory structure, filename format, and media manager compatibility (tinyMediaManager vs. MediaElch/Kodi vs. Flat).
+- **Persistent Diagnostics Modal Settings:** Interactive toggles (Word Wrap, Mask Paths, Mask Titles, Include Errors) are now persisted in `localStorage` across page reloads and sessions.
+- **Symmetrical 2x3 Metadata Aggregation Layout:** Clean, responsive grid layout for General Metadata (Tags, Genres, Studios) and Cast & Crew (Actors, Directors, Writers).
+- **Pixel-Perfect Checkbox & Text Alignment:** Vertical baseline centering of Jellyfin native checkboxes and labels.
+- **Unit Test Coverage Expansion:** Added unit test suite for `SyncPreviewResult` and `PreviewUpdateInfo` serialization (75 tests passing with 0 warnings).
+
+### Changed
+- **Streamlined Configuration Tabs:** Consolidated into three focused tabs: ⚙️ Settings, 🩺 Diagnostics & Tools, and 💡 Setup Guide.
+- **Default Limit Values:** Set default limit inputs to `0` (Unbegrenzt / All) across all metadata aggregation fields.
+
 ---
 
 ## [1.0.34.0] - 2026-09-30

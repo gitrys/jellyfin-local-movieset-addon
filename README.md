@@ -46,7 +46,7 @@ If you curate your media collection using media managers such as [tinyMediaManag
 ## Key Features
 
 - ⚡ **100% Local & Offline:** Never makes outbound calls to TMDB, TVDb, or external servers. Your media collection stays private and works during internet outages.
-- 🩺 **Integrated Diagnostic Tools & Maintenance:** Trigger an instant sync (`▶ Sync Now`), dry-run preview pending changes without altering your library, inspect full system health and NFO validation diagnostics, or force-rebuild all collections from scratch.
+- 🩺 **Integrated Diagnostic Tools & Maintenance:** Trigger an instant sync (`▶ Sync Now`), dry-run preview pending changes with movie-level diffs and KPI badges before altering your library, inspect full system health and NFO validation diagnostics, or force-rebuild all collections from scratch.
 - 🛡️ **Mount Guard Protection:** Prevents collections from being emptied or deleted if your NAS, NFS share, or external hard drive is temporarily unmounted or offline.
 - 📁 **Selective Library Filter:** Select exactly which movie libraries to scan via convenient checkboxes in the settings UI.
 - 🔄 **Automatic Background Sync:** Hooks into Jellyfin's library events to automatically sync movie sets whenever a library scan finishes (with a 30-second debounce).
@@ -110,11 +110,11 @@ To make movies collapse under their collection banner in your movie library:
 
 Match the plugin's **NFO File Naming Convention** setting to your file structure:
 
-| NFO Naming Option | Expected Path Pattern | Example |
-|---|---|---|
-| **Set Subfolder** *(recommended)* | `<SetFolder>/<SetName>/<SetName>.nfo` | `_sets/Alien Collection/Alien Collection.nfo` |
-| **Flat File** | `<SetFolder>/<SetName>.nfo` | `_sets/Alien Collection.nfo` |
-| **collection.nfo** | `<SetFolder>/<SetName>/collection.nfo` | `_sets/Alien Collection/collection.nfo` |
+| NFO Naming Option | Expected Path Pattern | Compatibility | Example |
+|---|---|---|---|
+| **`[Subfolder] <SetName>/<SetName>.nfo`** *(recommended)* | `<SetFolder>/<SetName>/<SetName>.nfo` | tinyMediaManager (TMM) standard | `_sets/Alien Collection/Alien Collection.nfo` |
+| **`[Subfolder] <SetName>/collection.nfo`** | `<SetFolder>/<SetName>/collection.nfo` | MediaElch, Ember, Kodi standard | `_sets/Alien Collection/collection.nfo` |
+| **`[Flat] <SetName>.nfo`** | `<SetFolder>/<SetName>.nfo` | Flat root directory (no subfolders) | `_sets/Alien Collection.nfo` |
 
 **Artwork files:** Place `poster.jpg` (or `folder.jpg`) and `fanart.jpg` (or `backdrop.jpg`) directly in the collection folder. If using movie-folder fallback, name them `movieset-poster.jpg` and `movieset-fanart.jpg` inside the member movie folders.
 
