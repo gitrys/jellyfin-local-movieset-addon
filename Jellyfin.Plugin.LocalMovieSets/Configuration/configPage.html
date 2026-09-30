@@ -125,8 +125,7 @@
             position: static !important;
             margin: 0 !important;
         }
-        .lms-checkbox,
-        .lms-lib-checkbox {
+        .lms-checkbox {
             appearance: auto !important;
             -webkit-appearance: checkbox !important;
             opacity: 1 !important;
@@ -304,29 +303,6 @@
                                 Each set needs its own folder. The NFO lives inside that folder.
                                 Match the file name to your media manager
                                 (e.g. tinyMediaManager &rarr; Settings &rarr; Movies &rarr; Movie Sets or MediaElch).
-                            </div>
-                        </div>
-
-                        <!-- ── Movie Libraries Selection ── -->
-                        <div class="inputContainer">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4em;">
-                                <label class="inputLabel inputLabelUnfocused" style="margin: 0;">
-                                    Movie Libraries to Scan
-                                </label>
-                                <div style="font-size: 0.85em; display: flex; gap: 0.8em;">
-                                    <a href="#" id="BtnSelectAllLibs" style="color: #00a4dc; text-decoration: none; font-weight: 500;">Select all</a>
-                                    <span style="color: #555;">|</span>
-                                    <a href="#" id="BtnDeselectAllLibs" style="color: #00a4dc; text-decoration: none; font-weight: 500;">Deselect all</a>
-                                </div>
-                            </div>
-                            <div id="LibrarySelectionContainer" style="display: flex; flex-direction: column; gap: 0.5em; margin: 0.4em 0; padding: 0.8em 1em; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px;">
-                                <div style="color: #888; font-style: italic;">Loading libraries…</div>
-                            </div>
-                            <div id="NoLibrarySelectionHint" style="display: none; margin: 0.6em 0 0.4em 0; background: rgba(244, 67, 54, 0.15); border: 1px solid #f44336; border-radius: 6px; padding: 0.75em 1em; color: #eee; font-size: 0.9em; line-height: 1.45;">
-                                No library is selected. <strong>Sync Now</strong> and <strong>Preview Changes</strong> stay off. <strong>Force Rebuild</strong> deletes every collection and creates none, so no sets remain. Save Settings to apply this.
-                            </div>
-                            <div class="fieldDescription">
-                                Select which movie libraries will be scanned. With none selected, nothing is scanned.
                             </div>
                         </div>
 
@@ -708,9 +684,6 @@
                         <p style="margin: 0.9em 0 0 0; color: #e57373; font-size: 0.85em; line-height: 1.45;">
                             Force Rebuild deletes every collection in Jellyfin, then creates them again from the set names in your movie NFO files.
                         </p>
-                        <p id="ForceRebuildNoLibraryHint" style="display: none; margin: 0.45em 0 0 0; color: #e57373; font-size: 0.85em; line-height: 1.45;">
-                            No library is selected. Force Rebuild still deletes every collection, and none are created again, so no sets remain.
-                        </p>
                     </div>
 
                     <!-- Preview results -->
@@ -976,16 +949,8 @@
                     panel.innerHTML = '<div style="color: #ff9800; font-weight: 500;">⏳ A sync is currently running — please try again once it finishes.</div>';
                     return;
                 }
-                if (r.NoLibrariesSelected) {
-                    panel.innerHTML = '<div style="color: #ff9800; font-weight: 500;">No movie library is selected, so a sync would not scan anything.</div>';
-                    return;
-                }
                 if (r.MountGuardBlocked) {
                     panel.innerHTML = '<div style="color: #ff9800; font-weight: 500;">🛡️ Mount Guard: one or more library paths are offline or empty. A sync would be aborted.</div>';
-                    return;
-                }
-                if (r.FilterMissBlocked) {
-                    panel.innerHTML = '<div style="color: #ff9800; font-weight: 500;">The selected libraries returned no movies. A sync would be aborted before anything is deleted. Check the library selection above.</div>';
                     return;
                 }
                 if (r.ErrorMessage) {
@@ -1168,31 +1133,7 @@
                 }
             }
 
-            function noLibrariesChecked(page) {
-                const boxes = page.querySelectorAll('.lms-lib-checkbox');
-                return boxes.length > 0 && Array.from(boxes).every(function (cb) { return !cb.checked; });
-            }
-
-            function refreshLibraryActions(page) {
-                const none = noLibrariesChecked(page);
-                ['#BtnSyncNow', '#BtnPreview'].forEach(function (selector) {
-                    const btn = page.querySelector(selector);
-                    if (!btn) return;
-                    btn.disabled = none;
-                    btn.style.opacity = none ? '0.45' : '';
-                    btn.style.cursor = none ? 'not-allowed' : '';
-                });
-                const hint = page.querySelector('#ForceRebuildNoLibraryHint');
-                if (hint) hint.style.display = none ? 'block' : 'none';
-                const pickerHint = page.querySelector('#NoLibrarySelectionHint');
-                if (pickerHint) pickerHint.style.display = none ? 'block' : 'none';
-            }
-
             function previewChanges(page) {
-                if (noLibrariesChecked(page)) {
-                    refreshLibraryActions(page);
-                    return;
-                }
                 const btn = page.querySelector('#BtnPreview');
                 const originalText = btn.innerHTML;
                 btn.innerHTML = '<span>Scanning...</span>';
@@ -1201,11 +1142,11 @@
                 const url = ApiClient.getUrl('LocalMovieSets/Preview');
                 ApiClient.getJSON(url).then(function (result) {
                     btn.innerHTML = originalText;
-                    refreshLibraryActions(page);
+                    btn.disabled = false;
                     renderPreview(page, result);
                 }).catch(function (err) {
                     btn.innerHTML = originalText;
-                    refreshLibraryActions(page);
+                    btn.disabled = false;
                     console.error('Failed to compute preview:', err);
                     showStatus('Failed to compute preview. Check server logs.', true);
                 });
@@ -1246,7 +1187,6 @@
                     page.querySelector('#CollectionReleaseDate').value = config.CollectionReleaseDate || 'DoNotCalculate';
 
                     validateSetDataFolderPath(page);
-                    loadLibrarySelection(page, config.IncludedLibraryIds, config.IncludeAllLibraries !== false);
                 });
             }
 
@@ -1284,10 +1224,6 @@
                     config.CollectionSortBy     = page.querySelector('#CollectionSortBy').value;
                     config.CollectionSortOrder  = page.querySelector('#CollectionSortOrder').value;
                     config.CollectionReleaseDate = page.querySelector('#CollectionReleaseDate').value;
-                    
-                    const checkedLibs = Array.from(page.querySelectorAll('.lms-lib-checkbox:checked')).map(function (cb) { return cb.value; });
-                    config.IncludedLibraryIds = checkedLibs;
-                    config.IncludeAllLibraries = false;
 
                     ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function () {
                         if (saveBtn) {
@@ -1318,10 +1254,6 @@
 
             /* ── Trigger sync task ── */
             function syncNow(page) {
-                if (noLibrariesChecked(page)) {
-                    refreshLibraryActions(page);
-                    return;
-                }
                 const btnSync = page.querySelector('#BtnSyncNow');
                 const origHtml = btnSync ? btnSync.innerHTML : '<span>▶ Sync Now</span>';
                 if (btnSync) {
@@ -1333,8 +1265,8 @@
                     const task = tasks.find(t => t.Key === TASK_KEY);
                     if (!task) {
                         if (btnSync) {
+                            btnSync.disabled = false;
                             btnSync.innerHTML = origHtml;
-                            refreshLibraryActions(page);
                         }
                         showStatus('Sync task not found. Please restart Jellyfin.', true);
                         return;
@@ -1343,22 +1275,22 @@
                         if (btnSync) {
                             btnSync.innerHTML = '<span>✓ Sync Started</span>';
                             setTimeout(function () {
+                                btnSync.disabled = false;
                                 btnSync.innerHTML = origHtml;
-                                refreshLibraryActions(page);
                             }, 3000);
                         }
                         showStatus('Collection sync started in background! Check Dashboard activity feed.', false);
                     }).catch(function () {
                         if (btnSync) {
+                            btnSync.disabled = false;
                             btnSync.innerHTML = origHtml;
-                            refreshLibraryActions(page);
                         }
                         showStatus('Failed to start sync. Is the task already running?', true);
                     });
                 }).catch(function () {
                     if (btnSync) {
+                        btnSync.disabled = false;
                         btnSync.innerHTML = origHtml;
-                        refreshLibraryActions(page);
                     }
                     showStatus('Could not query scheduled tasks.', true);
                 });
@@ -1366,10 +1298,7 @@
 
             /* ── Trigger force rebuild ── */
             function forceRebuild(page) {
-                const confirmMsg = noLibrariesChecked(page)
-                    ? "No library is selected. This deletes every collection and creates none, so no sets remain. Continue?"
-                    : "This will delete ALL collections and rebuild them from scratch. Continue?";
-                if (!confirm(confirmMsg)) {
+                if (!confirm("This will delete ALL collections and rebuild them from scratch. Continue?")) {
                     return;
                 }
 
@@ -1736,56 +1665,6 @@
                 }).catch(function (err) {
                     console.error('Failed to load system info:', err);
                     showStatus('Failed to load system diagnostics info.', true);
-                });
-            }
-
-            /* ── Library Selection ── */
-            function loadLibrarySelection(page, savedIds, includeAll) {
-                const container = page.querySelector('#LibrarySelectionContainer');
-                if (!container) return;
-
-                const btnAll = page.querySelector('#BtnSelectAllLibs');
-                if (btnAll) {
-                    btnAll.onclick = function (e) {
-                        e.preventDefault();
-                        container.querySelectorAll('.lms-lib-checkbox').forEach(function (cb) { cb.checked = true; });
-                        refreshLibraryActions(page);
-                    };
-                }
-                const btnNone = page.querySelector('#BtnDeselectAllLibs');
-                if (btnNone) {
-                    btnNone.onclick = function (e) {
-                        e.preventDefault();
-                        container.querySelectorAll('.lms-lib-checkbox').forEach(function (cb) { cb.checked = false; });
-                        refreshLibraryActions(page);
-                    };
-                }
-                container.onchange = function () { refreshLibraryActions(page); };
-
-                const url = ApiClient.getUrl('LocalMovieSets/Libraries');
-                ApiClient.getJSON(url).then(function (libraries) {
-                    if (!libraries || libraries.length === 0) {
-                        container.innerHTML = '<div style="color: #888; font-style: italic;">No movie libraries found.</div>';
-                        return;
-                    }
-
-                    const selectEveryLibrary = (!savedIds || savedIds.length === 0) && includeAll !== false;
-                    const selected = new Set(selectEveryLibrary ? libraries.map(function (l) { return l.Id; }) : (savedIds || []));
-                    let html = '';
-                    libraries.forEach(function (lib) {
-                        const isChecked = selected.has(lib.Id) ? 'checked' : '';
-                        const locs = (lib.Locations && lib.Locations.length > 0) ? ' (' + escapeHtml(lib.Locations.join(', ')) + ')' : '';
-                        html += '<label class="emby-checkbox-label" style="display: flex; align-items: center; gap: 0.65em; cursor: pointer; padding: 0.25em 0;">' +
-                            '<input type="checkbox" class="lms-lib-checkbox" value="' + escapeHtml(lib.Id) + '" ' + isChecked + ' />' +
-                            '<span><strong>' + escapeHtml(lib.Name) + '</strong><span style="color: #888; font-size: 0.85em;">' + locs + '</span></span>' +
-                        '</label>';
-                    });
-
-                    container.innerHTML = html;
-                    refreshLibraryActions(page);
-                }).catch(function (err) {
-                    console.error('Failed to load libraries:', err);
-                    container.innerHTML = '<div style="color: #f44336;">Failed to load movie libraries.</div>';
                 });
             }
 

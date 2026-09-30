@@ -196,27 +196,6 @@ public class LocalMovieSetsController : ControllerBase
     }
 
     /// <summary>
-    /// Returns the list of all available movie libraries in Jellyfin.
-    /// </summary>
-    /// <returns>List of movie libraries with their ID and Name.</returns>
-    [HttpGet("Libraries")]
-    public ActionResult<List<LibraryInfoDto>> GetLibraries()
-    {
-        var movieLibraries = _libraryManager.GetVirtualFolders()
-            .Where(f => f.CollectionType == MediaBrowser.Model.Entities.CollectionTypeOptions.movies ||
-                        string.Equals(f.CollectionType?.ToString(), "movies", StringComparison.OrdinalIgnoreCase))
-            .Select(f => new LibraryInfoDto
-            {
-                Id = f.ItemId,
-                Name = f.Name,
-                Locations = f.Locations ?? []
-            })
-            .ToList();
-
-        return Ok(movieLibraries);
-    }
-
-    /// <summary>
     /// Auto-detects the NFO naming convention used in the specified set folder.
     /// </summary>
     /// <param name="path">The path to the Movie Set Data Folder.</param>
@@ -685,19 +664,4 @@ public class NamingDetectionResult
     /// Gets or sets status or error message.
     /// </summary>
     public string Message { get; set; } = string.Empty;
-}
-
-/// <summary>
-/// Information about a Jellyfin library.
-/// </summary>
-public class LibraryInfoDto
-{
-    /// <summary>Gets or sets the library ID.</summary>
-    public string Id { get; set; } = string.Empty;
-
-    /// <summary>Gets or sets the library name.</summary>
-    public string Name { get; set; } = string.Empty;
-
-    /// <summary>Gets or sets the library locations.</summary>
-    public string[] Locations { get; set; } = [];
 }

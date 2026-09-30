@@ -288,14 +288,6 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 return;
             }
 
-            if (LibrarySelection.IsNoneSelected(config.IncludedLibraryIds, config.IncludeAllLibraries))
-            {
-                LogMessage(LogLevel.Information, "Sync skipped because no movie library is selected.");
-                stats.LastRunOutcome = SyncOutcomes.NoLibrariesSelected;
-                stats.LastErrorMessage = "No movie library is selected.";
-                return;
-            }
-
             LogMessage(LogLevel.Information, $"Starting sync run (Mount Guard: {(config.EnableMountGuard ? "enabled" : "disabled")})");
 
             if (config.EnableMountGuard && !CheckMounts())
@@ -313,18 +305,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             var allMovies = QueryAllMovies();
             stats.MoviesScanned = allMovies.Count;
 
-            if (allMovies.Count == 0)
-            {
-                // Libraries are selected but none of them returned a movie. That
-                // almost always means a stale library selection, not an empty
-                // collection set, so stop here before anything gets deleted.
-                LogMessage(LogLevel.Warning, "Sync aborted because the selected libraries returned no movies. Check the library selection in the plugin settings.");
-                stats.LastRunOutcome = SyncOutcomes.FilterMissAborted;
-                stats.LastErrorMessage = "The selected libraries returned no movies.";
-                return;
-            }
-
-            LogMessage(LogLevel.Information, $"Scanned {allMovies.Count} movies across configured libraries.");
+            LogMessage(LogLevel.Information, $"Scanned {allMovies.Count} movies across movie libraries.");
             progress?.Report(5);
 
             // ── Step 2: Parse NFOs — group movies by set name ─────────────────
@@ -396,9 +377,6 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 {
                     progress?.Report(15 + (70.0 * processedSets / setGroups.Count));
                 }
-
-                // Spacing delay to let Jellyfin's file system watcher settle
-                await Task.Delay(150, cancellationToken).ConfigureAwait(false);
             }
 
             // ── Step 5: Optionally remove orphaned collections ─────────────────
@@ -478,18 +456,6 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 case SyncOutcomes.MountGuardAborted:
                     name = "Local Movie Sets Sync Aborted";
                     overview = "Sync was aborted because library mounts or paths were offline or empty (Mount Guard active).";
-                    severity = LogLevel.Warning;
-                    break;
-
-                case SyncOutcomes.NoLibrariesSelected:
-                    name = "Local Movie Sets Sync Skipped";
-                    overview = "Sync did not run because no movie library is selected.";
-                    severity = LogLevel.Information;
-                    break;
-
-                case SyncOutcomes.FilterMissAborted:
-                    name = "Local Movie Sets Sync Aborted";
-                    overview = "Sync was aborted because the selected libraries returned no movies. Check the library selection in the plugin settings.";
                     severity = LogLevel.Warning;
                     break;
 
@@ -632,18 +598,11 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     }
 
     /// <summary>
-    /// Queries all non-virtual movies from the library, optionally filtered by configured included libraries.
+    /// Queries all non-virtual movies from every movie library.
     /// </summary>
     private List<Movie> QueryAllMovies()
     {
-        var config = Plugin.Instance?.Configuration;
-        var includedLibraryIds = config?.IncludedLibraryIds;
-        if (LibrarySelection.IsNoneSelected(includedLibraryIds, config?.IncludeAllLibraries ?? true))
-        {
-            return [];
-        }
-
-        var allMovies = _libraryManager
+        return _libraryManager
             .GetItemsResult(new InternalItemsQuery
             {
                 IncludeItemTypes = [BaseItemKind.Movie],
@@ -652,47 +611,6 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             .Items
             .OfType<Movie>()
             .ToList();
-
-        if (includedLibraryIds == null || includedLibraryIds.Length == 0)
-        {
-            return allMovies;
-        }
-
-        var includedSet = new HashSet<string>(includedLibraryIds, StringComparer.OrdinalIgnoreCase);
-
-        var virtualFolders = _libraryManager.GetVirtualFolders()
-            .Where(vf => includedSet.Contains(vf.ItemId) || includedSet.Contains(vf.Name))
-            .ToList();
-
-        var allowedLocations = virtualFolders
-            .SelectMany(vf => vf.Locations ?? [])
-            .Where(loc => !string.IsNullOrWhiteSpace(loc))
-            .Select(loc => loc.TrimEnd('/', '\\') + Path.DirectorySeparatorChar)
-            .ToList();
-
-        return allMovies.Where(m =>
-        {
-            // 1. Check parent collection folder ID or Name if available
-            var parentCollection = m.FindParent<CollectionFolder>();
-            if (parentCollection != null && (includedSet.Contains(parentCollection.Id.ToString()) ||
-                                             includedSet.Contains(parentCollection.Id.ToString("N")) ||
-                                             includedSet.Contains(parentCollection.Name)))
-            {
-                return true;
-            }
-
-            // 2. Check file path prefix matching against library locations
-            if (!string.IsNullOrEmpty(m.Path))
-            {
-                var normalizedPath = m.Path;
-                if (allowedLocations.Any(loc => normalizedPath.StartsWith(loc, StringComparison.OrdinalIgnoreCase)))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }).ToList();
     }
 
     /// <summary>
@@ -846,12 +764,6 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             return result;
         }
 
-        if (LibrarySelection.IsNoneSelected(config.IncludedLibraryIds, config.IncludeAllLibraries))
-        {
-            result.NoLibrariesSelected = true;
-            return result;
-        }
-
         if (config.EnableMountGuard && !CheckMounts())
         {
             result.MountGuardBlocked = true;
@@ -859,12 +771,6 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         }
 
         var allMovies = QueryAllMovies();
-        if (allMovies.Count == 0)
-        {
-            result.FilterMissBlocked = true;
-            return result;
-        }
-
         var setGroups = BuildSetGroups(allMovies, cancellationToken);
         var (existingBoxSets, existingByName, _) = LoadExistingBoxSets();
         var minimumMovies = Math.Max(1, config.MinimumMovies);
@@ -876,9 +782,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             .Where(vf => vf.CollectionType == MediaBrowser.Model.Entities.CollectionTypeOptions.movies ||
                          string.Equals(vf.CollectionType?.ToString(), "movies", StringComparison.OrdinalIgnoreCase))
             .ToList();
-        result.ScannedLibrariesCount = (config.IncludedLibraryIds is { Length: > 0 } inc)
-            ? Math.Max(1, allMovieFolders.Count(vf => inc.Contains(vf.ItemId) || inc.Contains(vf.Name)))
-            : Math.Max(1, allMovieFolders.Count);
+        result.ScannedLibrariesCount = Math.Max(1, allMovieFolders.Count);
 
         foreach (var (setName, movies) in setGroups)
         {

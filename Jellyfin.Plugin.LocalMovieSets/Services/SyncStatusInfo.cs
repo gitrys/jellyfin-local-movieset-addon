@@ -26,12 +26,6 @@ public static class SyncOutcomes
 
     /// <summary>The last sync was aborted by the Mount Guard.</summary>
     public const string MountGuardAborted = "MountGuardAborted";
-
-    /// <summary>The last sync did not run because no movie library is selected.</summary>
-    public const string NoLibrariesSelected = "NoLibrariesSelected";
-
-    /// <summary>The last sync was aborted because the selected libraries returned no movies.</summary>
-    public const string FilterMissAborted = "FilterMissAborted";
 }
 
 /// <summary>
@@ -199,12 +193,6 @@ public class SyncPreviewResult
 
     /// <summary>Gets or sets a value indicating whether the Mount Guard blocked the preview.</summary>
     public bool MountGuardBlocked { get; set; }
-
-    /// <summary>Gets or sets a value indicating whether no movie library is selected, so a sync would do nothing.</summary>
-    public bool NoLibrariesSelected { get; set; }
-
-    /// <summary>Gets or sets a value indicating whether the selected libraries returned no movies, so a sync would abort.</summary>
-    public bool FilterMissBlocked { get; set; }
 
     /// <summary>Gets or sets an error message when the preview could not be computed.</summary>
     public string? ErrorMessage { get; set; }

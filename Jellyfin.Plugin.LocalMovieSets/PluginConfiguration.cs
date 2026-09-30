@@ -190,19 +190,6 @@ public class PluginConfiguration : BasePluginConfiguration
     public int MaxStudios { get; set; } = 0;
 
     /// <summary>
-    /// Gets or sets the list of library IDs to include in the sync.
-    /// An empty list scans every movie library only while <see cref="IncludeAllLibraries"/> is true.
-    /// After an explicit save, an empty list means no library is selected and nothing is scanned.
-    /// </summary>
-    public string[] IncludedLibraryIds { get; set; } = [];
-
-    /// <summary>
-    /// Gets or sets a value indicating whether an empty <see cref="IncludedLibraryIds"/> list means every movie library.
-    /// Older configs omit this and keep scanning all libraries. Saving with no library checked sets it to false.
-    /// </summary>
-    public bool IncludeAllLibraries { get; set; } = true;
-
-    /// <summary>
     /// Gets or sets a value indicating whether to automatically trigger a sync
     /// after movies are added or updated in the library (debounced by 30 seconds).
     /// </summary>
