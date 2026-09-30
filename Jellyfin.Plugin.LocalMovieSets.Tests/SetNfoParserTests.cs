@@ -29,7 +29,6 @@ public class SetNfoParserTests : IDisposable
 
     [Theory]
     [InlineData(NfoNamingConvention.SetSubfolder)]
-    [InlineData(NfoNamingConvention.FlatFile)]
     [InlineData(NfoNamingConvention.CollectionNfo)]
     public void GetNfoPath_ReturnsCorrectPathBasedOnConvention(NfoNamingConvention naming)
     {
@@ -43,7 +42,6 @@ public class SetNfoParserTests : IDisposable
         var expectedPath = naming switch
         {
             NfoNamingConvention.SetSubfolder => Path.Combine(_tempDirectory, safeName, $"{safeName}.nfo"),
-            NfoNamingConvention.FlatFile => Path.Combine(_tempDirectory, $"{safeName}.nfo"),
             NfoNamingConvention.CollectionNfo => Path.Combine(_tempDirectory, safeName, "collection.nfo"),
             _ => throw new ArgumentOutOfRangeException(nameof(naming))
         };
@@ -52,7 +50,6 @@ public class SetNfoParserTests : IDisposable
 
     [Theory]
     [InlineData(NfoNamingConvention.SetSubfolder)]
-    [InlineData(NfoNamingConvention.FlatFile)]
     [InlineData(NfoNamingConvention.CollectionNfo)]
     public void GetArtworkFolder_ReturnsCorrectFolderBasedOnConvention(NfoNamingConvention naming)
     {
@@ -63,10 +60,7 @@ public class SetNfoParserTests : IDisposable
         var result = SetNfoParser.GetArtworkFolder(_tempDirectory, setName, naming);
 
         // Assert
-        var expectedPath = naming == NfoNamingConvention.FlatFile
-            ? _tempDirectory
-            : Path.Combine(_tempDirectory, safeName);
-        Assert.Equal(expectedPath, result);
+        Assert.Equal(Path.Combine(_tempDirectory, safeName), result);
     }
 
     [Theory]

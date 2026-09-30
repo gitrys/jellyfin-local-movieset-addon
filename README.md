@@ -108,13 +108,12 @@ To make movies collapse under their collection banner in your movie library:
 
 ### 3. Folder Structure & Naming Conventions
 
-Match the plugin's **NFO File Naming Convention** setting to your file structure:
+Each set needs its own folder. The NFO file lives inside that folder. Match the plugin's **NFO File Naming Convention** setting to your file structure:
 
 | NFO Naming Option | Expected Path Pattern | Compatibility | Example |
 |---|---|---|---|
 | **`[Subfolder] <SetName>/<SetName>.nfo`** *(recommended)* | `<SetFolder>/<SetName>/<SetName>.nfo` | tinyMediaManager (TMM) standard | `_sets/Alien Collection/Alien Collection.nfo` |
 | **`[Subfolder] <SetName>/collection.nfo`** | `<SetFolder>/<SetName>/collection.nfo` | MediaElch, Ember, Kodi standard | `_sets/Alien Collection/collection.nfo` |
-| **`[Flat] <SetName>.nfo`** | `<SetFolder>/<SetName>.nfo` | Flat root directory (no subfolders) | `_sets/Alien Collection.nfo` |
 
 **Artwork files:** Place `poster.jpg` (or `folder.jpg`) and `fanart.jpg` (or `backdrop.jpg`) directly in the collection folder. If using movie-folder fallback, name them `movieset-poster.jpg` and `movieset-fanart.jpg` inside the member movie folders.
 

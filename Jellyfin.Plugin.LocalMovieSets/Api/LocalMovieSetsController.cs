@@ -221,15 +221,15 @@ public class LocalMovieSetsController : ControllerBase
                 });
             }
 
-            // 1. Check for flat files directly in the root
+            // NFO files directly in the set-folder root are not a supported layout.
+            // Each set needs its own subfolder.
             var rootNfoFiles = Directory.EnumerateFiles(path, "*.nfo", SearchOption.TopDirectoryOnly).ToList();
             if (rootNfoFiles.Count > 0)
             {
                 return Ok(new NamingDetectionResult
                 {
-                    Success = true,
-                    DetectedConvention = "FlatFile",
-                    Message = $"Detected layout: Flat File. Found {rootNfoFiles.Count} NFO file(s) in root."
+                    Success = false,
+                    Message = $"Found {rootNfoFiles.Count} NFO file(s) directly in the set folder. Each set needs its own folder, with the NFO inside that folder."
                 });
             }
 

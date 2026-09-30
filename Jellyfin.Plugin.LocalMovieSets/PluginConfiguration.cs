@@ -14,8 +14,9 @@ public enum NfoNamingConvention
     SetSubfolder = 0,
 
     /// <summary>
-    /// &lt;SetDataFolder&gt;/&lt;SetName&gt;.nfo
-    /// Flat file in the root set data folder.
+    /// Kept so older configuration files still load.
+    /// The <see cref="PluginConfiguration.NfoNaming"/> setter rewrites this to <see cref="SetSubfolder"/>.
+    /// A single NFO in the set-folder root is no longer a supported layout.
     /// </summary>
     FlatFile = 1,
 
@@ -58,10 +59,20 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public string SetDataFolder { get; set; } = string.Empty;
 
+    private NfoNamingConvention _nfoNaming = NfoNamingConvention.SetSubfolder;
+
     /// <summary>
-    /// Gets or sets the NFO naming convention used by tinyMediaManager for set files.
+    /// Gets or sets the NFO naming convention used for set files.
+    /// Each set must live in its own folder. A stored <see cref="NfoNamingConvention.FlatFile"/>
+    /// value is rewritten to <see cref="NfoNamingConvention.SetSubfolder"/>.
     /// </summary>
-    public NfoNamingConvention NfoNaming { get; set; } = NfoNamingConvention.SetSubfolder;
+    public NfoNamingConvention NfoNaming
+    {
+        get => _nfoNaming;
+        set => _nfoNaming = value == NfoNamingConvention.FlatFile
+            ? NfoNamingConvention.SetSubfolder
+            : value;
+    }
 
     /// <summary>
     /// Gets or sets the mode for calculating the collection's release date.

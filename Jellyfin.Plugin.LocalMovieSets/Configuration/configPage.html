@@ -278,7 +278,6 @@
                                 <select id="NfoNaming" is="emby-select" class="emby-select-withcolor emby-select" style="flex-grow: 1; margin: 0;">
                                     <option value="SetSubfolder">[Subfolder] &lt;SetName&gt;/&lt;SetName&gt;.nfo (tinyMediaManager standard)</option>
                                     <option value="CollectionNfo">[Subfolder] &lt;SetName&gt;/collection.nfo (MediaElch / Kodi standard)</option>
-                                    <option value="FlatFile">[Flat] &lt;SetName&gt;.nfo (Directly in root folder, no subfolders)</option>
                                 </select>
                                 <button is="emby-button"
                                         id="BtnDetectNaming"
@@ -290,7 +289,8 @@
                             </div>
                             <div id="DetectNamingStatus" style="font-size: 0.95em; margin-bottom: 0.6em; font-weight: bold; display: none;"></div>
                             <div class="fieldDescription">
-                                Must match the NFO file naming configured in your media manager
+                                Each set needs its own folder. The NFO lives inside that folder.
+                                Match the file name to your media manager
                                 (e.g. tinyMediaManager &rarr; Settings &rarr; Movies &rarr; Movie Sets or MediaElch).
                             </div>
                         </div>
@@ -691,6 +691,9 @@
                                 <span>⚠️ Force Rebuild</span>
                             </button>
                         </div>
+                        <p style="margin: 0.9em 0 0 0; color: #e57373; font-size: 0.85em; line-height: 1.45;">
+                            Force Rebuild deletes every collection in Jellyfin, then creates them again from the set names in your movie NFO files.
+                        </p>
                     </div>
 
                     <!-- Preview results -->
@@ -730,11 +733,10 @@
                         <div style="margin-bottom: 1.5em;">
                             <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">3. Folder Structure &amp; Naming Conventions</h4>
                             <p style="margin: 0 0 0.5em 0; color: #ccc;">
-                                Media managers (such as tinyMediaManager, MediaElch, or Kodi) manage movie sets either in a dedicated set folder (recommended: <code>&lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</code>) or directly in movie folders.
+                                Each set needs its own folder inside the Movie Set Data Folder. The NFO file lives in that folder.
                             </p>
                             <ul style="margin: 0; padding-left: 1.2em; color: #bbb;">
                                 <li><strong>Set Subfolder:</strong> <code>.../_sets/Avatar Collection/Avatar Collection.nfo</code></li>
-                                <li><strong>Flat File:</strong> <code>.../_sets/Avatar Collection.nfo</code></li>
                                 <li><strong>collection.nfo:</strong> <code>.../_sets/Avatar Collection/collection.nfo</code></li>
                             </ul>
                         </div>

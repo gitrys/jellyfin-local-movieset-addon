@@ -163,17 +163,14 @@ public class SetNfoParser
     /// Resolves the directory that contains the set's artwork files, using the
     /// default (strip) sanitization. Prefer <see cref="ResolveArtworkFolder"/>
     /// when checking for an existing folder, as it also tries TMM naming variants.
-    /// For flat-file naming the artwork sits directly in the set data folder.
     /// </summary>
     /// <param name="setDataFolder">Root set data folder.</param>
     /// <param name="setName">Set name.</param>
-    /// <param name="naming">Naming convention.</param>
+    /// <param name="naming">Naming convention. Each set is a subfolder of the set data folder.</param>
     /// <returns>Full path to the directory containing artwork files.</returns>
     public static string GetArtworkFolder(string setDataFolder, string setName, NfoNamingConvention naming)
     {
-        if (naming == NfoNamingConvention.FlatFile)
-            return setDataFolder;
-
+        _ = naming;
         return Path.Combine(setDataFolder, SanitizeFolderName(setName));
     }
 
@@ -202,7 +199,6 @@ public class SetNfoParser
     /// <summary>
     /// Finds the existing artwork folder for a set, trying every folder name
     /// variant produced by <see cref="GetFolderNameCandidates"/>.
-    /// For flat-file naming the artwork sits directly in the set data folder.
     /// </summary>
     /// <param name="setDataFolder">Root set data folder.</param>
     /// <param name="setName">Set name.</param>
@@ -210,11 +206,7 @@ public class SetNfoParser
     /// <returns>Full path to an existing artwork folder, or <c>null</c> if none exists.</returns>
     public static string? ResolveArtworkFolder(string setDataFolder, string setName, NfoNamingConvention naming)
     {
-        if (naming == NfoNamingConvention.FlatFile)
-        {
-            return Directory.Exists(setDataFolder) ? setDataFolder : null;
-        }
-
+        _ = naming;
         foreach (var safeName in GetFolderNameCandidates(setName))
         {
             var folder = Path.Combine(setDataFolder, safeName);
@@ -282,21 +274,6 @@ public class SetNfoParser
             return null;
         }
 
-        if (naming == NfoNamingConvention.FlatFile)
-        {
-            foreach (var safeName in GetFolderNameCandidates(setName))
-            {
-                foreach (var ext in ThemeSongExtensions)
-                {
-                    var c1 = Path.Combine(setDataFolder, $"{safeName}-theme{ext}");
-                    if (File.Exists(c1)) return c1;
-                    var c2 = Path.Combine(setDataFolder, $"{safeName}.theme{ext}");
-                    if (File.Exists(c2)) return c2;
-                }
-            }
-            return null;
-        }
-
         var artworkFolder = ResolveArtworkFolder(setDataFolder, setName, naming);
         if (artworkFolder is not null && Directory.Exists(artworkFolder))
         {
@@ -339,7 +316,6 @@ public class SetNfoParser
         return naming switch
         {
             NfoNamingConvention.SetSubfolder  => Path.Combine(setDataFolder, safeName, $"{safeName}.nfo"),
-            NfoNamingConvention.FlatFile       => Path.Combine(setDataFolder, $"{safeName}.nfo"),
             NfoNamingConvention.CollectionNfo  => Path.Combine(setDataFolder, safeName, "collection.nfo"),
             _                                  => Path.Combine(setDataFolder, safeName, $"{safeName}.nfo")
         };
