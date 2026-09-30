@@ -1881,7 +1881,7 @@
                     padding: 0;
                     line-height: 1;
                 `;
-                btnClose.onclick = () => document.body.removeChild(modal);
+                btnClose.onclick = closeModal;
                 header.appendChild(btnClose);
                 modalContent.appendChild(header);
 
@@ -1924,6 +1924,22 @@
                 modalContent.appendChild(footer);
                 modal.appendChild(modalContent);
                 document.body.appendChild(modal);
+
+                function closeModal() {
+                    if (document.body.contains(modal)) {
+                        document.body.removeChild(modal);
+                    }
+                    window.removeEventListener('keydown', onKeyDown);
+                }
+
+                function onKeyDown(e) {
+                    if (e.key === 'Escape') closeModal();
+                }
+                window.addEventListener('keydown', onKeyDown);
+
+                modal.onclick = function (e) {
+                    if (e.target === modal) closeModal();
+                };
 
                 let currentPath = inputEl.value.trim();
 
@@ -2017,7 +2033,7 @@
                     inputEl.value = currentPath;
                     inputEl.dispatchEvent(new Event('input', { bubbles: true }));
                     inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-                    document.body.removeChild(modal);
+                    closeModal();
                 };
             }
 
