@@ -271,7 +271,7 @@ public class LocalMovieSetsController : ControllerBase
             return Ok(new NamingDetectionResult
             {
                 Success = false,
-                Message = "Could not identify any tinyMediaManager NFO pattern. Ensure NFOs are generated in this directory."
+                Message = "Could not identify any supported movie set NFO pattern. Ensure NFO files are generated in this directory (e.g. via tinyMediaManager or MediaElch)."
             });
         }
         catch (Exception ex)

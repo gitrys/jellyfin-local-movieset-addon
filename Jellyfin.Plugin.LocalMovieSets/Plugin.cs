@@ -40,7 +40,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
     /// <inheritdoc />
     public override string Description =>
-        "Creates movie collections (box sets) from local NFO metadata produced by tinyMediaManager. " +
+        "Creates movie collections (box sets) from local NFO metadata produced by media managers (e.g. tinyMediaManager, MediaElch, Kodi). " +
         "No external API calls — everything is read from your local files.";
 
     /// <inheritdoc />

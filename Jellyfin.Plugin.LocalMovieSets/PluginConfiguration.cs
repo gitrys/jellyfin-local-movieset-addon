@@ -133,6 +133,52 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool AggregatePeople { get; set; } = false;
 
     /// <summary>
+    /// Gets or sets a value indicating whether to aggregate genres from member movies.
+    /// </summary>
+    public bool AggregateGenres { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to aggregate production studios from member movies.
+    /// </summary>
+    public bool AggregateStudios { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the maximum number of tags to apply to a collection (0 = all / unlimited).
+    /// Ranked by frequency across member movies.
+    /// </summary>
+    public int MaxTags { get; set; } = 15;
+
+    /// <summary>
+    /// Gets or sets the maximum number of actors to apply to a collection (0 = all / unlimited).
+    /// Ranked by frequency across member movies.
+    /// </summary>
+    public int MaxActors { get; set; } = 20;
+
+    /// <summary>
+    /// Gets or sets the maximum number of directors to apply to a collection (0 = all / unlimited).
+    /// Ranked by frequency across member movies.
+    /// </summary>
+    public int MaxDirectors { get; set; } = 0;
+
+    /// <summary>
+    /// Gets or sets the maximum number of writers to apply to a collection (0 = all / unlimited).
+    /// Ranked by frequency across member movies.
+    /// </summary>
+    public int MaxWriters { get; set; } = 0;
+
+    /// <summary>
+    /// Gets or sets the maximum number of genres to apply to a collection (0 = all / unlimited).
+    /// Ranked by frequency across member movies.
+    /// </summary>
+    public int MaxGenres { get; set; } = 0;
+
+    /// <summary>
+    /// Gets or sets the maximum number of studios to apply to a collection (0 = all / unlimited).
+    /// Ranked by frequency across member movies.
+    /// </summary>
+    public int MaxStudios { get; set; } = 0;
+
+    /// <summary>
     /// Gets or sets the list of library IDs to include in the sync.
     /// If empty, all movie libraries are scanned.
     /// </summary>

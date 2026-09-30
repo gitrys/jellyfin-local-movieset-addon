@@ -125,7 +125,7 @@
                     <span id="ConflictLibNames" style="color: #ff9800; font-weight: bold;"></span>
                 </p>
                 <p style="margin: 0; color: #ccc; font-size: 0.9em;">
-                    To prevent TMDB from conflicting with tinyMediaManager metadata (creating duplicated collections or mixing up items), please disable this option in 
+                    To prevent TMDB from conflicting with local NFO metadata (creating duplicated collections or mixing up items), please disable this option in 
                     <strong>Dashboard &rarr; Libraries &rarr; (select library) &rarr; Metadata settings</strong>.
                 </p>
             </div>
@@ -191,7 +191,7 @@
                         </div>
                         <div id="SetDataFolderStatus" style="font-size: 0.9em; margin-top: 0.5em; font-weight: 500; display: none;"></div>
                         <div class="fieldDescription">
-                            Path to tinyMediaManager's "Movie Set Data Folder" setting.
+                            Path to dedicated Movie Set Data Folder (e.g. tinyMediaManager, MediaElch).
                             This folder contains per-set NFO files and artwork.
                             Leave blank if you only use the &lt;set&gt; tag in individual movie NFOs.
                         </div>
@@ -218,8 +218,8 @@
                         </div>
                         <div id="DetectNamingStatus" style="font-size: 0.95em; margin-bottom: 0.6em; font-weight: bold; display: none;"></div>
                         <div class="fieldDescription">
-                            Must match the "NFO file naming" option configured in
-                            tinyMediaManager → Settings → Movies → Movie Sets.
+                            Must match the NFO file naming configured in your media manager
+                            (e.g. tinyMediaManager &rarr; Settings &rarr; Movies &rarr; Movie Sets or MediaElch).
                         </div>
                     </div>
 
@@ -550,7 +550,7 @@
                         <div style="margin-bottom: 1.5em;">
                             <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">3. Folder Structure &amp; Naming Conventions</h4>
                             <p style="margin: 0 0 0.5em 0; color: #ccc;">
-                                tinyMediaManager manages movie sets either in a dedicated set folder (recommended: <code>&lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</code>) or directly in movie folders.
+                                Media managers (such as tinyMediaManager, MediaElch, or Kodi) manage movie sets either in a dedicated set folder (recommended: <code>&lt;SetFolder&gt;/&lt;SetName&gt;/&lt;SetName&gt;.nfo</code>) or directly in movie folders.
                             </p>
                             <ul style="margin: 0; padding-left: 1.2em; color: #bbb;">
                                 <li><strong>Set Subfolder:</strong> <code>.../_sets/Avatar Collection/Avatar Collection.nfo</code></li>

@@ -27,7 +27,7 @@ body:
       label: "Steps to Reproduce"
       description: "Describe how to reproduce the issue step by step."
       placeholder: |
-        1. Open tinyMediaManager and create set 'XYZ'
+        1. Create movie set 'XYZ' with your media manager (e.g. tinyMediaManager, MediaElch)
         2. In Jellyfin, open Local Movie Sets
         3. Click 'Sync Now'
         4. See error...

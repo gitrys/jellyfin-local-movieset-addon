@@ -39,7 +39,7 @@ public class SyncMovieSetsTask : IScheduledTask
     /// <inheritdoc />
     public string Description =>
         "Scans movie NFO files for set tags and creates or updates Jellyfin " +
-        "collections from local tinyMediaManager metadata. No internet access required.";
+        "collections from local media manager metadata (e.g. tinyMediaManager, MediaElch, Kodi). No internet access required.";
 
     /// <inheritdoc />
     public string Category => "Local Movie Sets";

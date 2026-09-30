@@ -176,9 +176,10 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
         }
 
         // 2. Parse dedicated set NFO metadata if folder is configured
+        SetNfoInfo? setInfo = null;
         if (!string.IsNullOrWhiteSpace(config.SetDataFolder))
         {
-            var setInfo = _setNfoParser.ParseSet(config.SetDataFolder, setName, config.NfoNaming);
+            setInfo = _setNfoParser.ParseSet(config.SetDataFolder, setName, config.NfoNaming);
             if (setInfo != null)
             {
                 if (!string.IsNullOrWhiteSpace(setInfo.Overview)
@@ -195,20 +196,6 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
                     changed = true;
                 }
 
-                var genresArray = setInfo.Genres.ToArray();
-                if (collection.Genres is null || !collection.Genres.SequenceEqual(genresArray, StringComparer.Ordinal))
-                {
-                    collection.Genres = genresArray;
-                    changed = true;
-                }
-
-                var studiosArray = setInfo.Studios.ToArray();
-                if (collection.Studios is null || !collection.Studios.SequenceEqual(studiosArray, StringComparer.Ordinal))
-                {
-                    collection.Studios = studiosArray;
-                    changed = true;
-                }
-
                 if (!string.IsNullOrEmpty(setInfo.TmdbId)
                     && !string.Equals(collection.GetProviderId(MetadataProvider.Tmdb), setInfo.TmdbId, StringComparison.Ordinal))
                 {
@@ -222,6 +209,52 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
                     collection.SetProviderId(MetadataProvider.Imdb, setInfo.ImdbId);
                     changed = true;
                 }
+            }
+        }
+
+        // Genres: Set NFO takes priority if present, otherwise inherit from member movies if AggregateGenres is enabled
+        IReadOnlyList<string> candidateGenres = Array.Empty<string>();
+        if (setInfo?.Genres != null && setInfo.Genres.Count > 0)
+        {
+            candidateGenres = config.MaxGenres > 0
+                ? setInfo.Genres.Take(config.MaxGenres).ToArray()
+                : setInfo.Genres.ToArray();
+        }
+        else if (config.AggregateGenres)
+        {
+            candidateGenres = RankStringsByFrequency(movies.Select(m => m.Genres), config.MaxGenres);
+        }
+
+        if (candidateGenres.Count > 0)
+        {
+            var genresArray = candidateGenres.ToArray();
+            if (collection.Genres is null || !collection.Genres.SequenceEqual(genresArray, StringComparer.OrdinalIgnoreCase))
+            {
+                collection.Genres = genresArray;
+                changed = true;
+            }
+        }
+
+        // Studios: Set NFO takes priority if present, otherwise inherit from member movies if AggregateStudios is enabled
+        IReadOnlyList<string> candidateStudios = Array.Empty<string>();
+        if (setInfo?.Studios != null && setInfo.Studios.Count > 0)
+        {
+            candidateStudios = config.MaxStudios > 0
+                ? setInfo.Studios.Take(config.MaxStudios).ToArray()
+                : setInfo.Studios.ToArray();
+        }
+        else if (config.AggregateStudios)
+        {
+            candidateStudios = RankStringsByFrequency(movies.Select(m => m.Studios), config.MaxStudios);
+        }
+
+        if (candidateStudios.Count > 0)
+        {
+            var studiosArray = candidateStudios.ToArray();
+            if (collection.Studios is null || !collection.Studios.SequenceEqual(studiosArray, StringComparer.OrdinalIgnoreCase))
+            {
+                collection.Studios = studiosArray;
+                changed = true;
             }
         }
 
@@ -248,22 +281,7 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
 
         if (config.AggregateTags)
         {
-            var uniqueTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var movie in movies)
-            {
-                if (movie.Tags != null)
-                {
-                    foreach (var tag in movie.Tags)
-                    {
-                        if (!string.IsNullOrWhiteSpace(tag))
-                        {
-                            uniqueTags.Add(tag.Trim());
-                        }
-                    }
-                }
-            }
-
-            var tagsArray = uniqueTags.ToArray();
+            var tagsArray = RankStringsByFrequency(movies.Select(m => m.Tags), config.MaxTags).ToArray();
             var currentTags = collection.Tags ?? Array.Empty<string>();
             if (!currentTags.SequenceEqual(tagsArray, StringComparer.OrdinalIgnoreCase))
             {
@@ -276,10 +294,89 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
     }
 
     /// <summary>
-    /// Aggregates directors, writers and top-billed actors from the member
-    /// movies onto the collection. People are persisted through the library
-    /// manager's UpdatePeople path; running inside the refresh keeps this
-    /// serialized with the item save.
+    /// Counts occurrences of non-empty strings across input collections (each collection adds at most 1 count),
+    /// sorts descending by frequency (and stable ascending by string), and limits the output if <paramref name="limit"/> > 0.
+    /// </summary>
+    public static IReadOnlyList<string> RankStringsByFrequency(IEnumerable<IEnumerable<string>?> sources, int limit)
+    {
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        if (sources != null)
+        {
+            foreach (var source in sources)
+            {
+                if (source == null) continue;
+                var seenInSource = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var item in source)
+                {
+                    if (!string.IsNullOrWhiteSpace(item))
+                    {
+                        var clean = item.Trim();
+                        if (seenInSource.Add(clean))
+                        {
+                            counts[clean] = counts.TryGetValue(clean, out var c) ? c + 1 : 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        var sorted = counts
+            .OrderByDescending(kv => kv.Value)
+            .ThenBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(kv => kv.Key);
+
+        return limit > 0 ? sorted.Take(limit).ToArray() : sorted.ToArray();
+    }
+
+    /// <summary>
+    /// Ranks people of a specific <see cref="PersonKind"/> across multiple movie sources by frequency of appearance.
+    /// </summary>
+    public static IReadOnlyList<PersonInfo> RankPeopleByFrequency(
+        IEnumerable<IEnumerable<PersonInfo>?> sources,
+        PersonKind kind,
+        int maxPerSource,
+        int limit)
+    {
+        var map = new Dictionary<string, PersonCandidate>(StringComparer.OrdinalIgnoreCase);
+        if (sources != null)
+        {
+            foreach (var source in sources)
+            {
+                if (source == null) continue;
+                var seenInSource = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                int countInSource = 0;
+                foreach (var p in source)
+                {
+                    if (p == null || string.IsNullOrWhiteSpace(p.Name)) continue;
+                    if (p.Type != kind) continue;
+
+                    var name = p.Name.Trim();
+                    if ((maxPerSource <= 0 || countInSource < maxPerSource) && seenInSource.Add(name))
+                    {
+                        countInSource++;
+                        if (!map.TryGetValue(name, out var cand))
+                        {
+                            cand = new PersonCandidate { Info = ClonePersonInfo(p, name) };
+                            map[name] = cand;
+                        }
+                        cand.MovieCount++;
+                    }
+                }
+            }
+        }
+
+        var sorted = map.Values
+            .OrderByDescending(c => c.MovieCount)
+            .ThenBy(c => c.Info.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(c => c.Info);
+
+        return limit > 0 ? sorted.Take(limit).ToArray() : sorted.ToArray();
+    }
+
+    /// <summary>
+    /// Aggregates directors, writers and actors from the member movies onto the
+    /// collection, ranked by frequency of appearance across the set.
+    /// People are persisted through the library manager's UpdatePeople path.
     /// </summary>
     private async Task UpdatePeopleAsync(
         BoxSet collection,
@@ -293,62 +390,16 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
             return;
         }
 
-        var aggregatedPeople = new List<PersonInfo>();
-        var seenPeople = new HashSet<(string Name, PersonKind Type)>();
+        var moviePeopleSources = movies.Select(GetPeopleSafe).ToList();
 
-        foreach (var movie in movies)
-        {
-            var moviePeople = GetPeopleSafe(movie);
-            if (moviePeople == null) continue;
+        var rankedDirectors = RankPeopleByFrequency(moviePeopleSources, PersonKind.Director, 0, config.MaxDirectors);
+        var rankedWriters = RankPeopleByFrequency(moviePeopleSources, PersonKind.Writer, 0, config.MaxWriters);
+        var rankedActors = RankPeopleByFrequency(moviePeopleSources, PersonKind.Actor, 10, config.MaxActors);
 
-            int actorCount = 0;
-            foreach (var person in moviePeople)
-            {
-                if (person == null || string.IsNullOrWhiteSpace(person.Name)) continue;
-
-                var type = person.Type;
-                var nameKey = person.Name.Trim();
-
-                if (type == PersonKind.Director || type == PersonKind.Writer)
-                {
-                    var key = (nameKey.ToLowerInvariant(), type);
-                    if (!seenPeople.Contains(key))
-                    {
-                        seenPeople.Add(key);
-                        aggregatedPeople.Add(new PersonInfo
-                        {
-                            Name = nameKey,
-                            Type = type,
-                            Role = person.Role,
-                            ImageUrl = person.ImageUrl,
-                            ProviderIds = person.ProviderIds,
-                            SortOrder = person.SortOrder
-                        });
-                    }
-                }
-                else if (type == PersonKind.Actor)
-                {
-                    if (actorCount < 10)
-                    {
-                        actorCount++;
-                        var key = (nameKey.ToLowerInvariant(), type);
-                        if (!seenPeople.Contains(key))
-                        {
-                            seenPeople.Add(key);
-                            aggregatedPeople.Add(new PersonInfo
-                            {
-                                Name = nameKey,
-                                Type = type,
-                                Role = person.Role,
-                                ImageUrl = person.ImageUrl,
-                                ProviderIds = person.ProviderIds,
-                                SortOrder = person.SortOrder
-                            });
-                        }
-                    }
-                }
-            }
-        }
+        var aggregatedPeople = rankedDirectors
+            .Concat(rankedWriters)
+            .Concat(rankedActors)
+            .ToList();
 
         try
         {
@@ -359,6 +410,22 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
         {
             _logger.LogError(ex, "Failed to update aggregated people for collection '{SetName}'", setName);
         }
+    }
+
+    private static PersonInfo ClonePersonInfo(PersonInfo person, string cleanName) => new()
+    {
+        Name = cleanName,
+        Type = person.Type,
+        Role = person.Role,
+        ImageUrl = person.ImageUrl,
+        ProviderIds = person.ProviderIds,
+        SortOrder = person.SortOrder
+    };
+
+    private sealed class PersonCandidate
+    {
+        public required PersonInfo Info { get; init; }
+        public int MovieCount { get; set; }
     }
 
     private IReadOnlyList<PersonInfo> GetPeopleSafe(BaseItem item)
