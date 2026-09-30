@@ -38,7 +38,7 @@ body:
     id: system_info
     attributes:
       label: "System Info & Diagnostics Export"
-      description: "Paste the text from the plugin's 'System Info & Bug Report' dialog here (it automatically anonymizes sensitive paths and titles)."
+      description: "Paste the text from the plugin's System Info & Bug Report dialog. Path masking is on by default; title masking is optional (off by default) and only replaces patterns like \"… Collection\"."
       render: markdown
       placeholder: |
         ### Environment

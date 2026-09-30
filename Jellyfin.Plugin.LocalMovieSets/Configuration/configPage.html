@@ -1438,7 +1438,7 @@
                 const folderPath = folderInput ? folderInput.value.trim() : '';
 
                 const sysInfoUrl = ApiClient.getUrl('LocalMovieSets/SystemInfo');
-                const valUrl = ApiClient.getUrl('LocalMovieSets/Validate', { path: folderPath });
+                const valUrl = ApiClient.getUrl('LocalMovieSets/Validate', { folderPath: folderPath });
 
                 const infoReq = ApiClient.getJSON(sysInfoUrl);
                 const valReq = (currentValidationReport && currentValidationReport.Issues)
