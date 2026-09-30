@@ -32,6 +32,11 @@ jobs:
           VERSION="${TAG_NAME#v}"
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
+      - name: Verify release manifest script
+        run: |
+          test -f .github/scripts/update_manifest.py
+          python3 -m py_compile .github/scripts/update_manifest.py
+
       - name: Build and Publish Plugin
         run: |
           # Override the csproj <Version> with the tag version so the DLL,

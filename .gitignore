@@ -18,7 +18,7 @@ release_notes.md
 deploy.bat
 deploy-to-server.ps1
 deploy.sh
-scripts/
+/scripts/
 
 # Test media & data
 testdateien/

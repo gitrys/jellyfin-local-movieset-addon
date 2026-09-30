@@ -15,24 +15,30 @@ def get_md5(file_path):
 def get_target_abi():
     # Try parsing Jellyfin.Controller version from csproj
     csproj_path = os.path.join("Jellyfin.Plugin.LocalMovieSets", "Jellyfin.Plugin.LocalMovieSets.csproj")
+    fallback = "12.0.0.0"
     if not os.path.exists(csproj_path):
-        return "10.10.0.0"
-    
+        return fallback
+
     try:
         with open(csproj_path, "r", encoding="utf-8") as f:
             content = f.read()
-        
-        # Look for Jellyfin.Controller version
-        match = re.search(r'PackageReference\s+Include="Jellyfin\.Controller"\s+Version="([^"]+)"', content)
+
+        # Allow Version on the same line or on a following attribute line.
+        match = re.search(
+            r'PackageReference\s+Include="Jellyfin\.Controller"[^>]*Version="([^"]+)"',
+            content,
+            re.DOTALL,
+        )
         if match:
             version_str = match.group(1)
-            parts = version_str.split('.')
+            parts = version_str.split(".")
             if len(parts) >= 2:
-                # E.g. 10.10.3 -> 10.10.0.0
+                # E.g. 12.0.0 -> 12.0.0.0
                 return f"{parts[0]}.{parts[1]}.0.0"
     except Exception as e:
         print(f"Warning: Could not parse target ABI from csproj: {e}")
-        
+
+    return fallback
 def get_changelog(version):
     """
     Extracts the changelog section for the specified version from CHANGELOG.md.
