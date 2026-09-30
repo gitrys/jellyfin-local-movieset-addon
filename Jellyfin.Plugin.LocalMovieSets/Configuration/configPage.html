@@ -581,7 +581,6 @@
                                 style="background: #00a4dc; color: #fff; font-weight: 600; padding: 0.6em 2em; transition: all 0.25s ease;">
                             <span>Save Settings</span>
                         </button>
-                        <span id="SaveStatusIndicator" style="display: none; align-items: center; gap: 0.5em; font-weight: 600; font-size: 0.95em; padding: 0.5em 1em; border-radius: 6px; transition: opacity 0.3s ease;"></span>
                     </div>
 
                 </div>
@@ -799,22 +798,7 @@
                     setTimeout(function () { el.style.display = 'none'; }, 6000);
                 }
 
-                // 2. In-line button feedback indicator
-                const indicator = document.getElementById('SaveStatusIndicator');
-                if (indicator) {
-                    indicator.innerHTML = isError
-                        ? '<span style="color: #f44336; background: rgba(244, 67, 54, 0.15); border: 1px solid #f44336; padding: 0.4em 0.8em; border-radius: 4px;">❌ ' + escapeHtml(msg) + '</span>'
-                        : '<span style="color: #4CAF50; background: rgba(76, 175, 80, 0.15); border: 1px solid #4CAF50; padding: 0.4em 0.8em; border-radius: 4px;">✅ ' + escapeHtml(msg) + '</span>';
-                    indicator.style.display = 'inline-flex';
-                    indicator.style.opacity = '1';
-                    if (indicator._timer) clearTimeout(indicator._timer);
-                    indicator._timer = setTimeout(function () {
-                        indicator.style.opacity = '0';
-                        setTimeout(function () { indicator.style.display = 'none'; }, 300);
-                    }, 4000);
-                }
-
-                // 3. Floating center-bottom toast (visible regardless of scroll position)
+                // 2. Floating center-bottom toast (visible regardless of scroll position)
                 const toast = document.getElementById('FloatingToast');
                 if (toast) {
                     toast.innerHTML = (isError ? '❌ ' : '✅ ') + escapeHtml(msg);
