@@ -41,6 +41,22 @@ If you curate your media collection using media managers such as [tinyMediaManag
   <p><em>Example: Alien Collection with plot, rating, tags, logo, and member movies populated entirely from local files.</em></p>
 </div>
 
+### Plugin configuration
+
+<div align="center">
+
+| ⚙️ Settings | 🩺 Diagnostics & Tools |
+|---|---|
+| <img src="images/plugin_settings.png" width="400" alt="Plugin Settings tab" /> | <img src="images/plugin_diagnostics.png" width="400" alt="Diagnostics tab with Sync Now, Preview, System Info, Force Rebuild" /> |
+
+| 🩺 Dry-run Preview | 💡 Setup Guide |
+|---|---|
+| <img src="images/plugin_diagnostics_preview.png" width="400" alt="Diagnostics tab with sync preview results" /> | <img src="images/plugin_setup_guide.png" width="400" alt="Setup Guide tab with file-name legend" /> |
+
+<p><em>Three tabs: Settings, Diagnostics &amp; Tools (sync / preview / bug report / rebuild), and Setup Guide (including the file-name legend).</em></p>
+
+</div>
+
 ---
 
 ## Key Features

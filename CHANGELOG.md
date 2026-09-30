@@ -24,6 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Bug report template:** Clarified that path masking is on by default and title masking is optional / pattern-limited.
 - **Validate query parameter:** Diagnostics export now passes `folderPath` so an unsaved Set Data Folder input is actually validated.
 - **Settings help text:** Shortened field descriptions across the Settings tab for clearer defaults and orphan/artwork behavior.
+- **System Info & Bug Report:** Opens immediately and collects a live dry-run Preview, NFO/artwork validation, and health checks (auto-add / fetchers / grouping) instead of reusing only the last sync snapshot.
+- **Settings autosave:** Settings tab changes save automatically (≈250&nbsp;ms for checkboxes/selects, ≈900&nbsp;ms grace for text/number fields; blur flushes immediately). Save Settings still saves at once.
 
 ### Removed
 - **Dashboard & History tab / Insights widget:** Removed from the configuration UI. Sync progress is visible via Jellyfin's server activity log and Scheduled Tasks; diagnostics export still includes last-run metrics when available.

@@ -198,9 +198,6 @@
                 </button>
             </div>
 
-            <!-- ── Global Status Notification ── -->
-            <div id="StatusMsg" style="margin: -0.6em 0 1.4em 0; padding: 0.75em 1em; border-radius: 6px; font-weight: 500; font-size: 0.95em; display: none;"></div>
-
             <!-- ── Floating Action Toast (Always visible regardless of scroll) ── -->
             <div id="FloatingToast" style="display: none; position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px); z-index: 99999; padding: 0.75em 1.6em; border-radius: 8px; font-weight: 600; font-size: 0.95em; box-shadow: 0 8px 30px rgba(0,0,0,0.6); pointer-events: none; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); opacity: 0; backdrop-filter: blur(8px);"></div>
 
@@ -607,7 +604,7 @@
                     </div>
 
                     <!-- ── Settings Save Action ──────────────────────────────────────── -->
-                    <div class="verticalSection" style="margin-top: 2em; display: flex; gap: 1em; align-items: center;">
+                    <div class="verticalSection" style="margin-top: 2em; display: flex; gap: 1em; align-items: center; flex-wrap: wrap;">
                         <button is="emby-button"
                                 id="BtnSaveSettings"
                                 type="submit"
@@ -615,6 +612,7 @@
                                 style="background: #00a4dc; color: #fff; font-weight: 600; padding: 0.6em 2em; transition: all 0.25s ease;">
                             <span>Save Settings</span>
                         </button>
+                        <span id="AutosaveStatus" style="font-size: 0.9em; color: #888;">Changes save automatically after a short pause.</span>
                     </div>
 
                 </div>
@@ -736,7 +734,7 @@
                                 <li>
                                     To hear theme music in the web client, enable
                                     <em>Theme songs</em> under
-                                    <a href="#/mypreferencesdisplay" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Settings &rarr; Display</a>.
+                                    <a id="ThemeSongPrefsLink" href="#/mypreferencesmenu" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Settings &rarr; Display</a>.
                                     <span id="ThemeSongSettingWarning"
                                           style="display: none; color: #f44336; font-size: 1.15em; margin-left: 0.25em; cursor: help; vertical-align: middle;"
                                           title="Theme songs are off for this browser. Enable Settings → Display → Theme songs, or copied theme files will not play here."
@@ -891,37 +889,24 @@
             }
 
             function showStatus(msg, isError) {
-                // 1. Top banner
-                const el = document.getElementById('StatusMsg');
-                if (el) {
-                    el.textContent = msg;
-                    el.style.background = isError ? 'rgba(244, 67, 54, 0.15)' : 'rgba(76, 175, 80, 0.15)';
-                    el.style.border = isError ? '1px solid #f44336' : '1px solid #4CAF50';
-                    el.style.color = isError ? '#F44336' : '#4CAF50';
-                    el.style.display = 'block';
-                    setTimeout(function () { el.style.display = 'none'; }, 6000);
-                }
-
-                // 2. Floating center-bottom toast (visible regardless of scroll position)
+                // Floating center-bottom toast only — no inline banner (avoids layout shift).
                 const toast = document.getElementById('FloatingToast');
-                if (toast) {
-                    toast.innerHTML = (isError ? '❌ ' : '✅ ') + escapeHtml(msg);
-                    toast.style.background = isError ? 'rgba(211, 47, 47, 0.95)' : 'rgba(46, 125, 50, 0.95)';
-                    toast.style.color = '#ffffff';
-                    toast.style.border = isError ? '1px solid #f44336' : '1px solid #4caf50';
-                    toast.style.display = 'block';
-                    // Trigger reflow for CSS transition
-                    void toast.offsetHeight;
-                    toast.style.opacity = '1';
-                    toast.style.transform = 'translateX(-50%) translateY(0)';
+                if (!toast) return;
+                toast.innerHTML = (isError ? '❌ ' : '✅ ') + escapeHtml(msg);
+                toast.style.background = isError ? 'rgba(211, 47, 47, 0.95)' : 'rgba(46, 125, 50, 0.95)';
+                toast.style.color = '#ffffff';
+                toast.style.border = isError ? '1px solid #f44336' : '1px solid #4caf50';
+                toast.style.display = 'block';
+                void toast.offsetHeight;
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateX(-50%) translateY(0)';
 
-                    if (toast._timer) clearTimeout(toast._timer);
-                    toast._timer = setTimeout(function () {
-                        toast.style.opacity = '0';
-                        toast.style.transform = 'translateX(-50%) translateY(20px)';
-                        setTimeout(function () { toast.style.display = 'none'; }, 300);
-                    }, 3500);
-                }
+                if (toast._timer) clearTimeout(toast._timer);
+                toast._timer = setTimeout(function () {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateX(-50%) translateY(20px)';
+                    setTimeout(function () { toast.style.display = 'none'; }, 300);
+                }, 3500);
             }
 
             /* ── Theme songs client setting (localStorage only in Jellyfin Web) ── */
@@ -936,7 +921,27 @@
                 }
             }
 
+            function updateThemeSongPrefsLink(page) {
+                const link = page.querySelector('#ThemeSongPrefsLink');
+                if (!link) return;
+                let userId = null;
+                try {
+                    userId = ApiClient.getCurrentUserId && ApiClient.getCurrentUserId();
+                } catch (e) {
+                    userId = null;
+                }
+                if (userId) {
+                    link.href = '#/mypreferencesdisplay?userId=' + encodeURIComponent(userId);
+                    link.innerHTML = 'Settings &rarr; Display';
+                } else {
+                    // Display prefs route needs userId; fall back to the user settings menu.
+                    link.href = '#/mypreferencesmenu';
+                    link.innerHTML = 'Settings &rarr; User settings';
+                }
+            }
+
             function updateThemeSongGuideWarning(page) {
+                updateThemeSongPrefsLink(page);
                 const warningEl = page.querySelector('#ThemeSongSettingWarning');
                 if (!warningEl) return;
                 warningEl.style.display = isThemeSongsEnabledInThisBrowser() ? 'none' : 'inline';
@@ -1055,7 +1060,7 @@
                 html += '  <h3 style="margin: 0; font-size: 1.05em; color: #00a4dc; font-weight: 600; display: flex; align-items: center; gap: 0.4em;">';
                 html += '    <span>🔮</span> Sync Preview — Dry Run Analysis';
                 html += '  </h3>';
-                html += '  <div style="font-size: 0.85em; color: #888; margin-top: 0.25em;">Note: This preview reflects currently saved settings. Save in the "⚙️ Settings" tab first if you changed any options.</div>';
+                html += '  <div style="font-size: 0.85em; color: #888; margin-top: 0.25em;">Note: Preview uses the last saved settings. Typing pauses briefly before auto-save — wait a moment or press Save Settings if you just changed options.</div>';
                 html += '</div>';
 
                 // Context Bar (Scanned movies & libraries)
@@ -1234,8 +1239,102 @@
             /* ── Cached validation report for System Info / Bug Report ── */
             let currentValidationReport = null;
 
+            /* ── Autosave (debounce text/number; quick save for toggles) ── */
+            const AUTOSAVE_TEXT_MS = 900;
+            const AUTOSAVE_TOGGLE_MS = 250;
+            let autosaveTimer = null;
+            let autosaveInFlight = false;
+            let autosaveQueued = false;
+            let suppressAutosave = false;
+
+            function setAutosaveStatus(page, state) {
+                const el = page.querySelector('#AutosaveStatus');
+                if (!el) return;
+                if (state === 'pending') {
+                    el.textContent = 'Unsaved changes… saving shortly.';
+                    el.style.color = '#ffb74d';
+                } else if (state === 'saving') {
+                    el.textContent = 'Saving…';
+                    el.style.color = '#64b5f6';
+                } else if (state === 'saved') {
+                    el.textContent = 'Saved.';
+                    el.style.color = '#81c784';
+                } else if (state === 'error') {
+                    el.textContent = 'Save failed — try Save Settings.';
+                    el.style.color = '#ef5350';
+                } else {
+                    el.textContent = 'Changes save automatically after a short pause.';
+                    el.style.color = '#888';
+                }
+            }
+
+            function scheduleAutosave(page, delayMs) {
+                if (suppressAutosave) return;
+                if (autosaveTimer) clearTimeout(autosaveTimer);
+                setAutosaveStatus(page, 'pending');
+                autosaveTimer = setTimeout(function () {
+                    autosaveTimer = null;
+                    flushAutosave(page);
+                }, delayMs);
+            }
+
+            function flushAutosave(page) {
+                if (suppressAutosave) return;
+                if (autosaveTimer) {
+                    clearTimeout(autosaveTimer);
+                    autosaveTimer = null;
+                }
+                if (autosaveInFlight) {
+                    autosaveQueued = true;
+                    return;
+                }
+                saveConfig(page, null, { silent: true });
+            }
+
+            function isSettingsField(el) {
+                if (!el || !el.id) return false;
+                const tag = (el.tagName || '').toLowerCase();
+                if (tag !== 'input' && tag !== 'select' && tag !== 'textarea') return false;
+                if (el.type === 'button' || el.type === 'submit') return false;
+                return !!el.closest('#TabSettings');
+            }
+
+            function autosaveDelayFor(el) {
+                if (!el) return AUTOSAVE_TEXT_MS;
+                const type = (el.type || '').toLowerCase();
+                const tag = (el.tagName || '').toLowerCase();
+                if (type === 'checkbox' || type === 'radio' || tag === 'select') return AUTOSAVE_TOGGLE_MS;
+                return AUTOSAVE_TEXT_MS;
+            }
+
+            function bindAutosave(page) {
+                const form = page.querySelector('#LocalMovieSetsConfigForm');
+                if (!form || form._lmsAutosaveBound) return;
+                form._lmsAutosaveBound = true;
+
+                form.addEventListener('input', function (ev) {
+                    if (!isSettingsField(ev.target)) return;
+                    scheduleAutosave(page, autosaveDelayFor(ev.target));
+                });
+                form.addEventListener('change', function (ev) {
+                    if (!isSettingsField(ev.target)) return;
+                    scheduleAutosave(page, autosaveDelayFor(ev.target));
+                });
+                form.addEventListener('blur', function (ev) {
+                    if (!isSettingsField(ev.target)) return;
+                    const type = (ev.target.type || '').toLowerCase();
+                    if (type === 'checkbox' || type === 'radio') return;
+                    flushAutosave(page);
+                }, true);
+            }
+
             /* ── Load config ── */
             function loadConfig(page) {
+                suppressAutosave = true;
+                if (autosaveTimer) {
+                    clearTimeout(autosaveTimer);
+                    autosaveTimer = null;
+                }
                 ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
                     page.querySelector('#SetDataFolder').value        = config.SetDataFolder || '';
                     page.querySelector('#NfoNaming').value            = config.NfoNaming || 'SetSubfolder';
@@ -1266,18 +1365,32 @@
                     page.querySelector('#CollectionReleaseDate').value = config.CollectionReleaseDate || 'DoNotCalculate';
 
                     validateSetDataFolderPath(page);
+                    setAutosaveStatus(page, 'idle');
+                    // Allow one tick so any synthetic events from fill settle without writing back.
+                    setTimeout(function () { suppressAutosave = false; }, 0);
+                }).catch(function () {
+                    suppressAutosave = false;
                 });
             }
 
             /* ── Save config ── */
-            function saveConfig(page, e) {
-                e.preventDefault();
+            function saveConfig(page, e, opts) {
+                opts = opts || {};
+                const silent = opts.silent === true;
+                if (e) e.preventDefault();
+                if (autosaveTimer) {
+                    clearTimeout(autosaveTimer);
+                    autosaveTimer = null;
+                }
+
                 const saveBtn = page.querySelector('#BtnSaveSettings') || page.querySelector('button[type="submit"]');
                 const originalHtml = saveBtn ? saveBtn.innerHTML : '<span>Save Settings</span>';
-                if (saveBtn) {
+                if (saveBtn && !silent) {
                     saveBtn.disabled = true;
                     saveBtn.innerHTML = '<span>Saving…</span>';
                 }
+                setAutosaveStatus(page, 'saving');
+                autosaveInFlight = true;
 
                 ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
                     config.SetDataFolder        = page.querySelector('#SetDataFolder').value.trim();
@@ -1305,7 +1418,8 @@
                     config.CollectionReleaseDate = page.querySelector('#CollectionReleaseDate').value;
 
                     ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function () {
-                        if (saveBtn) {
+                        autosaveInFlight = false;
+                        if (saveBtn && !silent) {
                             saveBtn.disabled = false;
                             saveBtn.style.background = '#4CAF50';
                             saveBtn.innerHTML = '<span>✓ Saved!</span>';
@@ -1314,10 +1428,17 @@
                                 saveBtn.innerHTML = originalHtml;
                             }, 2000);
                         }
+                        setAutosaveStatus(page, 'saved');
                         showStatus('Settings saved successfully.', false);
+                        if (autosaveQueued) {
+                            autosaveQueued = false;
+                            flushAutosave(page);
+                        }
                     }).catch(function (err) {
+                        autosaveInFlight = false;
+                        autosaveQueued = false;
                         console.error('Failed to save settings:', err);
-                        if (saveBtn) {
+                        if (saveBtn && !silent) {
                             saveBtn.disabled = false;
                             saveBtn.style.background = '#f44336';
                             saveBtn.innerHTML = '<span>❌ Failed</span>';
@@ -1326,8 +1447,19 @@
                                 saveBtn.innerHTML = originalHtml;
                             }, 2500);
                         }
+                        setAutosaveStatus(page, 'error');
                         showStatus('Failed to save settings.', true);
                     });
+                }).catch(function (err) {
+                    autosaveInFlight = false;
+                    autosaveQueued = false;
+                    console.error('Failed to load settings before save:', err);
+                    if (saveBtn && !silent) {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = originalHtml;
+                    }
+                    setAutosaveStatus(page, 'error');
+                    showStatus('Failed to save settings.', true);
                 });
             }
 
@@ -1428,320 +1560,460 @@
                 });
             }
 
-            /* ── System Info Export Modal with Interactive Privacy Toggles & Full Diagnostics ── */
+            /* ── System Info Export Modal: live Preview + checks (not last sync only) ── */
             function openSystemInfoModal(page) {
                 const folderInput = page.querySelector('#SetDataFolder');
                 const folderPath = folderInput ? folderInput.value.trim() : '';
 
-                const sysInfoUrl = ApiClient.getUrl('LocalMovieSets/SystemInfo');
-                const valUrl = ApiClient.getUrl('LocalMovieSets/Validate', { folderPath: folderPath });
-
-                const infoReq = ApiClient.getJSON(sysInfoUrl);
-                const valReq = (currentValidationReport && currentValidationReport.Issues)
-                    ? Promise.resolve(currentValidationReport)
-                    : (folderPath ? ApiClient.getJSON(valUrl).catch(function () { return null; }) : Promise.resolve(null));
-
-                Promise.all([infoReq, valReq]).then(function (results) {
-                    const info = results[0];
-                    if (results[1]) {
-                        currentValidationReport = results[1];
+                function getSavedBool(key, defaultVal) {
+                    try {
+                        const val = localStorage.getItem(key);
+                        return val !== null ? val === 'true' : defaultVal;
+                    } catch (e) {
+                        return defaultVal;
                     }
-                    if (!info) return;
+                }
+                function setSavedBool(key, val) {
+                    try {
+                        localStorage.setItem(key, val ? 'true' : 'false');
+                    } catch (e) {}
+                }
 
-                    function getSavedBool(key, defaultVal) {
-                        try {
-                            const val = localStorage.getItem(key);
-                            return val !== null ? val === 'true' : defaultVal;
-                        } catch (e) {
-                            return defaultVal;
+                let wordWrap = getSavedBool('lms_diag_wrap', true);
+                let maskPaths = getSavedBool('lms_diag_mask_paths', true);
+                let maskTitles = getSavedBool('lms_diag_mask_titles', false);
+                let includeErrors = getSavedBool('lms_diag_include_errors', true);
+
+                let info = null;
+                let liveValidation = null;
+                let livePreview = null;
+                let liveConflicts = null;
+                let liveFetchers = null;
+                let liveGrouping = null;
+                let collectError = null;
+
+                function sanitizePath(str) {
+                    if (!str) return '';
+                    if (!maskPaths) return str;
+                    let res = str.replace(/([a-zA-Z]:\\[^\s'"<>]+)/g, function (match) {
+                        const parts = match.split(/[\\/]/).filter(Boolean);
+                        return '.../' + (parts.length > 0 ? parts[parts.length - 1] : 'file');
+                    });
+                    res = res.replace(/((\/[a-zA-Z0-9_\.\-]+){2,})/g, function (match) {
+                        const parts = match.split('/').filter(Boolean);
+                        return '.../' + (parts.length > 0 ? parts[parts.length - 1] : 'file');
+                    });
+                    return res;
+                }
+
+                function sanitizeTitle(str) {
+                    if (!str) return '';
+                    if (!maskTitles) return str;
+                    return str.replace(/([A-Z0-9a-z\s\-_]+)( Collection| Movie| Set)/g, '[Collection]');
+                }
+
+                function maskName(name, idx) {
+                    if (!maskTitles) return name || 'Unknown';
+                    return '[Collection #' + ((idx || 0) + 1) + ']';
+                }
+
+                function appendPreviewSection(mdLines) {
+                    mdLines.push('');
+                    mdLines.push('### Live Dry-Run Preview');
+                    mdLines.push('_Collected when this report was opened (read-only; does not modify the library)._');
+                    if (!livePreview) {
+                        mdLines.push('- **Status:** unavailable');
+                        return;
+                    }
+                    if (livePreview.SyncRunning) {
+                        mdLines.push('- **Status:** A sync is currently running — preview skipped');
+                        return;
+                    }
+                    if (livePreview.MountGuardBlocked) {
+                        mdLines.push('- **Status:** Mount Guard blocked the preview');
+                        return;
+                    }
+                    if (livePreview.ErrorMessage) {
+                        let msg = livePreview.ErrorMessage;
+                        if (maskPaths) msg = sanitizePath(msg);
+                        if (maskTitles) msg = sanitizeTitle(msg);
+                        mdLines.push('- **Status:** error — `' + msg + '`');
+                        return;
+                    }
+                    mdLines.push('- **Scanned:** ' + (livePreview.ScannedMoviesCount || 0) + ' movies in ' + (livePreview.ScannedLibrariesCount || 0) + ' libraries');
+                    mdLines.push('- **Sets found:** ' + (livePreview.TotalSetsCount || 0));
+                    mdLines.push('- **Up to date:** ' + (livePreview.UnchangedCount || (livePreview.UnchangedSets || []).length));
+                    mdLines.push('- **To create:** ' + ((livePreview.ToCreate || []).length));
+                    mdLines.push('- **To update:** ' + ((livePreview.ToUpdate || []).length));
+                    mdLines.push('- **Below minimum:** ' + ((livePreview.BelowMinimum || []).length));
+                    mdLines.push('- **Would delete:** ' + ((livePreview.ToDelete || []).length));
+                    mdLines.push('- **Protected orphans:** ' + ((livePreview.ProtectedOrphans || []).length));
+
+                    (livePreview.ToCreate || []).slice(0, 25).forEach(function (s, i) {
+                        mdLines.push('  - create: **' + maskName(s.Name, i) + '** (' + (s.MovieCount || 0) + ' movies)');
+                    });
+                    (livePreview.ToUpdate || []).slice(0, 25).forEach(function (u, i) {
+                        const added = u.MoviesToAdd || 0;
+                        const removed = u.MoviesToRemove || 0;
+                        mdLines.push('  - update: **' + maskName(u.Name, i) + '** (+' + added + ' / -' + removed + ')');
+                    });
+                    (livePreview.ToDelete || []).slice(0, 25).forEach(function (name, i) {
+                        mdLines.push('  - delete: **' + maskName(name, i) + '**');
+                    });
+                    (livePreview.ProtectedOrphans || []).slice(0, 15).forEach(function (p, i) {
+                        mdLines.push('  - protected: **' + maskName(p.Name, i) + '** — ' + (p.Reason || 'kept'));
+                    });
+                }
+
+                function appendHealthSection(mdLines) {
+                    mdLines.push('');
+                    mdLines.push('### Live Health Checks');
+                    if (liveConflicts) {
+                        if (liveConflicts.HasConflicts) {
+                            const libs = (liveConflicts.ConflictingLibraries || []).join(', ') || 'unknown';
+                            mdLines.push('- **TMDB auto-add:** ON in: ' + libs);
+                        } else {
+                            mdLines.push('- **TMDB auto-add:** off (ok)');
                         }
+                    } else {
+                        mdLines.push('- **TMDB auto-add:** check failed');
                     }
-                    function setSavedBool(key, val) {
-                        try {
-                            localStorage.setItem(key, val ? 'true' : 'false');
-                        } catch (e) {}
+                    if (liveFetchers) {
+                        if (liveFetchers.HasConflict) {
+                            const parts = [];
+                            if (liveFetchers.Reason) parts.push(liveFetchers.Reason);
+                            if (liveFetchers.MetadataReason) parts.push(liveFetchers.MetadataReason);
+                            const names = (liveFetchers.EnabledFetchers || []).concat(liveFetchers.EnabledMetadataFetchers || []).join(', ');
+                            mdLines.push('- **Collections fetchers:** conflict' + (liveFetchers.LibraryName ? ' (' + liveFetchers.LibraryName + ')' : '') + (parts.length ? ' — ' + parts.join('; ') : '') + (names ? ' [' + names + ']' : ''));
+                        } else {
+                            mdLines.push('- **Collections fetchers:** ok');
+                        }
+                    } else {
+                        mdLines.push('- **Collections fetchers:** check failed');
                     }
-
-                    let wordWrap = getSavedBool('lms_diag_wrap', true);
-                    let maskPaths = getSavedBool('lms_diag_mask_paths', true);
-                    let maskTitles = getSavedBool('lms_diag_mask_titles', false);
-                    let includeErrors = getSavedBool('lms_diag_include_errors', true);
-
-                    function sanitizePath(str) {
-                        if (!str) return '';
-                        if (!maskPaths) return str;
-                        // Mask Windows absolute paths (e.g. C:\path\... -> ...\file)
-                        let res = str.replace(/([a-zA-Z]:\\[^\s'"<>]+)/g, function (match) {
-                            const parts = match.split(/[\\/]/).filter(Boolean);
-                            return '.../' + (parts.length > 0 ? parts[parts.length - 1] : 'file');
-                        });
-                        // Mask Unix absolute paths (e.g. /srv/shares/... -> .../file)
-                        res = res.replace(/((\/[a-zA-Z0-9_\.\-]+){2,})/g, function (match) {
-                            const parts = match.split('/').filter(Boolean);
-                            return '.../' + (parts.length > 0 ? parts[parts.length - 1] : 'file');
-                        });
-                        return res;
+                    if (liveGrouping) {
+                        mdLines.push('- **Group movies into collections:** ' + (liveGrouping.IsEnabled ? 'enabled' : 'disabled (movies shown individually)'));
+                    } else {
+                        mdLines.push('- **Group movies into collections:** check failed');
                     }
+                }
 
-                    function sanitizeTitle(str) {
-                        if (!str) return '';
-                        if (!maskTitles) return str;
-                        return str.replace(/([A-Z0-9a-z\s\-_]+)( Collection| Movie| Set)/g, '[Collection]');
+                function generateMarkdown() {
+                    if (!info) {
+                        return collectError
+                            ? ('Failed to collect diagnostics.\n\n' + collectError)
+                            : 'Collecting live diagnostics…\n\nRunning Preview, NFO/artwork validation, and health checks.';
                     }
 
-                    function generateMarkdown() {
-                        const mdLines = [
-                            '### Environment',
-                            '- **Jellyfin Version:** ' + (info.ServerVersion || 'Unknown'),
-                            '- **Plugin Version:** ' + (info.PluginVersion || 'Unknown'),
-                            '- **Operating System:** ' + (info.OperatingSystem || 'Unknown'),
-                            '- **Architecture:** ' + (info.Architecture || 'Unknown'),
-                            '- **.NET Runtime:** ' + (info.DotNetVersion || 'Unknown'),
-                            '',
-                            '### Configuration',
-                            '- **NFO Naming:** ' + (info.NfoNamingConvention || 'Unknown'),
-                            '- **Minimum Movies:** ' + (info.MinimumMovies !== undefined ? info.MinimumMovies : 1),
-                            '- **Mount Guard:** ' + (info.MountGuardEnabled ? 'Enabled' : 'Disabled'),
-                            '- **Movie Folder Fallback:** ' + (info.MovieFolderFallbackEnabled ? 'Enabled' : 'Disabled'),
-                            '- **Delete Orphaned Sets:** ' + (info.DeleteOrphanedSets ? 'Enabled' : 'Disabled'),
-                            '- **Sort By:** ' + (info.CollectionSortBy || 'Default'),
-                            '- **Aggregate Ratings:** ' + (info.AggregateRatings ? 'Enabled' : 'Disabled'),
-                            '- **Aggregate Tags:** ' + (info.AggregateTags ? 'Enabled (Limit: ' + (info.MaxTags === 0 ? 'All' : info.MaxTags) + ')' : 'Disabled'),
-                            '- **Aggregate Cast & Crew:** ' + (info.AggregatePeople ? 'Enabled (Actors: ' + (info.MaxActors === 0 ? 'All' : info.MaxActors) + ', Directors: ' + (info.MaxDirectors === 0 ? 'All' : info.MaxDirectors) + ', Writers: ' + (info.MaxWriters === 0 ? 'All' : info.MaxWriters) + ')' : 'Disabled'),
-                            '- **Aggregate Genres:** ' + (info.AggregateGenres ? 'Enabled (Limit: ' + (info.MaxGenres === 0 ? 'All' : info.MaxGenres) + ')' : 'Disabled'),
-                            '- **Aggregate Studios:** ' + (info.AggregateStudios ? 'Enabled (Limit: ' + (info.MaxStudios === 0 ? 'All' : info.MaxStudios) + ')' : 'Disabled'),
-                            '',
-                            '### Last Sync Metrics',
-                            '- **Last Run Outcome:** ' + (info.LastRunOutcome || 'None'),
-                            '- **Duration:** ' + (info.DurationSeconds !== null && info.DurationSeconds !== undefined ? info.DurationSeconds + 's' : 'N/A'),
-                            '- **Movies Scanned:** ' + (info.ScannedMoviesCount || 0) + ' (' + (info.MoviesInSetsCount || 0) + ' in sets)',
-                            '- **Sets Found:** ' + (info.SetsFoundCount || 0),
-                            '- **Collections:** +' + (info.CollectionsCreatedCount || 0) + ' / ~' + (info.CollectionsUpdatedCount || 0) + ' / -' + (info.CollectionsDeletedCount || 0),
-                            '- **NFO Parse Errors:** ' + (info.NfoParseErrorsCount || 0)
-                        ];
+                    const mdLines = [
+                        '### Environment',
+                        '- **Jellyfin Version:** ' + (info.ServerVersion || 'Unknown'),
+                        '- **Plugin Version:** ' + (info.PluginVersion || 'Unknown'),
+                        '- **Operating System:** ' + (info.OperatingSystem || 'Unknown'),
+                        '- **Architecture:** ' + (info.Architecture || 'Unknown'),
+                        '- **.NET Runtime:** ' + (info.DotNetVersion || 'Unknown'),
+                        '',
+                        '### Configuration',
+                        '- **NFO Naming:** ' + (info.NfoNamingConvention || 'Unknown'),
+                        '- **Minimum Movies:** ' + (info.MinimumMovies !== undefined ? info.MinimumMovies : 1),
+                        '- **Mount Guard:** ' + (info.MountGuardEnabled ? 'Enabled' : 'Disabled'),
+                        '- **Movie Folder Fallback:** ' + (info.MovieFolderFallbackEnabled ? 'Enabled' : 'Disabled'),
+                        '- **Delete Orphaned Sets:** ' + (info.DeleteOrphanedSets ? 'Enabled' : 'Disabled'),
+                        '- **Sort By:** ' + (info.CollectionSortBy || 'Default'),
+                        '- **Aggregate Ratings:** ' + (info.AggregateRatings ? 'Enabled' : 'Disabled'),
+                        '- **Aggregate Tags:** ' + (info.AggregateTags ? 'Enabled (Limit: ' + (info.MaxTags === 0 ? 'All' : info.MaxTags) + ')' : 'Disabled'),
+                        '- **Aggregate Cast & Crew:** ' + (info.AggregatePeople ? 'Enabled (Actors: ' + (info.MaxActors === 0 ? 'All' : info.MaxActors) + ', Directors: ' + (info.MaxDirectors === 0 ? 'All' : info.MaxDirectors) + ', Writers: ' + (info.MaxWriters === 0 ? 'All' : info.MaxWriters) + ')' : 'Disabled'),
+                        '- **Aggregate Genres:** ' + (info.AggregateGenres ? 'Enabled (Limit: ' + (info.MaxGenres === 0 ? 'All' : info.MaxGenres) + ')' : 'Disabled'),
+                        '- **Aggregate Studios:** ' + (info.AggregateStudios ? 'Enabled (Limit: ' + (info.MaxStudios === 0 ? 'All' : info.MaxStudios) + ')' : 'Disabled')
+                    ];
 
-                        if (includeErrors) {
+                    appendPreviewSection(mdLines);
+                    appendHealthSection(mdLines);
+
+                    mdLines.push('');
+                    mdLines.push('### Last Sync Metrics (historical)');
+                    mdLines.push('- **Last Run Outcome:** ' + (info.LastRunOutcome || 'None'));
+                    mdLines.push('- **Duration:** ' + (info.DurationSeconds !== null && info.DurationSeconds !== undefined ? info.DurationSeconds + 's' : 'N/A'));
+                    mdLines.push('- **Movies Scanned:** ' + (info.ScannedMoviesCount || 0) + ' (' + (info.MoviesInSetsCount || 0) + ' in sets)');
+                    mdLines.push('- **Sets Found:** ' + (info.SetsFoundCount || 0));
+                    mdLines.push('- **Collections:** +' + (info.CollectionsCreatedCount || 0) + ' / ~' + (info.CollectionsUpdatedCount || 0) + ' / -' + (info.CollectionsDeletedCount || 0));
+                    mdLines.push('- **NFO Parse Errors:** ' + (info.NfoParseErrorsCount || 0));
+
+                    if (includeErrors) {
+                        mdLines.push('');
+                        mdLines.push('### Diagnostics & Errors');
+                        if (info.LastErrorMessage) {
+                            let errMsg = info.LastErrorMessage;
+                            if (maskPaths) errMsg = sanitizePath(errMsg);
+                            if (maskTitles) errMsg = sanitizeTitle(errMsg);
+                            mdLines.push('- **Last Sync Error:** `' + errMsg + '`');
+                        } else {
+                            mdLines.push('- **Last Sync Error:** None');
+                        }
+
+                        if (liveValidation && liveValidation.Issues && liveValidation.Issues.length > 0) {
                             mdLines.push('');
-                            mdLines.push('### Diagnostics & Errors');
-                            if (info.LastErrorMessage) {
-                                let errMsg = info.LastErrorMessage;
-                                if (maskPaths) errMsg = sanitizePath(errMsg);
-                                if (maskTitles) errMsg = sanitizeTitle(errMsg);
-                                mdLines.push('- **Last Sync Error:** `' + errMsg + '`');
-                            } else {
-                                mdLines.push('- **Last Sync Error:** None');
-                            }
-
-                            // Full Validator Diagnostics (100% complete, zero truncation)
-                            if (currentValidationReport && currentValidationReport.Issues && currentValidationReport.Issues.length > 0) {
-                                mdLines.push('');
-                                mdLines.push('### Validator Diagnostics (' + currentValidationReport.Issues.length + ' total: ' + (currentValidationReport.ErrorCount || 0) + ' errors, ' + (currentValidationReport.WarningCount || 0) + ' warnings, ' + (currentValidationReport.InfoCount || 0) + ' infos)');
-                                currentValidationReport.Issues.forEach(function (issue, idx) {
-                                    let colName = issue.CollectionName || 'Unknown';
-                                    let filePath = issue.FilePath || issue.FolderPath || '';
-                                    let desc = issue.Message || issue.Issue || '';
-                                    let sugg = issue.Suggestion || '';
-                                    if (maskTitles) colName = '[Collection #' + (idx + 1) + ']';
-                                    if (maskPaths) filePath = sanitizePath(filePath);
-                                    let itemStr = '- [' + (issue.Severity || 'Issue') + '] **' + colName + '**: ' + desc;
-                                    if (filePath) itemStr += ' (`' + filePath + '`)';
-                                    if (sugg) itemStr += ' &rarr; *' + sugg + '*';
-                                    mdLines.push(itemStr);
-                                });
-                            }
-
-                            // Recent Sync Execution Logs
-                            if (info.RecentLogs && info.RecentLogs.length > 0) {
-                                mdLines.push('');
-                                mdLines.push('### Recent Sync Execution Logs (' + info.RecentLogs.length + ' lines)');
-                                mdLines.push('```');
-                                info.RecentLogs.forEach(function (logLine) {
-                                    let l = logLine;
-                                    if (maskPaths) l = sanitizePath(l);
-                                    if (maskTitles) l = sanitizeTitle(l);
-                                    mdLines.push(l);
-                                });
-                                mdLines.push('```');
-                            }
-                        }
-
-                        return mdLines.join('\n');
-                    }
-
-                    const modal = document.createElement('div');
-                    modal.id = 'SystemInfoModal';
-                    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 99999; font-family: inherit;';
-
-                    const modalContent = document.createElement('div');
-                    modalContent.style.cssText = 'background: #1c1c1e; border: 1px solid #2c2c2e; border-radius: 12px; width: 92%; max-width: 820px; max-height: 88%; display: flex; flex-direction: column; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6); overflow: hidden;';
-
-                    const header = document.createElement('div');
-                    header.style.cssText = 'padding: 1em 1.25em; border-bottom: 1px solid #2c2c2e; display: flex; justify-content: space-between; align-items: center; background: #252528;';
-
-                    const title = document.createElement('h3');
-                    title.textContent = 'System Diagnostics & Bug Report Export';
-                    title.style.cssText = 'margin: 0; font-size: 1.1em; color: #fff; display: flex; align-items: center; gap: 0.5em;';
-                    header.appendChild(title);
-
-                    function closeModal() {
-                        if (document.body.contains(modal)) {
-                            document.body.removeChild(modal);
-                        }
-                        window.removeEventListener('keydown', onKeyDown);
-                    }
-
-                    function onKeyDown(e) {
-                        if (e.key === 'Escape') closeModal();
-                    }
-                    window.addEventListener('keydown', onKeyDown);
-
-                    modal.onclick = function (e) {
-                        if (e.target === modal) closeModal();
-                    };
-
-                    const btnClose = document.createElement('button');
-                    btnClose.innerHTML = '&times;';
-                    btnClose.style.cssText = 'background: none; border: none; color: #aaa; font-size: 1.5em; cursor: pointer; padding: 0; line-height: 1;';
-                    btnClose.onclick = closeModal;
-                    header.appendChild(btnClose);
-                    modalContent.appendChild(header);
-
-                    // Privacy & Display Controls Toolbar
-                    const toolbar = document.createElement('div');
-                    toolbar.style.cssText = 'padding: 0.85em 1.25em; background: rgba(255, 255, 255, 0.04); border-bottom: 1px solid rgba(255, 255, 255, 0.08);';
-                    toolbar.innerHTML = [
-                        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em; flex-wrap: wrap; gap: 0.5em;">',
-                        '  <div style="font-size: 0.78em; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Interactive Privacy &amp; Output Filters:</div>',
-                        '  <label class="emby-checkbox-label" style="font-size: 0.85em; color: #00a4dc;">',
-                        '    <input type="checkbox" id="LmsWordWrap" ' + (wordWrap ? 'checked' : '') + ' class="lms-checkbox" />',
-                        '    <span>↩️ Wrap Long Lines</span>',
-                        '  </label>',
-                        '</div>',
-                        '<div style="display: flex; gap: 1.2em; flex-wrap: wrap;">',
-                        '  <label class="emby-checkbox-label" style="font-size: 0.88em;">',
-                        '    <input type="checkbox" id="LmsMaskPaths" ' + (maskPaths ? 'checked' : '') + ' class="lms-checkbox" />',
-                        '    <span>📁 Mask File Paths</span>',
-                        '  </label>',
-                        '  <label class="emby-checkbox-label" style="font-size: 0.88em;">',
-                        '    <input type="checkbox" id="LmsMaskTitles" ' + (maskTitles ? 'checked' : '') + ' class="lms-checkbox" />',
-                        '    <span>🎬 Mask Set &amp; Movie Titles</span>',
-                        '  </label>',
-                        '  <label class="emby-checkbox-label" style="font-size: 0.88em;">',
-                        '    <input type="checkbox" id="LmsIncludeErrors" ' + (includeErrors ? 'checked' : '') + ' class="lms-checkbox" />',
-                        '    <span>⚠️ Include Diagnostics &amp; Logs</span>',
-                        '  </label>',
-                        '</div>'
-                    ].join('\n');
-                    modalContent.appendChild(toolbar);
-
-                    const body = document.createElement('div');
-                    body.style.cssText = 'padding: 1.25em; flex-grow: 1; display: flex; flex-direction: column;';
-
-                    const textarea = document.createElement('textarea');
-                    textarea.readOnly = true;
-                    textarea.value = generateMarkdown();
-                    textarea.style.cssText = 'width: 100%; height: 380px; box-sizing: border-box; background: #141416; color: #eee; border: 1px solid #333; border-radius: 6px; padding: 0.75em; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.88em; line-height: 1.45; resize: none; outline: none; white-space: pre-wrap; word-break: break-word;';
-                    body.appendChild(textarea);
-                    modalContent.appendChild(body);
-
-                    function updateText() {
-                        textarea.value = generateMarkdown();
-                    }
-
-                    const chkWrap = toolbar.querySelector('#LmsWordWrap');
-                    function applyWrap() {
-                        if (wordWrap) {
-                            textarea.style.whiteSpace = 'pre-wrap';
-                            textarea.style.wordBreak = 'break-word';
-                            textarea.style.overflowX = 'hidden';
-                        } else {
-                            textarea.style.whiteSpace = 'pre';
-                            textarea.style.wordBreak = 'normal';
-                            textarea.style.overflowX = 'auto';
-                        }
-                    }
-                    if (chkWrap) {
-                        chkWrap.onchange = function () {
-                            wordWrap = chkWrap.checked;
-                            setSavedBool('lms_diag_wrap', wordWrap);
-                            applyWrap();
-                        };
-                        applyWrap();
-                    }
-
-                    const chkPaths = toolbar.querySelector('#LmsMaskPaths');
-                    const chkTitles = toolbar.querySelector('#LmsMaskTitles');
-                    const chkErrors = toolbar.querySelector('#LmsIncludeErrors');
-
-                    chkPaths.onchange = function () {
-                        maskPaths = chkPaths.checked;
-                        setSavedBool('lms_diag_mask_paths', maskPaths);
-                        updateText();
-                    };
-                    chkTitles.onchange = function () {
-                        maskTitles = chkTitles.checked;
-                        setSavedBool('lms_diag_mask_titles', maskTitles);
-                        updateText();
-                    };
-                    chkErrors.onchange = function () {
-                        includeErrors = chkErrors.checked;
-                        setSavedBool('lms_diag_include_errors', includeErrors);
-                        updateText();
-                    };
-
-                    const footer = document.createElement('div');
-                    footer.style.cssText = 'padding: 0.85em 1.25em; border-top: 1px solid #2c2c2e; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8em; background: #252528;';
-
-                    const hint = document.createElement('div');
-                    hint.style.cssText = 'font-size: 0.8em; color: #888; white-space: nowrap;';
-                    hint.textContent = '🔒 100% offline & zero telemetry';
-                    footer.appendChild(hint);
-
-                    const actions = document.createElement('div');
-                    actions.style.cssText = 'display: flex; gap: 0.8em; align-items: center; flex-wrap: wrap; margin-left: auto;';
-
-                    const linkReport = document.createElement('a');
-                    linkReport.href = 'https://github.com/gitrys/jellyfin-local-movieset-addon/issues/new';
-                    linkReport.target = '_blank';
-                    linkReport.rel = 'noopener noreferrer';
-                    linkReport.className = 'raised emby-button';
-                    linkReport.style.cssText = 'display: inline-flex; align-items: center; gap: 0.4em; padding: 0.5em 1.1em; font-size: 0.88em; text-decoration: none; color: #fff; background: rgba(255, 255, 255, 0.08); border-radius: 4px; white-space: nowrap;';
-                    linkReport.innerHTML = '<span>🐛 Report Issue on GitHub</span>';
-                    actions.appendChild(linkReport);
-
-                    const btnCopy = document.createElement('button');
-                    btnCopy.className = 'raised button-submit emby-button';
-                    btnCopy.innerHTML = '<span>📋 Copy to Clipboard</span>';
-                    btnCopy.style.cssText = 'margin: 0; padding: 0.5em 1.2em; font-size: 0.9em; background: #00a4dc; color: #fff; cursor: pointer; transition: background 0.2s ease; white-space: nowrap;';
-                    btnCopy.onclick = function () {
-                        textarea.select();
-                        const currentText = textarea.value;
-                        function showCopied() {
-                            btnCopy.innerHTML = '<span>✓ Copied!</span>';
-                            btnCopy.style.background = '#4CAF50';
-                            setTimeout(function () {
-                                btnCopy.innerHTML = '<span>📋 Copy to Clipboard</span>';
-                                btnCopy.style.background = '#00a4dc';
-                            }, 2500);
-                        }
-                        if (navigator.clipboard && navigator.clipboard.writeText) {
-                            navigator.clipboard.writeText(currentText).then(showCopied).catch(function () {
-                                document.execCommand('copy');
-                                showCopied();
+                            mdLines.push('### Validator Diagnostics (live) (' + liveValidation.Issues.length + ' total: ' + (liveValidation.ErrorCount || 0) + ' errors, ' + (liveValidation.WarningCount || 0) + ' warnings, ' + (liveValidation.InfoCount || 0) + ' infos)');
+                            liveValidation.Issues.forEach(function (issue, idx) {
+                                let colName = issue.CollectionName || 'Unknown';
+                                let filePath = issue.FilePath || issue.FolderPath || '';
+                                let desc = issue.Message || issue.Issue || '';
+                                let sugg = issue.Suggestion || '';
+                                if (maskTitles) colName = '[Collection #' + (idx + 1) + ']';
+                                if (maskPaths) filePath = sanitizePath(filePath);
+                                let itemStr = '- [' + (issue.Severity || 'Issue') + '] **' + colName + '**: ' + desc;
+                                if (filePath) itemStr += ' (`' + filePath + '`)';
+                                if (sugg) itemStr += ' → *' + sugg + '*';
+                                mdLines.push(itemStr);
                             });
+                        } else if (folderPath) {
+                            mdLines.push('');
+                            mdLines.push('### Validator Diagnostics (live)');
+                            mdLines.push('- No issues reported (or validation returned empty).');
                         } else {
+                            mdLines.push('');
+                            mdLines.push('### Validator Diagnostics (live)');
+                            mdLines.push('- Skipped (no Set Data Folder path).');
+                        }
+
+                        if (info.RecentLogs && info.RecentLogs.length > 0) {
+                            mdLines.push('');
+                            mdLines.push('### Recent Sync Execution Logs (' + info.RecentLogs.length + ' lines)');
+                            mdLines.push('```');
+                            info.RecentLogs.forEach(function (logLine) {
+                                let l = logLine;
+                                if (maskPaths) l = sanitizePath(l);
+                                if (maskTitles) l = sanitizeTitle(l);
+                                mdLines.push(l);
+                            });
+                            mdLines.push('```');
+                        }
+                    }
+
+                    return mdLines.join('\n');
+                }
+
+                const existing = document.getElementById('SystemInfoModal');
+                if (existing) existing.remove();
+
+                const modal = document.createElement('div');
+                modal.id = 'SystemInfoModal';
+                modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 99999; font-family: inherit;';
+
+                const modalContent = document.createElement('div');
+                modalContent.style.cssText = 'background: #1c1c1e; border: 1px solid #2c2c2e; border-radius: 12px; width: 92%; max-width: 820px; max-height: 88%; display: flex; flex-direction: column; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6); overflow: hidden;';
+
+                const header = document.createElement('div');
+                header.style.cssText = 'padding: 1em 1.25em; border-bottom: 1px solid #2c2c2e; display: flex; justify-content: space-between; align-items: center; background: #252528;';
+
+                const title = document.createElement('h3');
+                title.textContent = 'System Diagnostics & Bug Report Export';
+                title.style.cssText = 'margin: 0; font-size: 1.1em; color: #fff; display: flex; align-items: center; gap: 0.5em;';
+                header.appendChild(title);
+
+                function closeModal() {
+                    if (document.body.contains(modal)) {
+                        document.body.removeChild(modal);
+                    }
+                    window.removeEventListener('keydown', onKeyDown);
+                }
+
+                function onKeyDown(e) {
+                    if (e.key === 'Escape') closeModal();
+                }
+                window.addEventListener('keydown', onKeyDown);
+
+                modal.onclick = function (e) {
+                    if (e.target === modal) closeModal();
+                };
+
+                const btnClose = document.createElement('button');
+                btnClose.innerHTML = '&times;';
+                btnClose.style.cssText = 'background: none; border: none; color: #aaa; font-size: 1.5em; cursor: pointer; padding: 0; line-height: 1;';
+                btnClose.onclick = closeModal;
+                header.appendChild(btnClose);
+                modalContent.appendChild(header);
+
+                const toolbar = document.createElement('div');
+                toolbar.style.cssText = 'padding: 0.85em 1.25em; background: rgba(255, 255, 255, 0.04); border-bottom: 1px solid rgba(255, 255, 255, 0.08);';
+                toolbar.innerHTML = [
+                    '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em; flex-wrap: wrap; gap: 0.5em;">',
+                    '  <div style="font-size: 0.78em; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Interactive Privacy &amp; Output Filters:</div>',
+                    '  <label class="emby-checkbox-label" style="font-size: 0.85em; color: #00a4dc;">',
+                    '    <input type="checkbox" id="LmsWordWrap" ' + (wordWrap ? 'checked' : '') + ' class="lms-checkbox" />',
+                    '    <span>↩️ Wrap Long Lines</span>',
+                    '  </label>',
+                    '</div>',
+                    '<div style="display: flex; gap: 1.2em; flex-wrap: wrap;">',
+                    '  <label class="emby-checkbox-label" style="font-size: 0.88em;">',
+                    '    <input type="checkbox" id="LmsMaskPaths" ' + (maskPaths ? 'checked' : '') + ' class="lms-checkbox" />',
+                    '    <span>📁 Mask File Paths</span>',
+                    '  </label>',
+                    '  <label class="emby-checkbox-label" style="font-size: 0.88em;">',
+                    '    <input type="checkbox" id="LmsMaskTitles" ' + (maskTitles ? 'checked' : '') + ' class="lms-checkbox" />',
+                    '    <span>🎬 Mask Set &amp; Movie Titles</span>',
+                    '  </label>',
+                    '  <label class="emby-checkbox-label" style="font-size: 0.88em;">',
+                    '    <input type="checkbox" id="LmsIncludeErrors" ' + (includeErrors ? 'checked' : '') + ' class="lms-checkbox" />',
+                    '    <span>⚠️ Include Diagnostics &amp; Logs</span>',
+                    '  </label>',
+                    '</div>'
+                ].join('\n');
+                modalContent.appendChild(toolbar);
+
+                const statusLine = document.createElement('div');
+                statusLine.id = 'LmsDiagCollectStatus';
+                statusLine.style.cssText = 'padding: 0.55em 1.25em; font-size: 0.85em; color: #00a4dc; background: rgba(0,164,220,0.08); border-bottom: 1px solid rgba(255,255,255,0.06);';
+                statusLine.textContent = 'Collecting live Preview, validation, and health checks…';
+                modalContent.appendChild(statusLine);
+
+                const body = document.createElement('div');
+                body.style.cssText = 'padding: 1.25em; flex-grow: 1; display: flex; flex-direction: column;';
+
+                const textarea = document.createElement('textarea');
+                textarea.readOnly = true;
+                textarea.value = generateMarkdown();
+                textarea.style.cssText = 'width: 100%; height: 380px; box-sizing: border-box; background: #141416; color: #eee; border: 1px solid #333; border-radius: 6px; padding: 0.75em; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.88em; line-height: 1.45; resize: none; outline: none; white-space: pre-wrap; word-break: break-word;';
+                body.appendChild(textarea);
+                modalContent.appendChild(body);
+
+                function updateText() {
+                    textarea.value = generateMarkdown();
+                }
+
+                const chkWrap = toolbar.querySelector('#LmsWordWrap');
+                function applyWrap() {
+                    if (wordWrap) {
+                        textarea.style.whiteSpace = 'pre-wrap';
+                        textarea.style.wordBreak = 'break-word';
+                        textarea.style.overflowX = 'hidden';
+                    } else {
+                        textarea.style.whiteSpace = 'pre';
+                        textarea.style.wordBreak = 'normal';
+                        textarea.style.overflowX = 'auto';
+                    }
+                }
+                if (chkWrap) {
+                    chkWrap.onchange = function () {
+                        wordWrap = chkWrap.checked;
+                        setSavedBool('lms_diag_wrap', wordWrap);
+                        applyWrap();
+                    };
+                    applyWrap();
+                }
+
+                const chkPaths = toolbar.querySelector('#LmsMaskPaths');
+                const chkTitles = toolbar.querySelector('#LmsMaskTitles');
+                const chkErrors = toolbar.querySelector('#LmsIncludeErrors');
+
+                chkPaths.onchange = function () {
+                    maskPaths = chkPaths.checked;
+                    setSavedBool('lms_diag_mask_paths', maskPaths);
+                    updateText();
+                };
+                chkTitles.onchange = function () {
+                    maskTitles = chkTitles.checked;
+                    setSavedBool('lms_diag_mask_titles', maskTitles);
+                    updateText();
+                };
+                chkErrors.onchange = function () {
+                    includeErrors = chkErrors.checked;
+                    setSavedBool('lms_diag_include_errors', includeErrors);
+                    updateText();
+                };
+
+                const footer = document.createElement('div');
+                footer.style.cssText = 'padding: 0.85em 1.25em; border-top: 1px solid #2c2c2e; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8em; background: #252528;';
+
+                const hint = document.createElement('div');
+                hint.style.cssText = 'font-size: 0.8em; color: #888; white-space: nowrap;';
+                hint.textContent = '100% offline & zero telemetry · live dry-run';
+                footer.appendChild(hint);
+
+                const actions = document.createElement('div');
+                actions.style.cssText = 'display: flex; gap: 0.8em; align-items: center; flex-wrap: wrap; margin-left: auto;';
+
+                const linkReport = document.createElement('a');
+                linkReport.href = 'https://github.com/gitrys/jellyfin-local-movieset-addon/issues/new';
+                linkReport.target = '_blank';
+                linkReport.rel = 'noopener noreferrer';
+                linkReport.className = 'raised emby-button';
+                linkReport.style.cssText = 'display: inline-flex; align-items: center; gap: 0.4em; padding: 0.5em 1.1em; font-size: 0.88em; text-decoration: none; color: #fff; background: rgba(255, 255, 255, 0.08); border-radius: 4px; white-space: nowrap;';
+                linkReport.innerHTML = '<span>Report Issue on GitHub</span>';
+                actions.appendChild(linkReport);
+
+                const btnCopy = document.createElement('button');
+                btnCopy.className = 'raised button-submit emby-button';
+                btnCopy.innerHTML = '<span>Copy to Clipboard</span>';
+                btnCopy.style.cssText = 'margin: 0; padding: 0.5em 1.2em; font-size: 0.9em; background: #00a4dc; color: #fff; cursor: pointer; transition: background 0.2s ease; white-space: nowrap;';
+                btnCopy.disabled = true;
+                btnCopy.onclick = function () {
+                    textarea.select();
+                    const currentText = textarea.value;
+                    function showCopied() {
+                        btnCopy.innerHTML = '<span>Copied!</span>';
+                        btnCopy.style.background = '#4CAF50';
+                        setTimeout(function () {
+                            btnCopy.innerHTML = '<span>Copy to Clipboard</span>';
+                            btnCopy.style.background = '#00a4dc';
+                        }, 2500);
+                    }
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(currentText).then(showCopied).catch(function () {
                             document.execCommand('copy');
                             showCopied();
-                        }
-                    };
-                    actions.appendChild(btnCopy);
-                    footer.appendChild(actions);
+                        });
+                    } else {
+                        document.execCommand('copy');
+                        showCopied();
+                    }
+                };
+                actions.appendChild(btnCopy);
+                footer.appendChild(actions);
 
-                    modalContent.appendChild(footer);
-                    modal.appendChild(modalContent);
-                    document.body.appendChild(modal);
+                modalContent.appendChild(footer);
+                modal.appendChild(modalContent);
+                document.body.appendChild(modal);
+
+                const soft = function (p) {
+                    return p.then(function (v) { return v; }).catch(function () { return null; });
+                };
+
+                Promise.all([
+                    ApiClient.getJSON(ApiClient.getUrl('LocalMovieSets/SystemInfo')),
+                    folderPath
+                        ? soft(ApiClient.getJSON(ApiClient.getUrl('LocalMovieSets/Validate', { folderPath: folderPath })))
+                        : Promise.resolve(null),
+                    soft(ApiClient.getJSON(ApiClient.getUrl('LocalMovieSets/Preview'))),
+                    soft(ApiClient.getJSON(ApiClient.getUrl('LocalMovieSets/CheckConflicts'))),
+                    soft(ApiClient.getJSON(ApiClient.getUrl('LocalMovieSets/CheckImageFetchers'))),
+                    soft(ApiClient.getJSON(ApiClient.getUrl('LocalMovieSets/CheckGrouping')))
+                ]).then(function (results) {
+                    info = results[0];
+                    liveValidation = results[1];
+                    livePreview = results[2];
+                    liveConflicts = results[3];
+                    liveFetchers = results[4];
+                    liveGrouping = results[5];
+                    if (liveValidation) {
+                        currentValidationReport = liveValidation;
+                    }
+                    if (!info) {
+                        collectError = 'SystemInfo endpoint returned no data.';
+                        statusLine.textContent = 'Collection failed.';
+                        statusLine.style.color = '#f44336';
+                    } else {
+                        statusLine.textContent = 'Live diagnostics ready (Preview + validation + health checks).';
+                        statusLine.style.color = '#4CAF50';
+                        btnCopy.disabled = false;
+                    }
+                    updateText();
                 }).catch(function (err) {
-                    console.error('Failed to load system info:', err);
+                    console.error('Failed to collect live diagnostics:', err);
+                    collectError = String(err && err.message ? err.message : err);
+                    statusLine.textContent = 'Collection failed.';
+                    statusLine.style.color = '#f44336';
+                    updateText();
                     showStatus('Failed to load system diagnostics info.', true);
                 });
             }
@@ -2042,6 +2314,7 @@
                 loadConfig(page);
                 checkConflicts(page);
                 updateThemeSongGuideWarning(page);
+                bindAutosave(page);
 
                 if (!page._lmsThemeSongVisibilityBound) {
                     page._lmsThemeSongVisibilityBound = true;
