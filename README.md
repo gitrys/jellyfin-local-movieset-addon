@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-orange.svg?style=flat&logo=buy-me-a-coffee)](https://buymeacoffee.com/gitrys)
-[![Jellyfin Compatibility](https://img.shields.io/badge/Jellyfin-10.10%2B%20%7C%2012.x-00a4dc.svg?style=flat&logo=jellyfin)](https://jellyfin.org)
+[![Jellyfin Compatibility](https://img.shields.io/badge/Jellyfin-12.x-00a4dc.svg?style=flat&logo=jellyfin)](https://jellyfin.org)
 
 **Creates and manages movie collections (box sets) in Jellyfin using 100% local metadata and artwork produced by media managers such as tinyMediaManager, MediaElch, or Kodi.**  
 *Zero external API calls. Zero cloud telemetry. Completely offline and private.*
@@ -77,6 +77,8 @@ If you curate your media collection using media managers such as [tinyMediaManag
 ---
 
 ## Installation
+
+Current releases need **Jellyfin 12**. The last build for Jellyfin 10.10 is [1.0.30.0](https://github.com/gitrys/jellyfin-local-movieset-addon/releases/tag/v1.0.30.0).
 
 ### Method A: Via Jellyfin Plugin Repository (Recommended)
 
