@@ -62,7 +62,7 @@ If you curate your media collection using media managers such as [tinyMediaManag
 ## Key Features
 
 - ⚡ **100% Local & Offline:** Never makes outbound calls to TMDB, TVDb, or external servers. Your media collection stays private and works during internet outages.
-- 🩺 **Settings, Diagnostics & Setup Guide:** Instant sync, dry-run preview with movie-level diffs and KPI badges, NFO/artwork validation, path checks, Force Rebuild, and an in-plugin setup guide.
+- 🩺 **Settings, Diagnostics & Setup Guide:** Instant sync, dry-run preview with movie-level diffs and KPI badges, NFO/artwork validation, path checks, Force Rebuild, and an in-plugin setup guide. Settings save automatically after a short pause; **Save Settings** still saves immediately.
 - 🛡️ **Mount Guard Protection:** Aborts sync (no create/delete) if a movie library path is missing, empty, or unreadable.
 - 📚 **All Movie Libraries:** Scans every movie library; there is no per-library filter in the UI.
 - 🔄 **Automatic Background Sync:** Hooks into Jellyfin library events to resync after library scans (with debounce).
@@ -144,10 +144,10 @@ You likely have Jellyfin's native **"Automatically add to collection"** option e
 In the dedicated set data folder (e.g. `_sets/Alien Collection/poster.jpg`). Optionally enable **Search movie folders for set artwork** and place `movieset-poster.jpg` / `movieset-fanart.jpg` in member movie folders. Theme music belongs only in the set folder (`theme.mp3` or a prefixed name).
 
 ### Will my collections disappear if my network drive unmounts?
-No. **Mount Guard** checks that movie library roots are online and non-empty before sync. If a share is unreachable or empty, the sync aborts and leaves existing collections untouched.
+**Mount Guard** (on by default) checks every movie library root before sync. If a root is missing, empty, or unreadable, the sync aborts and leaves existing collections untouched. It does not check the Movie Set Data Folder. Deleting collections that no longer appear in any movie NFO is a separate option and is off by default.
 
 ### Does this plugin modify any of my media files?
-**Never.** Local Movie Sets operates in strict **read-only mode** with respect to your physical files. It never edits, renames, or writes to your `.nfo`, video, or image files on disk.
+Your movie and set `.nfo`, video, and image files are only read. Theme audio is copied into Jellyfin's own collection folder. **Force Rebuild** and orphan deletion remove those Jellyfin collection folders, not your media files.
 
 ---
 

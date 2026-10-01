@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.36.0] - 2026-10-01
+### Added
+- **Settings autosave:** Settings-tab changes save after a short pause (about 250 ms for checkboxes and dropdowns, about 900 ms for text and number fields; leaving a field saves immediately). **Save Settings** still saves at once. Confirmation uses the floating toast so the page does not shift.
+- **Live System Info & Bug Report:** Opening the dialog runs a dry-run Preview, NFO/artwork validation, and health checks (auto-add, image fetchers, grouping) instead of reusing only the last sync snapshot.
+- **Theme songs link:** The Setup Guide link opens Display preferences for the current user (`userId`). If that id is unavailable, it falls back to the user settings menu.
+
+### Changed
+- **Settings help text:** Shortened field descriptions on the Settings tab.
+- **Validate query parameter:** Diagnostics export passes `folderPath` so an unsaved Set Data Folder input is validated.
+- **Bug report template:** Path masking is on by default; title masking is optional and pattern-limited.
+- **README:** Screenshots match the current three-tab UI. Mount Guard and media-file FAQ match actual behavior (movie-library roots only; theme audio is copied into the Jellyfin collection folder).
+
+### Removed
+- **Inline status banner:** Save and sync messages no longer insert a bar that pushes the page down.
+- **Dashboard & History tab / Insights widget:** Sync progress stays in Jellyfin's activity log and Scheduled Tasks. Diagnostics export still includes last-run metrics when available.
+- **Dead status poll after Force Rebuild:** Removed a leftover poll call for a function that no longer exists.
+
+---
+
 ## [1.0.35.0] - 2026-09-30
 ### Added
 - **Interactive Dry-Run Sync Preview:** Comprehensive redesign of the preview tool in the Diagnostics tab:
@@ -20,16 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - **Streamlined Configuration Tabs:** Consolidated into three focused tabs: ⚙️ Settings, 🩺 Diagnostics & Tools, and 💡 Setup Guide.
 - **Default Limit Values:** Set default limit inputs to `0` (Unbegrenzt / All) across all metadata aggregation fields.
-- **README accuracy:** Feature list and FAQ now match current defaults (no library filter, optional release year/aggregation, theme music only from the set folder).
-- **Bug report template:** Clarified that path masking is on by default and title masking is optional / pattern-limited.
-- **Validate query parameter:** Diagnostics export now passes `folderPath` so an unsaved Set Data Folder input is actually validated.
-- **Settings help text:** Shortened field descriptions across the Settings tab for clearer defaults and orphan/artwork behavior.
-- **System Info & Bug Report:** Opens immediately and collects a live dry-run Preview, NFO/artwork validation, and health checks (auto-add / fetchers / grouping) instead of reusing only the last sync snapshot.
-- **Settings autosave:** Settings tab changes save automatically (≈250&nbsp;ms for checkboxes/selects, ≈900&nbsp;ms grace for text/number fields; blur flushes immediately). Save Settings still saves at once.
 
-### Removed
-- **Dashboard & History tab / Insights widget:** Removed from the configuration UI. Sync progress is visible via Jellyfin's server activity log and Scheduled Tasks; diagnostics export still includes last-run metrics when available.
-- **Dead status poll after Force Rebuild:** Removed a leftover `scheduleStatusPoll` call that referenced a function no longer present in the page.
 ---
 
 ## [1.0.34.0] - 2026-09-30
