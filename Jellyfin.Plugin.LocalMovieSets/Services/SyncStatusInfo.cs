@@ -67,6 +67,9 @@ public class SyncStatusInfo
     /// <summary>Gets or sets the number of NFO files that could not be parsed.</summary>
     public int NfoParseErrors { get; set; }
 
+    /// <summary>Gets or sets how many set movies were refreshed because their NFO was newer.</summary>
+    public int MoviesRefreshedFromNfo { get; set; }
+
     /// <summary>Gets or sets the collection names that occur more than once in Jellyfin.</summary>
     public IReadOnlyList<string> DuplicateCollectionNames { get; set; } = Array.Empty<string>();
 

@@ -322,6 +322,15 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 $"Discovered {stats.SetsFound} distinct sets across {stats.MoviesInSets} movies ({stats.NfoParseErrors} NFO errors).");
             progress?.Report(15);
 
+            stats.MoviesRefreshedFromNfo = await RefreshMoviesFromNewerNfosAsync(setGroups, cancellationToken)
+                .ConfigureAwait(false);
+            if (stats.MoviesRefreshedFromNfo > 0)
+            {
+                LogMessage(
+                    LogLevel.Information,
+                    $"Refreshed {stats.MoviesRefreshedFromNfo} movie(s) from a newer NFO.");
+            }
+
             // ── Step 3: Load existing BoxSet collections ───────────────────────
             var (existingBoxSets, existingByName, duplicateNames) = LoadExistingBoxSets();
             stats.DuplicateCollectionNames = duplicateNames;
@@ -450,6 +459,10 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 case SyncOutcomes.Success:
                     name = "Local Movie Sets Sync Succeeded";
                     overview = $"Synced {stats.SetsFound} collections (+{stats.CollectionsCreated} / ~{stats.CollectionsUpdated} / -{stats.CollectionsDeleted}) from {stats.MoviesScanned} movies in {duration}.";
+                    if (stats.MoviesRefreshedFromNfo > 0)
+                    {
+                        overview += $" Refreshed {stats.MoviesRefreshedFromNfo} movie(s) from a newer NFO.";
+                    }
                     severity = LogLevel.Information;
                     break;
 
@@ -611,6 +624,71 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             .Items
             .OfType<Movie>()
             .ToList();
+    }
+
+    /// <summary>
+    /// Re-reads member movies whose NFO is newer than the stored library item.
+    /// Jellyfin's own NFO reader does the parse. Images are not replaced, and the
+    /// refresh mode leaves remote metadata providers out unless Jellyfin itself
+    /// already considers the movie file changed.
+    /// </summary>
+    /// <returns>How many movies were refreshed.</returns>
+    private async Task<int> RefreshMoviesFromNewerNfosAsync(
+        Dictionary<string, List<Movie>> setGroups,
+        CancellationToken cancellationToken)
+    {
+        var seen = new HashSet<Guid>();
+        var refreshed = 0;
+        var directoryService = new DirectoryService(_fileSystem);
+
+        foreach (var movies in setGroups.Values)
+        {
+            foreach (var movie in movies)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!seen.Add(movie.Id) || string.IsNullOrWhiteSpace(movie.Path))
+                {
+                    continue;
+                }
+
+                var nfoPath = MovieNfoParser.FindExistingNfoPath(movie.Path);
+                var librarySaved = MovieNfoRefresh.LibrarySavedUtc(movie.DateLastSaved, movie.DateModified);
+                if (!MovieNfoRefresh.ShouldRefresh(nfoPath, librarySaved))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    // Default mode plus a changed local NFO runs the local NFO provider
+                    // and replaces stored fields. Remote providers stay out of that path.
+                    // ValidationOnly for images keeps existing movie artwork.
+                    var options = new MetadataRefreshOptions(directoryService)
+                    {
+                        MetadataRefreshMode = MetadataRefreshMode.Default,
+                        ImageRefreshMode = MetadataRefreshMode.ValidationOnly,
+                        ReplaceAllMetadata = false,
+                        ReplaceAllImages = false,
+                        EnableRemoteContentProbe = false,
+                        IsAutomated = true
+                    };
+
+                    await _providerManager.RefreshFullItem(movie, options, cancellationToken).ConfigureAwait(false);
+                    refreshed++;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to refresh movie '{MovieName}' from NFO", movie.Name);
+                }
+            }
+        }
+
+        return refreshed;
     }
 
     /// <summary>

@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+### Changed
+- **Movie NFO refresh on sync:** Sync and Force Rebuild re-read a set member's movie NFO through Jellyfin when that file is newer than the stored library item, so later edits (age rating, plot, year, cast, genres, rating) reach the collection. Set membership was already read on every run. Movie images are left in place.
+
 ## [1.0.36.0] - 2026-10-01
 ### Added
 - **Settings autosave:** Settings-tab changes save after a short pause (about 250 ms for checkboxes and dropdowns, about 900 ms for text and number fields; leaving a field saves immediately). **Save Settings** still saves at once. Confirmation uses the floating toast so the page does not shift.

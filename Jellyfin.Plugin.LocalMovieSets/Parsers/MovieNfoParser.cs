@@ -100,6 +100,30 @@ public class MovieNfoParser
     }
 
     /// <summary>
+    /// Returns the first NFO file that exists for the movie, using the same
+    /// candidate order as <see cref="ParseNfo"/>.
+    /// </summary>
+    /// <param name="movieFilePath">Full path to the movie video file or folder.</param>
+    /// <returns>The existing NFO path, or <c>null</c> when none of the candidates exist.</returns>
+    public static string? FindExistingNfoPath(string movieFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(movieFilePath))
+        {
+            return null;
+        }
+
+        foreach (var nfoPath in GetNfoCandidates(movieFilePath))
+        {
+            if (File.Exists(nfoPath))
+            {
+                return nfoPath;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Returns the candidate NFO file paths for a given movie path, in priority order.
     /// Kodi/TMM convention: {MovieName}.nfo takes priority, then movie.nfo.
     /// For folder-based rips (DVD/BD structures) the item path is a directory
