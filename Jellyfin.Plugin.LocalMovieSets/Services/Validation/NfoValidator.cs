@@ -6,31 +6,31 @@ using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
 using Jellyfin.Plugin.LocalMovieSets.Parsers;
+using Jellyfin.Plugin.LocalMovieSets.Providers;
+using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.LocalMovieSets.Services.Validation;
 
 /// <summary>
-/// Service that scans and validates local NFO files and artwork files in
-/// movie set data folders or movie directories.
+/// Scans the Movie Set Data Folder and reports what the sync and the image
+/// provider will actually use: the set NFO the configured naming convention
+/// points to, artwork names from <see cref="BoxSetImageProvider.ArtworkMappings"/>,
+/// and the theme file names the sync copies. Only the set folders directly inside
+/// the data folder are checked; nested folders are reported, not walked.
 /// </summary>
 public class NfoValidator
 {
-    private static readonly string[] StandardPosterNames =
+    // Files that look like a poster/fanart but are not read from a set folder.
+    private static readonly string[] UnusedPosterNames =
     [
-        "poster.jpg", "poster.png", "folder.jpg", "folder.png",
-        "movieset-poster.jpg", "movieset-poster.png", "movieset-folder.jpg"
+        "movieset-poster.jpg", "movieset-poster.png", "movieset-folder.jpg", "movieset-folder.png",
+        "movieset-cover.jpg", "cover.jpg", "cover.png", "front.jpg", "front.png"
     ];
 
-    private static readonly string[] StandardFanartNames =
+    private static readonly string[] UnusedFanartNames =
     [
-        "fanart.jpg", "fanart.png", "backdrop.jpg", "backdrop.png",
-        "movieset-fanart.jpg", "movieset-fanart.png", "movieset-backdrop.jpg"
-    ];
-
-    private static readonly string[] NonStandardPosterHints =
-    [
-        "cover.jpg", "cover.png", "movieset-cover.jpg", "front.jpg", "front.png"
+        "movieset-fanart.jpg", "movieset-fanart.png", "movieset-backdrop.jpg", "movieset-backdrop.png"
     ];
 
     private readonly ILogger<NfoValidator> _logger;
@@ -45,11 +45,12 @@ public class NfoValidator
     }
 
     /// <summary>
-    /// Scans the specified folder and performs deep validation on all NFO files and artwork.
+    /// Scans the specified folder and validates each set folder the way the sync reads it.
     /// </summary>
     /// <param name="targetFolder">Path to the folder to validate (defaults to configured SetDataFolder if null).</param>
+    /// <param name="naming">NFO naming convention (defaults to the saved setting).</param>
     /// <returns>A comprehensive <see cref="ValidationReportDto"/> with all findings.</returns>
-    public ValidationReportDto Validate(string? targetFolder = null)
+    public ValidationReportDto Validate(string? targetFolder = null, NfoNamingConvention? naming = null)
     {
         var sw = Stopwatch.StartNew();
         var report = new ValidationReportDto();
@@ -57,6 +58,7 @@ public class NfoValidator
         var folder = string.IsNullOrWhiteSpace(targetFolder)
             ? Plugin.Instance?.Configuration.SetDataFolder
             : targetFolder;
+        var nfoNaming = naming ?? Plugin.Instance?.Configuration.NfoNaming ?? NfoNamingConvention.SetSubfolder;
 
         if (string.IsNullOrWhiteSpace(folder))
         {
@@ -89,54 +91,47 @@ public class NfoValidator
             return report;
         }
 
-        _logger.LogInformation("Starting NFO & Artwork validation scan in '{Folder}'", folder);
+        _logger.LogInformation("Starting NFO & Artwork validation scan in '{Folder}' ({Naming})", folder, nfoNaming);
 
         var subdirs = Directory.GetDirectories(folder);
-        var directNfos = Directory.GetFiles(folder, "*.nfo", SearchOption.TopDirectoryOnly);
+        var rootNfos = Directory.GetFiles(folder, "*.nfo", SearchOption.TopDirectoryOnly);
 
         var definedCollections = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var totalSetsScanned = 0;
         var setsWithIssues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // 1. Scan direct subfolders (e.g. SetSubfolder, CollectionNfo, or movie folders)
+        // 1. Set folders directly inside the data folder (the only layout the sync reads)
         foreach (var subdir in subdirs)
         {
             totalSetsScanned++;
             var dirName = Path.GetFileName(subdir);
-            var folderIssues = ValidateDirectory(subdir, dirName, definedCollections);
+            var folderIssues = ValidateDirectory(folder, subdir, dirName, nfoNaming, definedCollections);
             if (folderIssues.Any(i => i.Severity != ValidationSeverity.Info))
             {
                 setsWithIssues.Add(dirName);
             }
-            if (folderIssues.Count > 0)
-            {
-                report.Issues.AddRange(folderIssues);
-            }
+
+            report.Issues.AddRange(folderIssues);
         }
 
-        // 2. Scan root NFOs if NfoInParent style is used
-        if (directNfos.Length > 0)
+        // 2. NFOs in the data folder root: no longer a supported layout, the sync ignores them
+        foreach (var nfoPath in rootNfos)
         {
-            foreach (var nfoPath in directNfos)
+            totalSetsScanned++;
+            var fileName = Path.GetFileName(nfoPath);
+            var setBaseName = Path.GetFileNameWithoutExtension(nfoPath);
+            var expected = Path.GetFileName(SetNfoParser.GetNfoPath(folder, setBaseName, nfoNaming));
+            setsWithIssues.Add("\0root:" + fileName);
+            report.Issues.Add(new ValidationIssueDto
             {
-                totalSetsScanned++;
-                var fileName = Path.GetFileName(nfoPath);
-                var setBaseName = Path.GetFileNameWithoutExtension(nfoPath);
-                var nfoIssues = ValidateSingleNfo(nfoPath, setBaseName, folder, definedCollections);
-                
-                // Also check sibling artwork: <setBaseName>-poster.jpg etc.
-                var artworkIssues = ValidateSiblingArtwork(folder, setBaseName);
-                nfoIssues.AddRange(artworkIssues);
-
-                if (nfoIssues.Any(i => i.Severity != ValidationSeverity.Info))
-                {
-                    setsWithIssues.Add(setBaseName);
-                }
-                if (nfoIssues.Count > 0)
-                {
-                    report.Issues.AddRange(nfoIssues);
-                }
-            }
+                Severity = ValidationSeverity.Error,
+                Category = ValidationCategory.UnsupportedLayout,
+                CollectionName = setBaseName,
+                FolderPath = folder,
+                FilePath = nfoPath,
+                Message = $"NFO '{fileName}' is in the root of the Movie Set Data Folder. The sync does not read NFOs or artwork there.",
+                Suggestion = $"Move it into its own folder: '{setBaseName}/{expected}', together with its artwork (poster.jpg, fanart.jpg)."
+            });
         }
 
         sw.Stop();
@@ -159,77 +154,82 @@ public class NfoValidator
         return report;
     }
 
+    /// <summary>
+    /// Validates one set folder directly inside the data folder. Does not recurse:
+    /// the sync never reads nested folders, so they are only reported.
+    /// </summary>
     private List<ValidationIssueDto> ValidateDirectory(
+        string dataFolder,
         string directoryPath,
-        string setNameFallback,
+        string folderName,
+        NfoNamingConvention naming,
         Dictionary<string, string> definedCollections)
     {
         var issues = new List<ValidationIssueDto>();
-        var nfoFiles = Directory.GetFiles(directoryPath, "*.nfo", SearchOption.TopDirectoryOnly);
 
-        // Check if this subfolder has child movie folders (e.g. "00 Test Universum / 00 Test Universum Teil 1")
-        var childSubdirs = Directory.GetDirectories(directoryPath);
-        if (nfoFiles.Length == 0 && childSubdirs.Length > 0)
+        // A real folder name has no characters the sanitizer changes, so this is
+        // exactly the file the sync reads for a set with this folder name.
+        var expectedNfo = SetNfoParser.GetNfoPath(dataFolder, folderName, naming);
+        var expectedName = Path.GetFileName(expectedNfo);
+
+        if (File.Exists(expectedNfo))
         {
-            // Inspect child subdirectories recursively
-            var childSetsFound = 0;
-            foreach (var childSubdir in childSubdirs)
+            issues.AddRange(ValidateSingleNfo(expectedNfo, folderName, directoryPath, definedCollections));
+        }
+        else
+        {
+            var otherNfos = Directory.GetFiles(directoryPath, "*.nfo", SearchOption.TopDirectoryOnly);
+            if (otherNfos.Length > 0)
             {
-                var childName = Path.GetFileName(childSubdir);
-                var childIssues = ValidateDirectory(childSubdir, childName, definedCollections);
-                if (childIssues.Count > 0)
+                var found = string.Join(", ", otherNfos.Select(Path.GetFileName));
+                issues.Add(new ValidationIssueDto
                 {
-                    issues.AddRange(childIssues);
-                }
-                childSetsFound++;
+                    Severity = ValidationSeverity.Error,
+                    Category = ValidationCategory.NamingMismatch,
+                    CollectionName = folderName,
+                    FolderPath = directoryPath,
+                    FilePath = otherNfos[0],
+                    Message = $"The sync looks for '{expectedName}' in this folder (NFO naming: {naming}), but only found: {found}.",
+                    Suggestion = $"Rename the set NFO to '{expectedName}', or use Detect Naming to pick the matching NFO naming setting."
+                });
             }
-
-            if (childSetsFound > 0)
+            else if (HasNfoInChildFolder(directoryPath))
             {
+                issues.Add(new ValidationIssueDto
+                {
+                    Severity = ValidationSeverity.Warning,
+                    Category = ValidationCategory.UnsupportedLayout,
+                    CollectionName = folderName,
+                    FolderPath = directoryPath,
+                    Message = "Folder has no set NFO, but its subfolders contain NFO files. The sync does not read nested set folders.",
+                    Suggestion = "Move each set into its own folder directly inside the Movie Set Data Folder."
+                });
+
+                // A container folder, not a set: no artwork check.
                 return issues;
             }
-        }
-
-        // If no NFO file exists in this directory:
-        if (nfoFiles.Length == 0)
-        {
-            issues.Add(new ValidationIssueDto
+            else
             {
-                Severity = ValidationSeverity.Info,
-                Category = ValidationCategory.FolderWithoutNfo,
-                CollectionName = setNameFallback,
-                FolderPath = directoryPath,
-                Message = $"Folder contains no .nfo file.",
-                Suggestion = "Create a collection .nfo file (or movie .nfo) in this folder or remove empty folder."
-            });
-            return issues;
-        }
-
-        string? resolvedCollectionName = null;
-
-        // Validate each NFO in this directory
-        foreach (var nfoPath in nfoFiles)
-        {
-            var singleIssues = ValidateSingleNfo(nfoPath, setNameFallback, directoryPath, definedCollections);
-            issues.AddRange(singleIssues);
-
-            if (resolvedCollectionName == null)
-            {
-                var matched = singleIssues.FirstOrDefault(i => !string.IsNullOrEmpty(i.CollectionName))?.CollectionName;
-                if (!string.IsNullOrEmpty(matched))
+                issues.Add(new ValidationIssueDto
                 {
-                    resolvedCollectionName = matched;
-                }
+                    Severity = ValidationSeverity.Info,
+                    Category = ValidationCategory.FolderWithoutNfo,
+                    CollectionName = folderName,
+                    FolderPath = directoryPath,
+                    Message = $"Folder contains no set NFO ('{expectedName}'). Artwork in it is still used for a set with this name.",
+                    Suggestion = $"Add '{expectedName}' for title, overview, genres and studios, or remove the folder if it is not a set."
+                });
             }
         }
 
-        resolvedCollectionName ??= setNameFallback;
-
-        // Validate artwork files in this folder
-        var artworkIssues = ValidateFolderArtwork(directoryPath, resolvedCollectionName);
-        issues.AddRange(artworkIssues);
-
+        issues.AddRange(ValidateFolderArtwork(directoryPath, folderName));
         return issues;
+    }
+
+    private static bool HasNfoInChildFolder(string directoryPath)
+    {
+        return Directory.EnumerateDirectories(directoryPath)
+            .Any(child => Directory.EnumerateFiles(child, "*.nfo", SearchOption.TopDirectoryOnly).Any());
     }
 
     private List<ValidationIssueDto> ValidateSingleNfo(
@@ -389,29 +389,35 @@ public class NfoValidator
         return issues;
     }
 
-    private List<ValidationIssueDto> ValidateFolderArtwork(string directoryPath, string collectionName)
+
+    /// <summary>
+    /// Checks artwork and theme music with the same file names and lookups
+    /// (<see cref="File.Exists"/>, exact names) as the image provider and the sync.
+    /// </summary>
+    private static List<ValidationIssueDto> ValidateFolderArtwork(string directoryPath, string collectionName)
     {
         var issues = new List<ValidationIssueDto>();
-        var files = Directory.GetFiles(directoryPath);
-        var fileNamesLower = files.Select(Path.GetFileName).Where(f => f != null).Select(f => f!.ToLowerInvariant()).ToHashSet();
+        var fileNames = Directory.GetFiles(directoryPath)
+            .Select(Path.GetFileName)
+            .OfType<string>()
+            .ToList();
 
-        // 1. Primary Poster Check
-        var hasPoster = StandardPosterNames.Any(p => fileNamesLower.Contains(p));
-        if (!hasPoster)
+        // 1. Primary poster
+        var posterNames = GetArtworkNames(ImageType.Primary);
+        if (BoxSetImageProvider.FindFirstExistingFile(directoryPath, posterNames) is null)
         {
-            // Check if non-standard poster name exists (e.g. cover.jpg)
-            var nonStandardFound = NonStandardPosterHints.FirstOrDefault(h => fileNamesLower.Contains(h));
-            if (nonStandardFound != null)
+            var unused = FindUnusedArtwork(fileNames, posterNames, UnusedPosterNames);
+            if (unused != null)
             {
                 issues.Add(new ValidationIssueDto
                 {
-                    Severity = ValidationSeverity.Info,
+                    Severity = ValidationSeverity.Warning,
                     Category = ValidationCategory.NonStandardArtwork,
                     CollectionName = collectionName,
                     FolderPath = directoryPath,
-                    FilePath = Path.Combine(directoryPath, nonStandardFound),
-                    Message = $"Non-standard artwork '{nonStandardFound}' found in set folder.",
-                    Suggestion = $"Rename '{nonStandardFound}' to 'poster.jpg' for full compatibility with Jellyfin and Kodi."
+                    FilePath = Path.Combine(directoryPath, unused),
+                    Message = $"'{unused}' is not used as the collection poster. In a set folder only {string.Join(", ", posterNames)} are read (exact names).",
+                    Suggestion = $"Rename '{unused}' to 'poster.jpg' (or 'poster.png' for a PNG file)."
                 });
             }
             else
@@ -428,32 +434,47 @@ public class NfoValidator
             }
         }
 
-        // 2. Backdrop / Fanart Check
-        var hasFanart = StandardFanartNames.Any(f => fileNamesLower.Contains(f));
-        if (!hasFanart)
+        // 2. Backdrop / fanart
+        var fanartNames = GetArtworkNames(ImageType.Backdrop);
+        if (BoxSetImageProvider.FindFirstExistingFile(directoryPath, fanartNames) is null)
         {
-            issues.Add(new ValidationIssueDto
-            {
-                Severity = ValidationSeverity.Info,
-                Category = ValidationCategory.MissingArtwork,
-                CollectionName = collectionName,
-                FolderPath = directoryPath,
-                Message = "No background fanart image (e.g. 'fanart.jpg', 'backdrop.jpg') found in set folder.",
-                Suggestion = "Add a 'fanart.jpg' to provide a high-resolution backdrop when viewing this collection."
-            });
+            var unused = FindUnusedArtwork(fileNames, fanartNames, UnusedFanartNames);
+            issues.Add(unused != null
+                ? new ValidationIssueDto
+                {
+                    Severity = ValidationSeverity.Info,
+                    Category = ValidationCategory.NonStandardArtwork,
+                    CollectionName = collectionName,
+                    FolderPath = directoryPath,
+                    FilePath = Path.Combine(directoryPath, unused),
+                    Message = $"'{unused}' is not used as the collection backdrop. In a set folder only {string.Join(", ", fanartNames)} are read (exact names).",
+                    Suggestion = $"Rename '{unused}' to 'fanart.jpg' (or 'fanart.png' for a PNG file)."
+                }
+                : new ValidationIssueDto
+                {
+                    Severity = ValidationSeverity.Info,
+                    Category = ValidationCategory.MissingArtwork,
+                    CollectionName = collectionName,
+                    FolderPath = directoryPath,
+                    Message = "No background fanart image (e.g. 'fanart.jpg', 'backdrop.jpg') found in set folder.",
+                    Suggestion = "Add a 'fanart.jpg' to provide a high-resolution backdrop when viewing this collection."
+                });
         }
 
-        // 3. Theme Music Check
-        var themeFile = SetNfoParser.ThemeSongFileNames.FirstOrDefault(f => fileNamesLower.Contains(f));
-        if (themeFile != null)
+        // 3. Theme music: same candidates as the sync (theme.*, <folder>-theme.*, <folder>.theme.*)
+        var themePath = BoxSetImageProvider.FindFirstExistingFile(
+            directoryPath,
+            SetNfoParser.GetThemeSongFileNameCandidates(Path.GetFileName(directoryPath)));
+        if (themePath != null)
         {
+            var themeFile = Path.GetFileName(themePath);
             issues.Add(new ValidationIssueDto
             {
                 Severity = ValidationSeverity.Info,
                 Category = ValidationCategory.ThemeSong,
                 CollectionName = collectionName,
                 FolderPath = directoryPath,
-                FilePath = Path.Combine(directoryPath, themeFile),
+                FilePath = themePath,
                 Message = $"Theme song found: '{themeFile}'.",
                 Suggestion = "Theme music will be played automatically when browsing this collection."
             });
@@ -462,68 +483,19 @@ public class NfoValidator
         return issues;
     }
 
-    private List<ValidationIssueDto> ValidateSiblingArtwork(string folderPath, string setBaseName)
+    private static string[] GetArtworkNames(ImageType type)
     {
-        var issues = new List<ValidationIssueDto>();
-        var posterCandidates = new[]
-        {
-            $"{setBaseName}-poster.jpg", $"{setBaseName}-poster.png",
-            $"{setBaseName}-folder.jpg", $"{setBaseName}-folder.png"
-        };
-        var fanartCandidates = new[]
-        {
-            $"{setBaseName}-fanart.jpg", $"{setBaseName}-fanart.png",
-            $"{setBaseName}-backdrop.jpg", $"{setBaseName}-backdrop.png"
-        };
+        return BoxSetImageProvider.ArtworkMappings.First(m => m.ImageType == type).FileNames;
+    }
 
-        var hasPoster = posterCandidates.Any(c => File.Exists(Path.Combine(folderPath, c)));
-        if (!hasPoster)
-        {
-            issues.Add(new ValidationIssueDto
-            {
-                Severity = ValidationSeverity.Warning,
-                Category = ValidationCategory.MissingArtwork,
-                CollectionName = setBaseName,
-                FolderPath = folderPath,
-                Message = $"No sibling poster '{setBaseName}-poster.jpg' found for set '{setBaseName}'.",
-                Suggestion = $"Place '{setBaseName}-poster.jpg' next to the NFO file."
-            });
-        }
-
-        var hasFanart = fanartCandidates.Any(c => File.Exists(Path.Combine(folderPath, c)));
-        if (!hasFanart)
-        {
-            issues.Add(new ValidationIssueDto
-            {
-                Severity = ValidationSeverity.Info,
-                Category = ValidationCategory.MissingArtwork,
-                CollectionName = setBaseName,
-                FolderPath = folderPath,
-                Message = $"No sibling fanart '{setBaseName}-fanart.jpg' found for set '{setBaseName}'.",
-                Suggestion = $"Place '{setBaseName}-fanart.jpg' next to the NFO file."
-            });
-        }
-
-        var themeCandidates = SetNfoParser.ThemeSongExtensions.SelectMany(ext => new[]
-        {
-            $"{setBaseName}-theme{ext}",
-            $"{setBaseName}.theme{ext}"
-        });
-        var foundTheme = themeCandidates.FirstOrDefault(c => File.Exists(Path.Combine(folderPath, c)));
-        if (foundTheme != null)
-        {
-            issues.Add(new ValidationIssueDto
-            {
-                Severity = ValidationSeverity.Info,
-                Category = ValidationCategory.ThemeSong,
-                CollectionName = setBaseName,
-                FolderPath = folderPath,
-                FilePath = Path.Combine(folderPath, foundTheme),
-                Message = $"Theme song found: '{foundTheme}'.",
-                Suggestion = "Theme music will be played automatically when browsing this collection."
-            });
-        }
-
-        return issues;
+    /// <summary>
+    /// Returns a file that looks like artwork of this kind but is not read: a
+    /// supported name with different letter case (case-sensitive file systems)
+    /// or a known unsupported name.
+    /// </summary>
+    private static string? FindUnusedArtwork(List<string> fileNames, string[] supportedNames, string[] unusedNames)
+    {
+        return fileNames.FirstOrDefault(f => supportedNames.Contains(f, StringComparer.OrdinalIgnoreCase))
+            ?? fileNames.FirstOrDefault(f => unusedNames.Contains(f, StringComparer.OrdinalIgnoreCase));
     }
 }

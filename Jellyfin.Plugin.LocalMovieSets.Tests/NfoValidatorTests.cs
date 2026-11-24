@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Jellyfin.Plugin.LocalMovieSets.Services.Validation;
+using Jellyfin.Plugin.LocalMovieSets;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -43,7 +44,7 @@ public class NfoValidatorTests : IDisposable
         File.WriteAllText(Path.Combine(setFolder, "fanart.jpg"), "dummy fanart");
 
         // Act
-        var report = _validator.Validate(_tempDirectory);
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.CollectionNfo);
 
         // Assert
         Assert.Equal(1, report.ScannedSetsCount);
@@ -69,7 +70,7 @@ public class NfoValidatorTests : IDisposable
         File.WriteAllText(Path.Combine(setFolder, "fanart.jpg"), "dummy");
 
         // Act
-        var report = _validator.Validate(_tempDirectory);
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.CollectionNfo);
 
         // Assert
         Assert.True(report.ErrorCount >= 1);
@@ -90,7 +91,7 @@ public class NfoValidatorTests : IDisposable
         File.WriteAllText(Path.Combine(setFolder, "fanart.jpg"), "dummy");
 
         // Act
-        var report = _validator.Validate(_tempDirectory);
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.CollectionNfo);
 
         // Assert
         Assert.True(report.ErrorCount >= 1);
@@ -110,7 +111,7 @@ public class NfoValidatorTests : IDisposable
 </collection>");
 
         // Act
-        var report = _validator.Validate(_tempDirectory);
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.CollectionNfo);
 
         // Assert
         Assert.Equal(0, report.ErrorCount);
@@ -127,7 +128,7 @@ public class NfoValidatorTests : IDisposable
         File.WriteAllText(Path.Combine(emptyFolder, "movie.mkv"), "dummy video");
 
         // Act
-        var report = _validator.Validate(_tempDirectory);
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.CollectionNfo);
 
         // Assert
         Assert.True(report.InfoCount >= 1);
@@ -135,7 +136,7 @@ public class NfoValidatorTests : IDisposable
     }
 
     [Fact]
-    public void Validate_ReturnsInfo_WhenNonStandardCoverIsFound()
+    public void Validate_ReturnsWarning_WhenNonStandardCoverIsFound()
     {
         // Arrange
         var setFolder = Path.Combine(_tempDirectory, "Cover Naming Set");
@@ -149,10 +150,10 @@ public class NfoValidatorTests : IDisposable
         File.WriteAllText(Path.Combine(setFolder, "fanart.jpg"), "fanart dummy");
 
         // Act
-        var report = _validator.Validate(_tempDirectory);
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.CollectionNfo);
 
         // Assert
-        Assert.Contains(report.Issues, i => i.Severity == ValidationSeverity.Info && i.Category == ValidationCategory.NonStandardArtwork);
+        Assert.Contains(report.Issues, i => i.Severity == ValidationSeverity.Warning && i.Category == ValidationCategory.NonStandardArtwork);
     }
 
     [Fact]
@@ -175,7 +176,7 @@ public class NfoValidatorTests : IDisposable
         File.WriteAllText(Path.Combine(folder2, "fanart.jpg"), "dummy");
 
         // Act
-        var report = _validator.Validate(_tempDirectory);
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.CollectionNfo);
 
         // Assert
         Assert.Contains(report.Issues, i => i.Severity == ValidationSeverity.Warning && i.Category == ValidationCategory.DuplicateName);
@@ -195,12 +196,158 @@ public class NfoValidatorTests : IDisposable
         File.WriteAllText(Path.Combine(folder, "theme.mp3"), "dummy theme music bytes");
 
         // Act
-        var report = _validator.Validate(_tempDirectory);
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.CollectionNfo);
 
         // Assert
         Assert.Contains(report.Issues, i =>
             i.Severity == ValidationSeverity.Info
             && i.Category == ValidationCategory.ThemeSong
             && i.Message.Contains("theme.mp3"));
+    }
+
+    // ── Same rules as the sync (#8) ──────────────────────────────────────
+
+    private const string SetNfo = @"<?xml version=""1.0"" encoding=""UTF-8""?><set><title>Alien Collection</title></set>";
+
+    private string CreateSet(string name, params string[] files)
+    {
+        var folder = Path.Combine(_tempDirectory, name);
+        Directory.CreateDirectory(folder);
+        foreach (var file in files)
+        {
+            File.WriteAllText(Path.Combine(folder, file), file.EndsWith(".nfo", StringComparison.Ordinal) ? SetNfo : "dummy");
+        }
+
+        return folder;
+    }
+
+    [Fact]
+    public void SetSubfolder_WithMatchingNfoAndArtwork_IsHealthy()
+    {
+        CreateSet("Alien Collection", "Alien Collection.nfo", "poster.jpg", "fanart.jpg");
+
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.SetSubfolder);
+
+        Assert.Equal(1, report.HealthySetsCount);
+        Assert.Empty(report.Issues);
+    }
+
+    [Fact]
+    public void NfoWithOtherName_IsNamingMismatchError()
+    {
+        CreateSet("Alien Collection", "alien.nfo", "poster.jpg", "fanart.jpg");
+
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.SetSubfolder);
+
+        var issue = Assert.Single(report.Issues);
+        Assert.Equal(ValidationSeverity.Error, issue.Severity);
+        Assert.Equal(ValidationCategory.NamingMismatch, issue.Category);
+        Assert.Contains("Alien Collection.nfo", issue.Message, StringComparison.Ordinal);
+        Assert.Equal(0, report.HealthySetsCount);
+    }
+
+    [Fact]
+    public void CollectionNfo_UnderSetSubfolderNaming_IsNamingMismatch()
+    {
+        CreateSet("Alien Collection", "collection.nfo", "poster.jpg", "fanart.jpg");
+
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.SetSubfolder);
+
+        Assert.Contains(report.Issues, i => i.Category == ValidationCategory.NamingMismatch);
+    }
+
+    [Fact]
+    public void OnlyTheExpectedNfo_IsValidated()
+    {
+        var folder = CreateSet("Alien Collection", "Alien Collection.nfo", "poster.jpg", "fanart.jpg");
+        File.WriteAllText(Path.Combine(folder, "notes.nfo"), "<broken");
+
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.SetSubfolder);
+
+        Assert.Empty(report.Issues);
+    }
+
+    [Fact]
+    public void NfoInDataFolderRoot_IsUnsupportedLayoutError()
+    {
+        File.WriteAllText(Path.Combine(_tempDirectory, "Alien Collection.nfo"), SetNfo);
+        File.WriteAllText(Path.Combine(_tempDirectory, "Alien Collection-poster.jpg"), "dummy");
+
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.SetSubfolder);
+
+        var issue = Assert.Single(report.Issues);
+        Assert.Equal(ValidationSeverity.Error, issue.Severity);
+        Assert.Equal(ValidationCategory.UnsupportedLayout, issue.Category);
+        Assert.Equal(1, report.ScannedSetsCount);
+        Assert.Equal(0, report.HealthySetsCount);
+    }
+
+    [Fact]
+    public void NestedSetFolders_AreReportedOnce_AndNotWalked()
+    {
+        // Universe/Part 1/Part 1.nfo and three more levels below
+        var deep = Path.Combine(_tempDirectory, "Universe", "Part 1", "Level 3", "Level 4");
+        Directory.CreateDirectory(deep);
+        File.WriteAllText(Path.Combine(_tempDirectory, "Universe", "Part 1", "Part 1.nfo"), SetNfo);
+        File.WriteAllText(Path.Combine(deep, "Level 4.nfo"), "<broken");
+
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.SetSubfolder);
+
+        var issue = Assert.Single(report.Issues);
+        Assert.Equal(ValidationSeverity.Warning, issue.Severity);
+        Assert.Equal(ValidationCategory.UnsupportedLayout, issue.Category);
+        Assert.Equal("Universe", issue.CollectionName);
+    }
+
+    [Fact]
+    public void MoviesetPosterInSetFolder_IsNotCountedAsPoster()
+    {
+        CreateSet("Alien Collection", "Alien Collection.nfo", "movieset-poster.jpg", "fanart.jpg");
+
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.SetSubfolder);
+
+        var issue = Assert.Single(report.Issues);
+        Assert.Equal(ValidationSeverity.Warning, issue.Severity);
+        Assert.Equal(ValidationCategory.NonStandardArtwork, issue.Category);
+        Assert.Contains("movieset-poster.jpg", issue.Message, StringComparison.Ordinal);
+        Assert.Equal(0, report.HealthySetsCount);
+    }
+
+    [Fact]
+    public void MoviesetFanartInSetFolder_IsNotCountedAsBackdrop()
+    {
+        CreateSet("Alien Collection", "Alien Collection.nfo", "poster.jpg", "movieset-fanart.jpg");
+
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.SetSubfolder);
+
+        var issue = Assert.Single(report.Issues);
+        Assert.Equal(ValidationSeverity.Info, issue.Severity);
+        Assert.Equal(ValidationCategory.NonStandardArtwork, issue.Category);
+    }
+
+    [Theory]
+    [InlineData("Alien Collection-theme.mp3")]
+    [InlineData("Alien Collection.theme.flac")]
+    [InlineData("theme.ogg")]
+    public void ThemeSong_IsFoundWithTheSyncsFileNames(string themeFile)
+    {
+        CreateSet("Alien Collection", "Alien Collection.nfo", "poster.jpg", "fanart.jpg", themeFile);
+
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.SetSubfolder);
+
+        var issue = Assert.Single(report.Issues);
+        Assert.Equal(ValidationCategory.ThemeSong, issue.Category);
+        Assert.Contains(themeFile, issue.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FolderWithoutNfo_StillGetsArtworkCheck()
+    {
+        CreateSet("Alien Collection", "fanart.jpg");
+
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.SetSubfolder);
+
+        Assert.Contains(report.Issues, i => i.Severity == ValidationSeverity.Info && i.Category == ValidationCategory.FolderWithoutNfo);
+        Assert.Contains(report.Issues, i => i.Severity == ValidationSeverity.Warning && i.Category == ValidationCategory.MissingArtwork);
     }
 }

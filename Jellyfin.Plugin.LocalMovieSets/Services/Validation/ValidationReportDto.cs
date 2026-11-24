@@ -67,7 +67,17 @@ public enum ValidationCategory
     /// <summary>
     /// Theme song audio file discovery or status.
     /// </summary>
-    ThemeSong
+    ThemeSong,
+
+    /// <summary>
+    /// The folder has NFO files, but none with the name the configured naming convention expects.
+    /// </summary>
+    NamingMismatch,
+
+    /// <summary>
+    /// A layout the sync does not read (NFO in the set data folder root, nested set folders).
+    /// </summary>
+    UnsupportedLayout
 }
 
 /// <summary>

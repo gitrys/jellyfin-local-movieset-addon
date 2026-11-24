@@ -86,3 +86,15 @@ Affected flows:
 3. While toggling, the text area briefly shows "Masking report…" and *Copy to Clipboard* is disabled; afterwards copy works and copies the masked text.
 4. Both mask options off: the report appears unmasked right away, without the "Masking report…" step.
 5. Optional (fail closed): stop the server or block the request in the browser devtools, then toggle a mask option → "Masking failed. The unmasked report is not shown." and copy stays disabled.
+
+## 2026-11-24 – NFO validation follows the sync's rules (#8)
+
+Feature: the validator in the bug report dialog checks the set NFO name of the configured naming, unsupported layouts and the artwork names the sync reads.
+
+Affected flows (Diagnostics & Tools → bug report, section "Validator Diagnostics"):
+
+1. A normal set folder (`Alien Collection/Alien Collection.nfo`, `poster.jpg`, `fanart.jpg`) produces no line.
+2. Rename the NFO to `alien.nfo` → Error "The sync looks for 'Alien Collection.nfo' …"; rename back.
+3. Put a copy of a set NFO directly into the Movie Set Data Folder → Error "… is in the root of the Movie Set Data Folder …"; remove it.
+4. A set folder with only `movieset-poster.jpg` → Warning "'movieset-poster.jpg' is not used as the collection poster".
+5. On Linux: a set folder with `Poster.JPG` only → Warning that it is not used (exact names).

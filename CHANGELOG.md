@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 ### Changed
+- **NFO/artwork validation follows the sync's rules.** It checks the set NFO name of the configured naming convention (`<folder>.nfo` or `collection.nfo`) and reports other NFO names as an error, reports NFOs in the root of the Movie Set Data Folder and nested set folders (the sync reads neither), checks artwork and theme files by the names the sync uses (`movieset-poster.jpg`, `cover.jpg` or a different letter case no longer count as a poster; prefixed theme files are found), and checks artwork in set folders without an NFO. It no longer walks folders below the first level. A poster that exists but is not used is now a warning instead of an info.
 - **Bug report placeholders:** masked names now read `[Set n]` and `[Movie n]` (same name, same number across the whole report) instead of `[Collection #n]`; library folders read `[Library n]` and the set data folder `[Set Data Folder]`.
 
 ### Fixed
