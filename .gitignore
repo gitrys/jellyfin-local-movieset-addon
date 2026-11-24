@@ -33,6 +33,11 @@ jlogs/
 # Project & local task tracking
 todo
 
+# Local agent instructions and audit notes (not part of the published repo)
+AGENTS.md
+CLAUDE.md
+audit/
+
 # IDE / Editor specific
 .vs/
 .vscode/
