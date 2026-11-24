@@ -239,33 +239,47 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="progress">Optional progress reporter (0-100), used by the scheduled task.</param>
-    public async Task ScanAndSyncAsync(CancellationToken cancellationToken, IProgress<double>? progress = null)
+    /// <param name="waitIfRunning">
+    /// <c>true</c> to wait for a running sync and then run (scheduled task / Sync Now);
+    /// <c>false</c> to skip when a sync is already running (automatic sync after library changes).
+    /// </param>
+    /// <returns>The status of this run, or <c>null</c> when it was skipped or cancelled before it started.</returns>
+    public async Task<SyncStatusInfo?> ScanAndSyncAsync(
+        CancellationToken cancellationToken,
+        IProgress<double>? progress = null,
+        bool waitIfRunning = false)
     {
         bool acquired;
         try
         {
-            // Prevent overlapping syncs (debounce timer vs scheduled task)
-            acquired = await _syncLock.WaitAsync(0, cancellationToken).ConfigureAwait(false);
+            if (waitIfRunning && IsSyncRunning)
+            {
+                _logger.LogInformation("Local Movie Sets: a sync is already running, waiting for it to finish");
+            }
+
+            acquired = await _syncLock
+                .WaitAsync(waitIfRunning ? Timeout.Infinite : 0, cancellationToken)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            return;
+            return null;
         }
         catch (ObjectDisposedException)
         {
             // Shutdown race: the manager was disposed while a timer callback fired
-            return;
+            return null;
         }
 
         if (!acquired)
         {
             _logger.LogInformation("Local Movie Sets: sync already in progress, skipping");
-            return;
+            return null;
         }
 
         try
         {
-            await ScanAndSyncCoreAsync(cancellationToken, progress).ConfigureAwait(false);
+            return await ScanAndSyncCoreAsync(cancellationToken, progress).ConfigureAwait(false);
         }
         finally
         {
@@ -275,17 +289,21 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
     /// <summary>
     /// Performs the actual scan and sync. Assumes the caller holds <see cref="_syncLock"/>.
-    /// Never throws: cancellation and errors are logged.
+    /// Never throws: cancellation and errors are recorded on the returned status.
     /// </summary>
-    private async Task ScanAndSyncCoreAsync(CancellationToken cancellationToken, IProgress<double>? progress = null)
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="progress">Optional progress reporter.</param>
+    /// <param name="stats">Status prepared by the caller (Force Rebuild); a new one is created when omitted.</param>
+    /// <returns>The status of the run.</returns>
+    private async Task<SyncStatusInfo> ScanAndSyncCoreAsync(
+        CancellationToken cancellationToken,
+        IProgress<double>? progress = null,
+        SyncStatusInfo? stats = null)
     {
         _isSyncing = true;
 
-        var stats = new SyncStatusInfo
-        {
-            LastRunStartedUtc = DateTime.UtcNow,
-            LastRunOutcome = SyncOutcomes.Running
-        };
+        stats ??= new SyncStatusInfo { LastRunStartedUtc = DateTime.UtcNow };
+        stats.LastRunOutcome = SyncOutcomes.Running;
         _lastStatus = stats;
 
         try
@@ -296,7 +314,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 LogMessage(LogLevel.Error, "Plugin configuration is not available.");
                 stats.LastRunOutcome = SyncOutcomes.Failed;
                 stats.LastErrorMessage = "Plugin configuration is not available";
-                return;
+                return stats;
             }
 
             LogMessage(LogLevel.Information, $"Starting sync run (Mount Guard: {(config.EnableMountGuard ? "enabled" : "disabled")})");
@@ -305,7 +323,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             {
                 LogMessage(LogLevel.Warning, "Sync aborted due to offline or empty library paths (Mount Guard active).");
                 stats.LastRunOutcome = SyncOutcomes.MountGuardAborted;
-                return;
+                return stats;
             }
 
             // The image provider only runs when it is enabled as an image
@@ -448,11 +466,21 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         }
         finally
         {
-            stats.LastRunCompletedUtc = DateTime.UtcNow;
             _isSyncing = false;
-            RecordSyncHistory(stats);
-            _ = LogServerActivityAsync(stats);
+            CompleteRun(stats);
         }
+
+        return stats;
+    }
+
+    /// <summary>
+    /// Marks a run as finished and records it in the sync history and the activity log.
+    /// </summary>
+    private void CompleteRun(SyncStatusInfo stats)
+    {
+        stats.LastRunCompletedUtc = DateTime.UtcNow;
+        RecordSyncHistory(stats);
+        _ = LogServerActivityAsync(stats);
     }
 
     /// <summary>
@@ -475,16 +503,31 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             string overview;
             LogLevel severity;
 
+            var label = stats.RunKind switch
+            {
+                SyncRunKinds.ForceRebuild => "Force Rebuild",
+                SyncRunKinds.ForceRebuildAll => "Force Rebuild (all collections)",
+                _ => "Sync"
+            };
+            var isRebuild = stats.RunKind is SyncRunKinds.ForceRebuild or SyncRunKinds.ForceRebuildAll;
+
             switch (stats.LastRunOutcome)
             {
                 case SyncOutcomes.Success:
-                    name = "Local Movie Sets Sync Succeeded";
-                    overview = $"Synced {stats.SetsFound} collections (+{stats.CollectionsCreated} / ~{stats.CollectionsUpdated} / -{stats.CollectionsDeleted}) from {stats.MoviesScanned} movies in {duration}.";
+                    name = $"Local Movie Sets {label} Succeeded";
+                    overview = isRebuild
+                        ? $"Deleted {stats.RebuildDeleted} collection(s), then synced {stats.SetsFound} collections (+{stats.CollectionsCreated} / ~{stats.CollectionsUpdated} / -{stats.CollectionsDeleted}) from {stats.MoviesScanned} movies in {duration}."
+                        : $"Synced {stats.SetsFound} collections (+{stats.CollectionsCreated} / ~{stats.CollectionsUpdated} / -{stats.CollectionsDeleted}) from {stats.MoviesScanned} movies in {duration}.";
                     if (stats.MoviesRefreshedFromNfo > 0)
                     {
                         overview += $" Refreshed {stats.MoviesRefreshedFromNfo} movie(s) from a newer NFO.";
                     }
                     severity = LogLevel.Information;
+                    if (stats.RebuildDeleteFailures > 0)
+                    {
+                        overview += $" {stats.RebuildDeleteFailures} collection(s) could not be deleted; the sync updated them instead.";
+                        severity = LogLevel.Warning;
+                    }
                     if (stats.OrphanDeletionBlocked)
                     {
                         overview += " Orphan cleanup was skipped because it would exceed the safety limit.";
@@ -498,23 +541,31 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     break;
 
                 case SyncOutcomes.MountGuardAborted:
-                    name = "Local Movie Sets Sync Aborted";
-                    overview = "Sync was aborted because library mounts or paths were offline or empty (Mount Guard active).";
+                    name = $"Local Movie Sets {label} Aborted";
+                    overview = $"{label} was aborted because library mounts or paths were offline or empty (Mount Guard active).";
+                    if (isRebuild && stats.RebuildDeleted == 0)
+                    {
+                        overview += " No collections were deleted.";
+                    }
                     severity = LogLevel.Warning;
                     break;
 
                 case SyncOutcomes.Cancelled:
-                    name = "Local Movie Sets Sync Cancelled";
-                    overview = "Sync operation was cancelled.";
+                    name = $"Local Movie Sets {label} Cancelled";
+                    overview = $"{label} was cancelled.";
                     severity = LogLevel.Warning;
                     break;
 
                 case SyncOutcomes.Failed:
                 default:
-                    name = "Local Movie Sets Sync Failed";
+                    name = $"Local Movie Sets {label} Failed";
                     overview = string.IsNullOrWhiteSpace(stats.LastErrorMessage)
-                        ? "Sync failed with an unexpected error."
-                        : $"Sync failed: {stats.LastErrorMessage}";
+                        ? $"{label} failed with an unexpected error."
+                        : $"{label} failed: {stats.LastErrorMessage}";
+                    if (isRebuild && stats.RebuildDeleted > 0)
+                    {
+                        overview += $" {stats.RebuildDeleted} collection(s) had already been deleted; run Sync Now to recreate them.";
+                    }
                     severity = LogLevel.Error;
                     break;
             }
@@ -1139,19 +1190,33 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             throw new InvalidOperationException("Sync is already in progress. Please wait for it to complete.");
         }
 
+        // Status for the whole rebuild (delete phase + sync), so every outcome,
+        // including an abort before the sync starts, reaches the sync history
+        // and the activity log.
+        var stats = new SyncStatusInfo
+        {
+            LastRunStartedUtc = DateTime.UtcNow,
+            LastRunOutcome = SyncOutcomes.Running,
+            RunKind = deleteAll ? SyncRunKinds.ForceRebuildAll : SyncRunKinds.ForceRebuild
+        };
+
         try
         {
             _isSyncing = true;
+            _lastStatus = stats;
 
-            _logger.LogInformation(
-                "Local Movie Sets: starting Force Rebuild ({Scope})",
-                deleteAll ? "all collections" : "plugin collections only");
+            LogMessage(
+                LogLevel.Information,
+                $"Starting Force Rebuild ({(deleteAll ? "all collections" : "plugin collections only")}).");
 
             var config = Plugin.Instance?.Configuration;
             if (config != null && config.EnableMountGuard)
             {
                 if (!CheckMounts())
                 {
+                    LogMessage(LogLevel.Warning, "Force Rebuild aborted due to offline or empty library paths (Mount Guard active). No collections were deleted.");
+                    stats.LastRunOutcome = SyncOutcomes.MountGuardAborted;
+                    CompleteRun(stats);
                     throw new InvalidOperationException("Force rebuild aborted because one or more library paths are offline/empty.");
                 }
             }
@@ -1181,18 +1246,44 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     {
                         DeleteFileLocation = true
                     });
+                    stats.RebuildDeleted++;
                 }
                 catch (Exception ex)
                 {
+                    stats.RebuildDeleteFailures++;
                     _logger.LogError(ex, "Failed to delete collection '{SetName}' during rebuild", boxSet.Name);
                 }
             }
 
-            _logger.LogInformation("Local Movie Sets: finished deleting collections, starting fresh sync");
+            if (stats.RebuildDeleteFailures > 0)
+            {
+                LogMessage(
+                    LogLevel.Warning,
+                    $"Force Rebuild could not delete {stats.RebuildDeleteFailures} collection(s); the sync updates them instead.");
+            }
+
+            LogMessage(LogLevel.Information, $"Force Rebuild deleted {stats.RebuildDeleted} collection(s), starting fresh sync.");
 
             // Fresh scan and sync while still holding the lock, so the debounce
             // timer or scheduled task can't steal it between the two phases.
-            await ScanAndSyncCoreAsync(cancellationToken).ConfigureAwait(false);
+            // The sync records the final outcome of the rebuild.
+            await ScanAndSyncCoreAsync(cancellationToken, null, stats).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (stats.LastRunOutcome == SyncOutcomes.Running)
+        {
+            stats.LastRunOutcome = SyncOutcomes.Cancelled;
+            LogMessage(LogLevel.Warning, "Force Rebuild was cancelled.");
+            CompleteRun(stats);
+            throw;
+        }
+        catch (Exception ex) when (stats.LastRunOutcome == SyncOutcomes.Running)
+        {
+            // Failure before the sync phase started (e.g. querying collections).
+            stats.LastRunOutcome = SyncOutcomes.Failed;
+            stats.LastErrorMessage = ex.Message;
+            LogMessage(LogLevel.Error, $"Force Rebuild failed: {ex.Message}");
+            CompleteRun(stats);
+            throw;
         }
         finally
         {

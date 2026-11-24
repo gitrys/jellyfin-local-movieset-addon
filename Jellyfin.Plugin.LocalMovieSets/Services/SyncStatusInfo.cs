@@ -29,6 +29,21 @@ public static class SyncOutcomes
 }
 
 /// <summary>
+/// Well-known values for <see cref="SyncStatusInfo.RunKind"/>.
+/// </summary>
+public static class SyncRunKinds
+{
+    /// <summary>A normal sync (automatic, scheduled, or Sync Now).</summary>
+    public const string Sync = "Sync";
+
+    /// <summary>Force Rebuild of the plugin's own collections.</summary>
+    public const string ForceRebuild = "ForceRebuild";
+
+    /// <summary>Force Rebuild that deleted every collection in Jellyfin.</summary>
+    public const string ForceRebuildAll = "ForceRebuildAll";
+}
+
+/// <summary>
 /// Statistics and outcome of the most recent sync run.
 /// Held in memory only — resets when the server restarts.
 /// </summary>
@@ -45,6 +60,15 @@ public class SyncStatusInfo
 
     /// <summary>Gets or sets the outcome of the last run. See <see cref="SyncOutcomes"/>.</summary>
     public string LastRunOutcome { get; set; } = SyncOutcomes.NeverRan;
+
+    /// <summary>Gets or sets what kind of run this was. See <see cref="SyncRunKinds"/>.</summary>
+    public string RunKind { get; set; } = SyncRunKinds.Sync;
+
+    /// <summary>Gets or sets how many collections a Force Rebuild deleted before syncing.</summary>
+    public int RebuildDeleted { get; set; }
+
+    /// <summary>Gets or sets how many collections a Force Rebuild could not delete.</summary>
+    public int RebuildDeleteFailures { get; set; }
 
     /// <summary>Gets or sets the number of movies queried from the library.</summary>
     public int MoviesScanned { get; set; }

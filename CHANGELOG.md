@@ -24,6 +24,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Set-folder guess for managed collections:** a collection whose name only matched a set folder (without being a set in any movie NFO) is no longer treated as managed.
 
 ### Fixed
+- **Failures are no longer reported as success.**
+  - The scheduled task *Sync Local Movie Sets* (also used by **Sync Now**) now shows as failed when the sync fails or the Mount Guard aborts it, and as cancelled when it is cancelled. Before, it always showed "Completed".
+  - If a sync is already running, the task waits for it and then runs its own sync instead of silently skipping.
+  - Force Rebuild writes every outcome to the sync history and the activity log, including a Mount Guard abort before anything is deleted (before, this only appeared in the server log). Collections that cannot be deleted are counted and reported as a warning.
 - **Unreachable Movie Set Data Folder no longer wipes collection data.** Before, a short share outage cleared genres and studios of every collection (with aggregation off), and the movie-folder artwork fallback could replace set artwork. Now set metadata and artwork are left unchanged; the sync still updates members and warns in the sync history, the activity log, and the Preview.
 - **Movie NFO files are no longer rewritten by a sync.** After adding a movie to a collection or removing it, the plugin saved the movie as a manual metadata edit. With Jellyfin's NFO saver enabled (and in some cases even without it), Jellyfin then rewrote the movie's NFO in its own format and dropped `<set><overview>`. The plugin now saves these movies as a metadata import, which does not run Jellyfin's metadata savers.
 

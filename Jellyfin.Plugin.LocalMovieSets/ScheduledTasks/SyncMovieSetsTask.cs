@@ -64,9 +64,49 @@ public class SyncMovieSetsTask : IScheduledTask
         _logger.LogInformation("Local Movie Sets scheduled task started");
         progress.Report(0);
 
-        await _manager.ScanAndSyncAsync(cancellationToken, progress).ConfigureAwait(false);
+        // Wait for a sync that is already running (e.g. the automatic one after a
+        // library scan), then run this one, so "Sync Now" always performs a sync.
+        var result = await _manager.ScanAndSyncAsync(cancellationToken, progress, waitIfRunning: true)
+            .ConfigureAwait(false);
+
+        // Jellyfin shows a task as failed when it throws, and as cancelled on
+        // OperationCanceledException. Without this, every outcome showed "Completed".
+        ThrowIfUnsuccessful(result, cancellationToken);
 
         progress.Report(100);
         _logger.LogInformation("Local Movie Sets scheduled task finished");
+    }
+
+    /// <summary>
+    /// Turns an unsuccessful sync outcome into the exception Jellyfin expects from a scheduled task.
+    /// </summary>
+    /// <param name="result">The run's status, or <c>null</c> when it did not start.</param>
+    /// <param name="cancellationToken">The task's cancellation token.</param>
+    /// <exception cref="OperationCanceledException">The sync or the task was cancelled.</exception>
+    /// <exception cref="InvalidOperationException">The sync failed or the Mount Guard aborted it.</exception>
+    internal static void ThrowIfUnsuccessful(SyncStatusInfo? result, CancellationToken cancellationToken)
+    {
+        if (result is null)
+        {
+            // Not started: cancelled while waiting, or the server is shutting down.
+            cancellationToken.ThrowIfCancellationRequested();
+            return;
+        }
+
+        switch (result.LastRunOutcome)
+        {
+            case SyncOutcomes.Cancelled:
+                throw new OperationCanceledException("Local Movie Sets sync was cancelled.", cancellationToken);
+
+            case SyncOutcomes.MountGuardAborted:
+                throw new InvalidOperationException(
+                    "Sync aborted by Mount Guard: a movie library path is offline, empty, or unreadable. Nothing was changed.");
+
+            case SyncOutcomes.Failed:
+                throw new InvalidOperationException(
+                    string.IsNullOrWhiteSpace(result.LastErrorMessage)
+                        ? "Sync failed with an unexpected error. See the server log."
+                        : $"Sync failed: {result.LastErrorMessage}");
+        }
     }
 }

@@ -32,3 +32,14 @@ Affected flows (genre/studio aggregation off):
 2. Expected: genres, studios, and images of the collections are unchanged; the activity log and the Preview show the "not reachable" warning; member changes still apply.
 3. Restore the path and sync again: no warning, everything as before.
 4. Typing in the path field does not save; leaving the field saves it (status line shows "Saved.").
+
+## 2026-11-24 – Failures reported correctly (#6)
+
+Feature: scheduled task status and Force Rebuild outcomes.
+
+Affected flows:
+
+1. Mount Guard on, one movie library path offline (or an empty test folder as a library) → **Sync Now** → Dashboard → Scheduled Tasks shows *Sync Local Movie Sets* as failed with the Mount Guard message; the activity log shows "Local Movie Sets Sync Aborted".
+2. Same state → **Force Rebuild** → activity log shows "Local Movie Sets Force Rebuild Aborted … No collections were deleted"; no collection is deleted.
+3. While a sync is running (e.g. right after a library scan), press **Sync Now** → the task waits, then runs and shows *Completed*.
+4. Cancel the task in Scheduled Tasks while it runs → shown as cancelled.

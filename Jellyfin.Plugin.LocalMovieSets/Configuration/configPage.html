@@ -1567,7 +1567,7 @@
                     type: 'POST',
                     url: url
                 }).then(function () {
-                    showStatus('Rebuild started — check the server log or Scheduled Tasks for progress.', false);
+                    showStatus('Rebuild started. The result appears in the Dashboard activity log.', false);
                 }).catch(function (err) {
                     console.error('Failed to start force rebuild:', err);
                     showStatus('Failed to start force rebuild (is a sync already running?). Check server logs.', true);
