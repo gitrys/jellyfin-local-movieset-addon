@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.0.38.0] - 2026-11-24
 ### Added
 - **Theme videos from the set folder:** `theme.mp4` (also `.mkv`, `.webm`, `.m4v`, `.mov`) or `{Folder}-theme.ext` / `{Folder}.theme.ext` is copied into the collection's `backdrops` folder, where Jellyfin plays it as the collection backdrop (enable *Theme videos* in the display settings). The setup guide warns when that setting is off in the current browser, and the validator reports found theme videos.
 
