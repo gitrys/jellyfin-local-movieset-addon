@@ -10,20 +10,16 @@ using Xunit;
 
 namespace Jellyfin.Plugin.LocalMovieSets.Tests;
 
-public class ForceRebuildReportingTests
+[Collection(PluginStateCollection.Name)]
+public sealed class ForceRebuildReportingTests : IDisposable
 {
-    private static (LocalMovieSetManager Manager, TestActivityManager Activity) CreateManager()
+    private readonly SyncTestHarness _harness = new();
+
+    public void Dispose() => _harness.Dispose();
+
+    private (LocalMovieSetManager Manager, TestActivityManager Activity) CreateManager()
     {
-        var activity = new TestActivityManager();
-        var manager = new LocalMovieSetManager(
-            null!,
-            null!,
-            null!,
-            null!,
-            new MovieNfoParser(NullLogger<MovieNfoParser>.Instance),
-            NullLogger<LocalMovieSetManager>.Instance,
-            activity);
-        return (manager, activity);
+        return (_harness.Manager, _harness.Activity);
     }
 
     [Fact]

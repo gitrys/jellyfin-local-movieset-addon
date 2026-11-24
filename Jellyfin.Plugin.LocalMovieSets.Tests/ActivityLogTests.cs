@@ -45,21 +45,16 @@ public class TestActivityManager : IActivityManager
     }
 }
 
+[Collection(PluginStateCollection.Name)]
 public class ActivityLogTests
 {
     [Fact]
     public async Task LogServerActivityAsync_OnSuccess_CreatesInformationLog()
     {
         // Arrange
-        var testActivityMgr = new TestActivityManager();
-        var manager = new LocalMovieSetManager(
-            null!,
-            null!,
-            null!,
-            null!,
-            new MovieNfoParser(NullLogger<MovieNfoParser>.Instance),
-            NullLogger<LocalMovieSetManager>.Instance,
-            testActivityMgr);
+        using var harness = new SyncTestHarness();
+        var testActivityMgr = harness.Activity;
+        var manager = harness.Manager;
 
         var snapshot = new SyncStatusInfo
         {
@@ -89,15 +84,9 @@ public class ActivityLogTests
     public async Task LogServerActivityAsync_OnMountGuardAborted_CreatesWarningLog()
     {
         // Arrange
-        var testActivityMgr = new TestActivityManager();
-        var manager = new LocalMovieSetManager(
-            null!,
-            null!,
-            null!,
-            null!,
-            new MovieNfoParser(NullLogger<MovieNfoParser>.Instance),
-            NullLogger<LocalMovieSetManager>.Instance,
-            testActivityMgr);
+        using var harness = new SyncTestHarness();
+        var testActivityMgr = harness.Activity;
+        var manager = harness.Manager;
 
         var snapshot = new SyncStatusInfo
         {
@@ -121,15 +110,9 @@ public class ActivityLogTests
     public async Task LogServerActivityAsync_OnFailure_CreatesErrorLog()
     {
         // Arrange
-        var testActivityMgr = new TestActivityManager();
-        var manager = new LocalMovieSetManager(
-            null!,
-            null!,
-            null!,
-            null!,
-            new MovieNfoParser(NullLogger<MovieNfoParser>.Instance),
-            NullLogger<LocalMovieSetManager>.Instance,
-            testActivityMgr);
+        using var harness = new SyncTestHarness();
+        var testActivityMgr = harness.Activity;
+        var manager = harness.Manager;
 
         var snapshot = new SyncStatusInfo
         {
@@ -154,14 +137,8 @@ public class ActivityLogTests
     public async Task LogServerActivityAsync_NullActivityManager_DoesNotThrow()
     {
         // Arrange
-        var manager = new LocalMovieSetManager(
-            null!,
-            null!,
-            null!,
-            null!,
-            new MovieNfoParser(NullLogger<MovieNfoParser>.Instance),
-            NullLogger<LocalMovieSetManager>.Instance,
-            null);
+        using var harness = new SyncTestHarness(withActivityManager: false);
+        var manager = harness.Manager;
 
         var snapshot = new SyncStatusInfo
         {
