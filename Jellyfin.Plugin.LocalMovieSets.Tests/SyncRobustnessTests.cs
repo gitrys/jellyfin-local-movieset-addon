@@ -205,16 +205,146 @@ public sealed class SyncRobustnessTests : IDisposable
         Assert.False(File.Exists(Path.Combine(collectionFolder, "theme.mp3")));
     }
 
+    private Task FetchAsync(BoxSet boxSet) =>
+        MetadataProvider().FetchAsync(boxSet, new MetadataRefreshOptions(Substitute.For<IDirectoryService>()), CancellationToken.None);
+
     [Fact]
-    public async Task WithoutThemeInSetFolder_ExistingCopyStays()
+    public async Task ThemeRemovedFromSetFolder_CopyIsRemoved()
     {
         _h.AddSetFolder("Alien Collection");
         var (boxSet, collectionFolder) = OwnedCollectionWithFolder();
-        File.WriteAllText(Path.Combine(collectionFolder, "theme.mp3"), "mine");
+        File.WriteAllText(Path.Combine(collectionFolder, "theme.mp3"), "old");
+        File.WriteAllText(Path.Combine(collectionFolder, "poster.jpg"), "image");
 
-        await MetadataProvider().FetchAsync(boxSet, new MetadataRefreshOptions(Substitute.For<IDirectoryService>()), CancellationToken.None);
+        await FetchAsync(boxSet);
+
+        Assert.False(File.Exists(Path.Combine(collectionFolder, "theme.mp3")));
+        Assert.True(File.Exists(Path.Combine(collectionFolder, "poster.jpg")));
+    }
+
+    [Fact]
+    public async Task SetFolderOffline_ThemeCopyStays()
+    {
+        var (boxSet, collectionFolder) = OwnedCollectionWithFolder();
+        File.WriteAllText(Path.Combine(collectionFolder, "theme.mp3"), "copy");
+        _h.Config.SetDataFolder = Path.Combine(_h.Root, "offline-share");
+
+        await FetchAsync(boxSet);
 
         Assert.True(File.Exists(Path.Combine(collectionFolder, "theme.mp3")));
+    }
+
+    [Fact]
+    public async Task NoSetFolderConfigured_ThemeCopyStays()
+    {
+        var (boxSet, collectionFolder) = OwnedCollectionWithFolder();
+        File.WriteAllText(Path.Combine(collectionFolder, "theme.mp3"), "copy");
+        _h.Config.SetDataFolder = string.Empty;
+
+        await FetchAsync(boxSet);
+
+        Assert.True(File.Exists(Path.Combine(collectionFolder, "theme.mp3")));
+    }
+
+    [Fact]
+    public async Task ManualCollection_ThemeCopyStays()
+    {
+        _h.AddSetFolder("Christmas Movies");
+        var collectionFolder = Directory.CreateDirectory(Path.Combine(_h.Root, "collections", "Christmas Movies [boxset]")).FullName;
+        var boxSet = _h.AddBoxSet("Christmas Movies", owned: false);
+        boxSet.Path = collectionFolder;
+        File.WriteAllText(Path.Combine(collectionFolder, "theme.mp3"), "mine");
+        Directory.CreateDirectory(Path.Combine(collectionFolder, "backdrops"));
+        File.WriteAllText(Path.Combine(collectionFolder, "backdrops", "theme.mp4"), "mine");
+
+        await FetchAsync(boxSet);
+
+        Assert.True(File.Exists(Path.Combine(collectionFolder, "theme.mp3")));
+        Assert.True(File.Exists(Path.Combine(collectionFolder, "backdrops", "theme.mp4")));
+    }
+
+    // ── Theme videos ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ThemeVideo_IsCopiedIntoBackdrops_NextToThemeSong()
+    {
+        _h.AddSetFolder("Alien Collection", "theme.mp3", "theme.mp4");
+        var (boxSet, collectionFolder) = OwnedCollectionWithFolder();
+
+        await FetchAsync(boxSet);
+
+        Assert.True(File.Exists(Path.Combine(collectionFolder, "theme.mp3")));
+        Assert.True(File.Exists(Path.Combine(collectionFolder, "backdrops", "theme.mp4")));
+        Assert.False(File.Exists(Path.Combine(collectionFolder, "theme.mp4")));
+    }
+
+    [Fact]
+    public async Task PrefixedThemeVideo_IsFound()
+    {
+        _h.AddSetFolder("Alien Collection", "Alien Collection-theme.webm");
+        var (boxSet, collectionFolder) = OwnedCollectionWithFolder();
+
+        await FetchAsync(boxSet);
+
+        Assert.True(File.Exists(Path.Combine(collectionFolder, "backdrops", "theme.webm")));
+    }
+
+    [Fact]
+    public async Task ThemeVideoFormatChange_ReplacesOldCopy()
+    {
+        _h.AddSetFolder("Alien Collection", "theme.mp4");
+        var (boxSet, collectionFolder) = OwnedCollectionWithFolder();
+        Directory.CreateDirectory(Path.Combine(collectionFolder, "backdrops"));
+        File.WriteAllText(Path.Combine(collectionFolder, "backdrops", "theme.mkv"), "old");
+
+        await FetchAsync(boxSet);
+
+        Assert.True(File.Exists(Path.Combine(collectionFolder, "backdrops", "theme.mp4")));
+        Assert.False(File.Exists(Path.Combine(collectionFolder, "backdrops", "theme.mkv")));
+    }
+
+    [Fact]
+    public async Task ThemeVideoRemovedFromSetFolder_CopyAndEmptyFolderAreRemoved()
+    {
+        _h.AddSetFolder("Alien Collection");
+        var (boxSet, collectionFolder) = OwnedCollectionWithFolder();
+        Directory.CreateDirectory(Path.Combine(collectionFolder, "backdrops"));
+        File.WriteAllText(Path.Combine(collectionFolder, "backdrops", "theme.mp4"), "old");
+
+        await FetchAsync(boxSet);
+
+        Assert.False(Directory.Exists(Path.Combine(collectionFolder, "backdrops")));
+    }
+
+    [Fact]
+    public async Task SetFolderOffline_ThemeVideoCopyStays()
+    {
+        var (boxSet, collectionFolder) = OwnedCollectionWithFolder();
+        Directory.CreateDirectory(Path.Combine(collectionFolder, "backdrops"));
+        File.WriteAllText(Path.Combine(collectionFolder, "backdrops", "theme.mp4"), "copy");
+        _h.Config.SetDataFolder = Path.Combine(_h.Root, "offline-share");
+
+        await FetchAsync(boxSet);
+
+        Assert.True(File.Exists(Path.Combine(collectionFolder, "backdrops", "theme.mp4")));
+    }
+
+    [Fact]
+    public async Task UnchangedThemeVideo_IsNotCopiedAgain()
+    {
+        _h.AddSetFolder("Alien Collection", "theme.mp4");
+        var (boxSet, collectionFolder) = OwnedCollectionWithFolder();
+        await FetchAsync(boxSet);
+
+        // Same size and time as the source, different bytes: a new copy would restore the source bytes.
+        var copy = Path.Combine(collectionFolder, "backdrops", "theme.mp4");
+        var time = File.GetLastWriteTimeUtc(copy);
+        File.WriteAllBytes(copy, [9, 9, 9]);
+        File.SetLastWriteTimeUtc(copy, time);
+
+        await FetchAsync(boxSet);
+
+        Assert.Equal([9, 9, 9], File.ReadAllBytes(copy));
     }
 
     // ── Stacked files ────────────────────────────────────────────────────

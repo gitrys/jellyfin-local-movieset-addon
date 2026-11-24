@@ -322,6 +322,33 @@ public class SetNfoParser
     /// <returns>Full path to the existing theme song file, or <c>null</c> if none found.</returns>
     public static string? ResolveThemeSongPath(string setDataFolder, string setName, NfoNamingConvention naming)
     {
+        return ResolveThemePath(setDataFolder, setName, naming, ThemeSongExtensions);
+    }
+
+    /// <summary>
+    /// Supported theme video extensions. Jellyfin reads theme videos from a
+    /// <c>backdrops</c> subfolder of the collection folder.
+    /// </summary>
+    public static readonly string[] ThemeVideoExtensions =
+    [
+        ".mp4", ".mkv", ".webm", ".m4v", ".mov"
+    ];
+
+    /// <summary>
+    /// Resolves an existing theme video for a given set name from the configured set data folder.
+    /// Accepts <c>theme.ext</c>, <c>{folder}-theme.ext</c>, and <c>{folder}.theme.ext</c>.
+    /// </summary>
+    /// <param name="setDataFolder">Root set data folder.</param>
+    /// <param name="setName">Name of the movie set.</param>
+    /// <param name="naming">Naming convention.</param>
+    /// <returns>Full path to the existing theme video, or <c>null</c> if none found.</returns>
+    public static string? ResolveThemeVideoPath(string setDataFolder, string setName, NfoNamingConvention naming)
+    {
+        return ResolveThemePath(setDataFolder, setName, naming, ThemeVideoExtensions);
+    }
+
+    private static string? ResolveThemePath(string setDataFolder, string setName, NfoNamingConvention naming, string[] extensions)
+    {
         if (string.IsNullOrWhiteSpace(setDataFolder) || !Directory.Exists(setDataFolder))
         {
             return null;
@@ -333,7 +360,7 @@ public class SetNfoParser
             return null;
         }
 
-        foreach (var fileName in GetThemeSongFileNameCandidates(Path.GetFileName(artworkFolder)))
+        foreach (var fileName in GetThemeFileNameCandidates(Path.GetFileName(artworkFolder), extensions))
         {
             var candidate = Path.Combine(artworkFolder, fileName);
             if (File.Exists(candidate))
@@ -346,13 +373,26 @@ public class SetNfoParser
     }
 
     /// <summary>
-    /// Theme file names to try in a set folder, most specific last.
+    /// Theme song file names to try in a set folder, most specific last.
     /// </summary>
     internal static IEnumerable<string> GetThemeSongFileNameCandidates(string? folderBaseName)
     {
-        foreach (var name in ThemeSongFileNames)
+        return GetThemeFileNameCandidates(folderBaseName, ThemeSongExtensions);
+    }
+
+    /// <summary>
+    /// Theme video file names to try in a set folder, most specific last.
+    /// </summary>
+    internal static IEnumerable<string> GetThemeVideoFileNameCandidates(string? folderBaseName)
+    {
+        return GetThemeFileNameCandidates(folderBaseName, ThemeVideoExtensions);
+    }
+
+    private static IEnumerable<string> GetThemeFileNameCandidates(string? folderBaseName, string[] extensions)
+    {
+        foreach (var ext in extensions)
         {
-            yield return name;
+            yield return $"theme{ext}";
         }
 
         if (string.IsNullOrWhiteSpace(folderBaseName))
@@ -360,7 +400,7 @@ public class SetNfoParser
             yield break;
         }
 
-        foreach (var ext in ThemeSongExtensions)
+        foreach (var ext in extensions)
         {
             yield return $"{folderBaseName}-theme{ext}";
             yield return $"{folderBaseName}.theme{ext}";

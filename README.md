@@ -72,7 +72,8 @@ If you curate your media collection using media managers such as [tinyMediaManag
 - 🏷️ **Genres & Studios:** With aggregation on, values come from member movies. With aggregation off, values come from the set NFO; if the NFO has none, the fields are cleared. Without a readable set NFO (missing, unreadable, or the folder is offline) the current values are kept.
 - ✋ **Values the plugin never clears:** Overview, original title, sort title and TMDB/IMDb IDs are only set when the set NFO has a value, and aggregated rating, tags and people stay when you turn aggregation off. The plugin does not record which values it wrote, so clearing them could delete text you entered in Jellyfin; clear such fields in Edit Metadata if needed.
 - 🔤 **Custom Collection Sort Title (`<sorttitle>`):** Reads `<sorttitle>` from set NFOs for custom alphabetical ordering (`collection.SortName`).
-- 🎵 **Theme Music from the Set Folder:** Copies `theme.mp3` (also `.m4a`, `.flac`, `.ogg`, `.wav`) or prefixed names such as `Alien Collection-theme.mp3` into the Jellyfin collection folder. Enable **Theme songs** in Jellyfin display settings to hear them in the web client.
+- 🎵 **Theme Music from the Set Folder:** Copies `theme.mp3` (also `.m4a`, `.flac`, `.ogg`, `.wav`) or prefixed names such as `Alien Collection-theme.mp3` into the Jellyfin collection folder. Enable **Theme songs** in Jellyfin display settings to hear them in the web client. When the theme is removed from the set folder, the copy is removed too (only while the set folder is reachable).
+- 🎬 **Theme Video from the Set Folder:** Copies `theme.mp4` (also `.mkv`, `.webm`, `.m4v`, `.mov`) or prefixed names such as `Alien Collection-theme.mp4` into the collection's `backdrops` folder, where Jellyfin plays it as the collection backdrop. Enable **Theme videos** in Jellyfin display settings; the web client then prefers the video over the theme song. The copy takes space in Jellyfin's data folder (videos are often tens of MB each).
 - 🔔 **Jellyfin Activity Feed Logging:** Posts sync results and warnings to the server activity log.
 - 🔒 **Privacy-Safe Bug Report Export:** Interactive export dialog for GitHub issues. *Mask File Paths* (on by default) shortens every absolute path to its last part and replaces library folders and the set data folder with placeholders; *Mask Set & Movie Titles* replaces every collection, set, and movie name your server knows with `[Set n]` / `[Movie n]` (movie titles shorter than 3 characters stay). Your own Jellyfin server does the masking; nothing leaves your network.
 
@@ -135,7 +136,7 @@ Each set needs its own folder. The NFO file lives inside that folder. Match the 
 | **`[Subfolder] <SetName>/<SetName>.nfo`** *(recommended)* | `<SetFolder>/<SetName>/<SetName>.nfo` | tinyMediaManager (TMM) standard | `_sets/Alien Collection/Alien Collection.nfo` |
 | **`[Subfolder] <SetName>/collection.nfo`** | `<SetFolder>/<SetName>/collection.nfo` | MediaElch, Ember, Kodi standard | `_sets/Alien Collection/collection.nfo` |
 
-**Artwork files:** Place `poster.jpg` (or `folder.jpg`) and `fanart.jpg` (or `backdrop.jpg`) in the set folder. Optional theme music: `theme.mp3` (or `{folder}-theme.mp3`) in the same folder. For movie-folder artwork fallback, use `movieset-poster.jpg` / `movieset-fanart.jpg` inside member movie folders and keep **Search movie folders for set artwork** enabled.
+**Artwork files:** Place `poster.jpg` (or `folder.jpg`) and `fanart.jpg` (or `backdrop.jpg`) in the set folder. Optional theme music: `theme.mp3` (or `{folder}-theme.mp3`) and theme video: `theme.mp4` (or `{folder}-theme.mp4`) in the same folder. For movie-folder artwork fallback, use `movieset-poster.jpg` / `movieset-fanart.jpg` inside member movie folders and keep **Search movie folders for set artwork** enabled.
 
 ---
 
@@ -145,13 +146,13 @@ Each set needs its own folder. The NFO file lives inside that folder. Match the 
 You likely have Jellyfin's native **"Automatically add to collection"** option enabled on one or more libraries. This causes TMDB to generate online box sets alongside your local ones. Disable this option in your library settings, then delete the TMDB duplicates in Jellyfin. **⚠️ Force Rebuild** only rebuilds the plugin's own collections; **⛔ Delete ALL Collections & Rebuild** removes every collection, including manual ones, and rebuilds from your NFOs.
 
 ### Where should I store my collection artwork?
-In the dedicated set data folder (e.g. `_sets/Alien Collection/poster.jpg`). Optionally enable **Search movie folders for set artwork** and place `movieset-poster.jpg` / `movieset-fanart.jpg` in member movie folders. Theme music belongs only in the set folder (`theme.mp3` or a prefixed name).
+In the dedicated set data folder (e.g. `_sets/Alien Collection/poster.jpg`). Optionally enable **Search movie folders for set artwork** and place `movieset-poster.jpg` / `movieset-fanart.jpg` in member movie folders. Theme music and theme videos belong only in the set folder (`theme.mp3` / `theme.mp4` or a prefixed name).
 
 ### Will my collections disappear if my network drive unmounts?
 **Mount Guard** (on by default) checks every movie and mixed library root before sync. If a root is missing, empty, or unreadable, the sync aborts and leaves existing collections untouched. It does not check the Movie Set Data Folder; if that folder is unreachable, the sync still updates collection members but leaves set metadata and artwork unchanged and logs a warning. A movie whose NFO cannot be read (for example while your media manager is writing it), or whose file is not found (a share or mount point below a library root is offline), stays in its current collection, and the sync log names it. Deleting collections that no longer appear in any movie NFO is a separate option and is off by default. It only deletes collections the plugin created, and it deletes nothing when one sync would remove more than a set share of them (25 % by default, at least 5 collections).
 
 ### Does this plugin modify any of my media files?
-Your movie and set `.nfo`, video, and image files are only read. Theme audio is copied into Jellyfin's own collection folder. If Jellyfin's own NFO saver is enabled for a library, Jellyfin still writes NFO files when you edit metadata in Jellyfin; a sync by this plugin does not trigger that. **Force Rebuild** and orphan deletion remove the plugin's Jellyfin collection folders, not your media files.
+Your movie and set `.nfo`, video, and image files are only read. Theme audio and theme videos are copied into Jellyfin's own collection folder, and these copies are removed when the theme is no longer in the set folder. If Jellyfin's own NFO saver is enabled for a library, Jellyfin still writes NFO files when you edit metadata in Jellyfin; a sync by this plugin does not trigger that. **Force Rebuild** and orphan deletion remove the plugin's Jellyfin collection folders, not your media files.
 
 ---
 

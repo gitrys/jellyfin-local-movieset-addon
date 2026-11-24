@@ -340,6 +340,22 @@ public class NfoValidatorTests : IDisposable
         Assert.Contains(themeFile, issue.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("theme.mp4")]
+    [InlineData("Alien Collection-theme.mkv")]
+    [InlineData("Alien Collection.theme.webm")]
+    public void ThemeVideo_IsFoundWithTheSyncsFileNames(string videoFile)
+    {
+        CreateSet("Alien Collection", "Alien Collection.nfo", "poster.jpg", "fanart.jpg", videoFile);
+
+        var report = _validator.Validate(_tempDirectory, NfoNamingConvention.SetSubfolder);
+
+        var issue = Assert.Single(report.Issues);
+        Assert.Equal(ValidationSeverity.Info, issue.Severity);
+        Assert.Equal(ValidationCategory.ThemeVideo, issue.Category);
+        Assert.Contains(videoFile, issue.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void FolderWithoutNfo_StillGetsArtworkCheck()
     {

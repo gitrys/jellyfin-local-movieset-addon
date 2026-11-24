@@ -714,7 +714,7 @@
                             <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">3. How Sync Works</h4>
                             <p style="margin: 0 0 0.5em 0; color: #ccc;">
                                 Sync reads <strong>all</strong> movie libraries. Collection names come from the
-                                <code>&lt;set&gt;</code> tag in each movie NFO. The Movie Set Data Folder only supplies artwork, overview, and theme music.
+                                <code>&lt;set&gt;</code> tag in each movie NFO. The Movie Set Data Folder only supplies artwork, overview, theme music, and theme video.
                                 A set folder with no matching movie never creates a collection.
                             </p>
                             <ul style="margin: 0; padding-left: 1.2em; color: #bbb;">
@@ -745,6 +745,15 @@
                                           title="Theme songs are off for this browser. Enable Settings → Display → Theme songs, or copied theme files will not play here."
                                           aria-label="Theme songs are disabled in your display settings">⚠</span>
                                 </li>
+                                <li>
+                                    A theme video plays as the collection backdrop (instead of the theme song) when
+                                    <em>Theme videos</em> is enabled under
+                                    <a id="ThemeVideoPrefsLink" href="#/mypreferencesmenu" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Settings &rarr; Display</a>.
+                                    <span id="ThemeVideoSettingWarning"
+                                          style="display: none; color: #f44336; font-size: 1.15em; margin-left: 0.25em; cursor: help; vertical-align: middle;"
+                                          title="Theme videos are off for this browser. Enable Settings → Display → Theme videos, or copied theme videos will not play here."
+                                          aria-label="Theme videos are disabled in your display settings">⚠</span>
+                                </li>
                             </ul>
                             <details style="margin-top: 0.9em; color: #ccc;">
                                 <summary style="cursor: pointer; color: #00a4dc; font-weight: 600; user-select: none;">
@@ -759,6 +768,7 @@
                                         <li><strong>Thumb:</strong> <code>landscape.jpg/.png</code>, <code>thumb.jpg/.png</code></li>
                                         <li><strong>Clearart / banner / disc / box / menu:</strong> <code>clearart.*</code>, <code>banner.*</code>, <code>disc.*</code> / <code>discart.*</code>, <code>box.*</code>, <code>boxrear.*</code> / <code>back.*</code>, <code>menu.*</code></li>
                                         <li><strong>Theme music:</strong> <code>theme.mp3</code> (also <code>.m4a</code>, <code>.flac</code>, <code>.ogg</code>, <code>.wav</code>), or <code>{Folder}-theme.ext</code> / <code>{Folder}.theme.ext</code></li>
+                                        <li><strong>Theme video:</strong> <code>theme.mp4</code> (also <code>.mkv</code>, <code>.webm</code>, <code>.m4v</code>, <code>.mov</code>), or <code>{Folder}-theme.ext</code> / <code>{Folder}.theme.ext</code> — copied into the collection's <code>backdrops</code> folder, so it also takes space in Jellyfin's data folder</li>
                                     </ul>
                                     <p style="margin: 0 0 0.6em 0;"><strong>In movie folders</strong> (only if fallback is on; artwork only — not theme):</p>
                                     <ul style="margin: 0; padding-left: 1.2em; color: #bbb;">
@@ -797,7 +807,7 @@
                             <p style="margin: 0; color: #ccc;">
                                 Optional. If a set has no artwork in the Set Data Folder, the plugin can look in member movie folders for
                                 <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code>, and similar names.
-                                Theme music is <strong>not</strong> taken from movie folders — only from the set folder.
+                                Theme music and theme videos are <strong>not</strong> taken from movie folders — only from the set folder.
                             </p>
                         </div>
                     </div>
@@ -914,20 +924,19 @@
                 }, 3500);
             }
 
-            /* ── Theme songs client setting (localStorage only in Jellyfin Web) ── */
-            function isThemeSongsEnabledInThisBrowser() {
+            /* ── Theme song / video client settings (localStorage only in Jellyfin Web) ── */
+            function isThemeSettingEnabledInThisBrowser(settingName) {
                 try {
                     const userId = ApiClient.getCurrentUserId && ApiClient.getCurrentUserId();
                     if (!userId) return false;
-                    // Jellyfin Web stores this as "{userId}-enableThemeSongs"; default is off.
-                    return localStorage.getItem(userId + '-enableThemeSongs') === 'true';
+                    // Jellyfin Web stores these as "{userId}-enableThemeSongs" / "{userId}-enableThemeVideos"; default is off.
+                    return localStorage.getItem(userId + '-' + settingName) === 'true';
                 } catch (e) {
                     return false;
                 }
             }
 
-            function updateThemeSongPrefsLink(page) {
-                const link = page.querySelector('#ThemeSongPrefsLink');
+            function updateDisplayPrefsLink(link) {
                 if (!link) return;
                 let userId = null;
                 try {
@@ -946,10 +955,16 @@
             }
 
             function updateThemeSongGuideWarning(page) {
-                updateThemeSongPrefsLink(page);
-                const warningEl = page.querySelector('#ThemeSongSettingWarning');
-                if (!warningEl) return;
-                warningEl.style.display = isThemeSongsEnabledInThisBrowser() ? 'none' : 'inline';
+                [
+                    ['#ThemeSongPrefsLink', '#ThemeSongSettingWarning', 'enableThemeSongs'],
+                    ['#ThemeVideoPrefsLink', '#ThemeVideoSettingWarning', 'enableThemeVideos']
+                ].forEach(function (entry) {
+                    updateDisplayPrefsLink(page.querySelector(entry[0]));
+                    const warningEl = page.querySelector(entry[1]);
+                    if (warningEl) {
+                        warningEl.style.display = isThemeSettingEnabledInThisBrowser(entry[2]) ? 'none' : 'inline';
+                    }
+                });
             }
 
             /* ── Check Conflicts ── */

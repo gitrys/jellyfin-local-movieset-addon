@@ -480,6 +480,24 @@ public class NfoValidator
             });
         }
 
+        // 4. Theme video: same candidates as the sync, copied into the collection's backdrops folder
+        var videoPath = BoxSetImageProvider.FindFirstExistingFile(
+            directoryPath,
+            SetNfoParser.GetThemeVideoFileNameCandidates(Path.GetFileName(directoryPath)));
+        if (videoPath != null)
+        {
+            issues.Add(new ValidationIssueDto
+            {
+                Severity = ValidationSeverity.Info,
+                Category = ValidationCategory.ThemeVideo,
+                CollectionName = collectionName,
+                FolderPath = directoryPath,
+                FilePath = videoPath,
+                Message = $"Theme video found: '{Path.GetFileName(videoPath)}'.",
+                Suggestion = "Plays as the collection backdrop when 'Theme videos' is enabled in Settings → Display (it replaces the theme song there)."
+            });
+        }
+
         return issues;
     }
 

@@ -109,3 +109,15 @@ Affected flows:
 2. Make one set member's file unreachable (rename its folder), run **Sync Now**. Expected: the movie stays in its collection; activity/sync log "1 movie file(s) were not found …". Rename back.
 3. If a mixed library exists: take its path offline → **Sync Now** → aborted by Mount Guard.
 4. Replace `theme.mp3` in a set folder with `theme.flac`, **Sync Now**. Expected: the collection folder (`…/collections/<name> [boxset]`) holds only `theme.flac`.
+
+## 2026-11-24 – Theme videos and theme copy cleanup
+
+Feature: theme video from the set folder copied to `<collection folder>/backdrops/theme.<ext>`; theme song and video copies removed when the source is gone.
+
+Affected flows (collection folders are under `/var/lib/jellyfin/data/collections/<Name> [boxset]/`):
+
+1. Put a short `theme.mp4` into a set folder, **Sync Now** (maybe twice: Jellyfin may only pick up the copied file on the next refresh). Expected: `backdrops/theme.mp4` in the collection folder; with *Theme videos* on in Settings → Display the video plays as the collection backdrop.
+2. Settings page, Setup Guide: with *Theme videos* off in this browser the ⚠ next to the theme video line is shown.
+3. Remove `theme.mp4` from the set folder, **Sync Now**. Expected: the `backdrops` folder is gone from the collection folder.
+4. Remove `theme.mp3` from a set folder (e.g. James Bond), **Sync Now**. Expected: `theme.mp3` is gone from the collection folder. Put it back, sync: it is copied again.
+5. Set the Movie Set Data Folder to a missing path, **Sync Now**: all theme copies stay. Restore the path.

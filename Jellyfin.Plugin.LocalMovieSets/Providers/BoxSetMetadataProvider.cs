@@ -80,7 +80,7 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
 
         changed |= ApplyDisplayOrder(item, config, newlyOwned);
         changed |= ApplySetMetadata(item, item.Name, movies, config);
-        changed |= ApplyThemeSong(item, item.Name, config);
+        changed |= ApplyThemeMedia(item, item.Name, config);
 
         await UpdatePeopleAsync(item, item.Name, movies, config, cancellationToken).ConfigureAwait(false);
 
@@ -305,95 +305,124 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
     }
 
     /// <summary>
-    /// Synchronizes theme music (e.g. theme.mp3, theme.flac) from the set data folder
-    /// into the Jellyfin BoxSet directory, enabling native theme music playback.
+    /// Synchronizes theme music (theme.mp3 …) and the theme video (theme.mp4 …) from the
+    /// set data folder into the Jellyfin BoxSet directory: the song next to the collection,
+    /// the video in its <c>backdrops</c> subfolder, where Jellyfin looks for theme videos.
     /// </summary>
-    private bool ApplyThemeSong(BoxSet collection, string setName, PluginConfiguration config)
+    private bool ApplyThemeMedia(BoxSet collection, string setName, PluginConfiguration config)
     {
         if (string.IsNullOrWhiteSpace(collection.Path) || !Directory.Exists(collection.Path))
         {
             return false;
         }
 
+        // Without a configured and reachable set folder the source is unknown:
+        // leave existing copies alone (a NAS outage must not delete them).
+        if (string.IsNullOrWhiteSpace(config.SetDataFolder) || SetNfoParser.IsFolderUnavailable(config.SetDataFolder))
+        {
+            return false;
+        }
+
+        var changed = false;
+
         try
         {
-            if (string.IsNullOrWhiteSpace(config.SetDataFolder))
-            {
-                return false;
-            }
-
             var sourceThemeSong = SetNfoParser.ResolveThemeSongPath(config.SetDataFolder, setName, config.NfoNaming);
-            if (sourceThemeSong is not null && File.Exists(sourceThemeSong))
-            {
-                var ext = Path.GetExtension(sourceThemeSong);
-                var targetPath = Path.Combine(collection.Path, $"theme{ext}");
-
-                // A copy with another extension is an older version of this theme
-                // (the set folder is the source). The collection folder belongs to
-                // Jellyfin and never holds media, so removing it is safe.
-                var removedOld = RemoveOtherThemeCopies(collection.Path, ext, setName);
-
-                var needCopy = true;
-                if (File.Exists(targetPath))
-                {
-                    var sourceInfo = new FileInfo(sourceThemeSong);
-                    var targetInfo = new FileInfo(targetPath);
-                    if (sourceInfo.Length == targetInfo.Length
-                        && sourceInfo.LastWriteTimeUtc == targetInfo.LastWriteTimeUtc)
-                    {
-                        needCopy = false;
-                    }
-                }
-
-                if (needCopy)
-                {
-                    File.Copy(sourceThemeSong, targetPath, overwrite: true);
-                    File.SetLastWriteTimeUtc(targetPath, File.GetLastWriteTimeUtc(sourceThemeSong));
-                    _logger.LogInformation(
-                        "Linked theme song '{SourceFile}' to collection folder for '{SetName}'",
-                        Path.GetFileName(sourceThemeSong),
-                        setName);
-                    return true;
-                }
-
-                return removedOld;
-            }
+            changed |= SyncThemeCopy(sourceThemeSong, collection.Path, SetNfoParser.ThemeSongExtensions, "theme song", setName);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to apply theme song for collection '{SetName}'", setName);
         }
 
-        return false;
+        try
+        {
+            var backdropsFolder = Path.Combine(collection.Path, "backdrops");
+            var sourceThemeVideo = SetNfoParser.ResolveThemeVideoPath(config.SetDataFolder, setName, config.NfoNaming);
+            changed |= SyncThemeCopy(sourceThemeVideo, backdropsFolder, SetNfoParser.ThemeVideoExtensions, "theme video", setName);
+
+            // The plugin creates this folder for the theme video only; drop it when it is empty.
+            if (sourceThemeVideo is null
+                && Directory.Exists(backdropsFolder)
+                && !Directory.EnumerateFileSystemEntries(backdropsFolder).Any())
+            {
+                Directory.Delete(backdropsFolder);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to apply theme video for collection '{SetName}'", setName);
+        }
+
+        return changed;
     }
 
     /// <summary>
-    /// Deletes <c>theme.*</c> copies with a supported extension other than <paramref name="keepExtension"/>.
+    /// Makes <paramref name="targetFolder"/> hold exactly the theme from the set folder:
+    /// copies <paramref name="sourcePath"/> as <c>theme.&lt;ext&gt;</c> (skipped when size and
+    /// time match) and deletes <c>theme.*</c> copies with other supported extensions. When
+    /// there is no source, every <c>theme.*</c> copy is deleted: the set folder is the only
+    /// source of theme media. The target belongs to Jellyfin's collection folder, never to
+    /// the user's media. Callers make sure the set folder is reachable.
     /// </summary>
-    /// <returns><c>true</c> if a file was deleted.</returns>
-    private bool RemoveOtherThemeCopies(string collectionFolder, string keepExtension, string setName)
+    /// <returns><c>true</c> if a file was copied or deleted.</returns>
+    private bool SyncThemeCopy(string? sourcePath, string targetFolder, string[] extensions, string kind, string setName)
     {
-        var removed = false;
-        foreach (var extension in SetNfoParser.ThemeSongExtensions)
-        {
-            if (string.Equals(extension, keepExtension, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
+        var keepExtension = sourcePath is not null && File.Exists(sourcePath)
+            ? Path.GetExtension(sourcePath)
+            : null;
 
-            var oldCopy = Path.Combine(collectionFolder, "theme" + extension);
-            if (File.Exists(oldCopy))
+        var changed = false;
+        if (Directory.Exists(targetFolder))
+        {
+            foreach (var extension in extensions)
             {
-                File.Delete(oldCopy);
-                removed = true;
-                _logger.LogInformation(
-                    "Removed old theme copy '{File}' from collection folder for '{SetName}'",
-                    Path.GetFileName(oldCopy),
-                    setName);
+                if (keepExtension is not null && string.Equals(extension, keepExtension, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var oldCopy = Path.Combine(targetFolder, "theme" + extension);
+                if (File.Exists(oldCopy))
+                {
+                    File.Delete(oldCopy);
+                    changed = true;
+                    _logger.LogInformation(
+                        "Removed {Kind} copy '{File}' from collection folder for '{SetName}' ({Reason})",
+                        kind,
+                        Path.GetFileName(oldCopy),
+                        setName,
+                        keepExtension is null ? "no longer in the set folder" : "replaced by another format");
+                }
             }
         }
 
-        return removed;
+        if (keepExtension is null)
+        {
+            return changed;
+        }
+
+        var targetPath = Path.Combine(targetFolder, "theme" + keepExtension);
+        if (File.Exists(targetPath))
+        {
+            var sourceInfo = new FileInfo(sourcePath!);
+            var targetInfo = new FileInfo(targetPath);
+            if (sourceInfo.Length == targetInfo.Length
+                && sourceInfo.LastWriteTimeUtc == targetInfo.LastWriteTimeUtc)
+            {
+                return changed;
+            }
+        }
+
+        Directory.CreateDirectory(targetFolder);
+        File.Copy(sourcePath!, targetPath, overwrite: true);
+        File.SetLastWriteTimeUtc(targetPath, File.GetLastWriteTimeUtc(sourcePath!));
+        _logger.LogInformation(
+            "Copied {Kind} '{SourceFile}' to collection folder for '{SetName}'",
+            kind,
+            Path.GetFileName(sourcePath),
+            setName);
+        return true;
     }
 
     /// <summary>

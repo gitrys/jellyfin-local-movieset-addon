@@ -77,7 +77,12 @@ public enum ValidationCategory
     /// <summary>
     /// A layout the sync does not read (NFO in the set data folder root, nested set folders).
     /// </summary>
-    UnsupportedLayout
+    UnsupportedLayout,
+
+    /// <summary>
+    /// Theme video discovery.
+    /// </summary>
+    ThemeVideo
 }
 
 /// <summary>
