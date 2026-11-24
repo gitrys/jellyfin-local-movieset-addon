@@ -79,8 +79,9 @@ public sealed class DeletePathTests : IDisposable
     {
         _h.AddBoxSet("Old Set", owned: true);
 
-        await SyncAsync();
+        var status = await SyncAsync();
 
+        Assert.Equal(SyncOutcomes.Success, status.LastRunOutcome);
         Assert.Empty(_h.Deleted);
     }
 

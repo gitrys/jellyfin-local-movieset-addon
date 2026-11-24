@@ -98,3 +98,14 @@ Affected flows (Diagnostics & Tools → bug report, section "Validator Diagnosti
 3. Put a copy of a set NFO directly into the Movie Set Data Folder → Error "… is in the root of the Movie Set Data Folder …"; remove it.
 4. A set folder with only `movieset-poster.jpg` → Warning "'movieset-poster.jpg' is not used as the collection poster".
 5. On Linux: a set folder with `Poster.JPG` only → Warning that it is not used (exact names).
+
+## 2026-11-24 – Remaining findings of #10
+
+Feature: follow-up sync for movies added during a sync, missing movie files keep their collection, Mount Guard for mixed libraries, theme copies replaced, stacked file NFOs, deterministic duplicate choice.
+
+Affected flows:
+
+1. Start **Sync Now** and, while it runs, add a new set member to the library (library scan). Expected: about 30 s after the sync ends another sync runs and adds the movie; server log "movies were added or removed during the sync; scheduling another sync".
+2. Make one set member's file unreachable (rename its folder), run **Sync Now**. Expected: the movie stays in its collection; activity/sync log "1 movie file(s) were not found …". Rename back.
+3. If a mixed library exists: take its path offline → **Sync Now** → aborted by Mount Guard.
+4. Replace `theme.mp3` in a set folder with `theme.flac`, **Sync Now**. Expected: the collection folder (`…/collections/<name> [boxset]`) holds only `theme.flac`.

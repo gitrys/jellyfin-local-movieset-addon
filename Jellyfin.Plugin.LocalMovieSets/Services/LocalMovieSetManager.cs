@@ -49,9 +49,17 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     // Cancelled on StopAsync/Dispose so background syncs stop at shutdown
     private readonly CancellationTokenSource _shutdownCts = new();
 
+    // Read once in the constructor: reading _shutdownCts.Token after Dispose throws.
+    // The token stays usable and is cancelled before the source is disposed.
+    private readonly CancellationToken _shutdownToken;
+
     // True while a sync is running, so the plugin's own repository updates
     // don't re-trigger the debounce timer via ItemUpdated events.
     private volatile bool _isSyncing;
+
+    // 1 when a movie was added or removed while a sync was running; the
+    // automatic sync is then scheduled once the running sync releases its lock.
+    private int _resyncPending;
 
     /// <summary>
     /// Update type used when the plugin saves a movie after changing its collection
@@ -137,7 +145,8 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         // Read the token once: reading _shutdownCts.Token inside the callback would
         // throw ObjectDisposedException on the timer thread if the timer fires after
         // Dispose. The token stays usable and is cancelled before the source is disposed.
-        var shutdownToken = _shutdownCts.Token;
+        _shutdownToken = _shutdownCts.Token;
+        var shutdownToken = _shutdownToken;
 
         // Timer starts stopped (Timeout.Infinite = never fire)
         _debounceTimer = new Timer(
@@ -187,9 +196,9 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     public Task StartAsync(CancellationToken cancellationToken)
     {
         LoadSyncHistory();
-        _libraryManager.ItemAdded += OnLibraryItemChanged;
-        _libraryManager.ItemUpdated += OnLibraryItemChanged;
-        _libraryManager.ItemRemoved += OnLibraryItemChanged;
+        _libraryManager.ItemAdded += OnLibraryItemAdded;
+        _libraryManager.ItemUpdated += OnLibraryItemUpdated;
+        _libraryManager.ItemRemoved += OnLibraryItemRemoved;
         _logger.LogInformation("Local Movie Sets: library event listeners registered");
         return Task.CompletedTask;
     }
@@ -197,9 +206,9 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     /// <inheritdoc />
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _libraryManager.ItemAdded -= OnLibraryItemChanged;
-        _libraryManager.ItemUpdated -= OnLibraryItemChanged;
-        _libraryManager.ItemRemoved -= OnLibraryItemChanged;
+        _libraryManager.ItemAdded -= OnLibraryItemAdded;
+        _libraryManager.ItemUpdated -= OnLibraryItemUpdated;
+        _libraryManager.ItemRemoved -= OnLibraryItemRemoved;
         _debounceTimer.Change(Timeout.Infinite, Timeout.Infinite);
 
         // Cancel any background sync started by the debounce timer
@@ -214,14 +223,25 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         return Task.CompletedTask;
     }
 
+    /// <summary>Gets a value indicating whether the automatic sync timer was started (for tests).</summary>
+    internal bool AutoSyncScheduled { get; private set; }
+
+    private void OnLibraryItemAdded(object? sender, ItemChangeEventArgs e) => OnLibraryItemChanged(e, addedOrRemoved: true);
+
+    private void OnLibraryItemUpdated(object? sender, ItemChangeEventArgs e) => OnLibraryItemChanged(e, addedOrRemoved: false);
+
+    private void OnLibraryItemRemoved(object? sender, ItemChangeEventArgs e) => OnLibraryItemChanged(e, addedOrRemoved: true);
+
     /// <summary>
     /// Called when a library item is added, updated or removed.
     /// Resets the debounce timer so a sync fires 30 seconds after the last event.
-    /// Events caused by the plugin's own updates during a sync are ignored.
+    /// While a sync runs, updates are ignored (most are the plugin's own saves of
+    /// member movies). Added or removed movies cannot come from the plugin, so they
+    /// are remembered and the automatic sync is scheduled when the running sync ends.
     /// </summary>
-    private void OnLibraryItemChanged(object? sender, ItemChangeEventArgs e)
+    internal void OnLibraryItemChanged(ItemChangeEventArgs e, bool addedOrRemoved)
     {
-        if (_isSyncing)
+        if (e.Item is not Movie)
         {
             return;
         }
@@ -231,9 +251,34 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             return;
         }
 
-        if (e.Item is Movie)
+        if (_isSyncing)
+        {
+            if (addedOrRemoved)
+            {
+                Interlocked.Exchange(ref _resyncPending, 1);
+            }
+
+            return;
+        }
+
+        ScheduleAutoSync();
+    }
+
+    private void ScheduleAutoSync()
+    {
+        if (_disposed || _shutdownToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        try
         {
             _debounceTimer.Change(TimeSpan.FromSeconds(30), Timeout.InfiniteTimeSpan);
+            AutoSyncScheduled = true;
+        }
+        catch (ObjectDisposedException)
+        {
+            // Shutdown race: the timer was disposed meanwhile.
         }
     }
 
@@ -365,6 +410,13 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             LogMessage(
                 LogLevel.Information,
                 $"Discovered {stats.SetsFound} distinct sets across {stats.MoviesInSets} movies ({stats.NfoParseErrors} NFO errors).");
+            if (stats.MissingMovieFiles > 0)
+            {
+                LogMessage(
+                    LogLevel.Warning,
+                    $"{stats.MissingMovieFiles} movie file(s) were not found (share offline, empty mount point or file moved). These movies keep their current collection.");
+            }
+
             progress?.Report(15);
 
             (stats.MoviesRefreshedFromNfo, stats.MoviesUpdatedFromNfo) = await RefreshMoviesFromNewerNfosAsync(setGroups, cancellationToken)
@@ -395,7 +447,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 _managedSetNames = new HashSet<string>(setGroups.Keys, StringComparer.OrdinalIgnoreCase);
                 LogMessage(
                     LogLevel.Warning,
-                    $"Kept {keptMovies.Count} movie(s) in their current collection because their NFO could not be read: {string.Join(", ", keptMovies.Select(m => m.Name))}");
+                    $"Kept {keptMovies.Count} movie(s) in their current collection because their NFO could not be read or their file was not found: {string.Join(", ", keptMovies.Select(m => m.Name))}");
             }
 
             // ── Step 4: Create or update collections ───────────────────────────
@@ -832,6 +884,17 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
                 unreadableMovieIds?.Add(movie.Id);
             }
+            else if (outcome.Membership is null && IsMovieFileMissing(movie.Path))
+            {
+                // No NFO because the file itself is gone (share offline, empty mount
+                // point below a library root, file being moved): not "not in a set".
+                if (stats != null)
+                {
+                    stats.MissingMovieFiles++;
+                }
+
+                unreadableMovieIds?.Add(movie.Id);
+            }
 
             if (outcome.Membership is null)
                 continue;
@@ -846,6 +909,21 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         }
 
         return setGroups;
+    }
+
+    /// <summary>
+    /// Returns whether neither a file nor a folder (DVD/Blu-ray structure) exists at the movie's path.
+    /// </summary>
+    internal static bool IsMovieFileMissing(string moviePath)
+    {
+        try
+        {
+            return !File.Exists(moviePath) && !Directory.Exists(moviePath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return true;
+        }
     }
 
     /// <summary>
@@ -938,7 +1016,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         var existingByName = groups
             .ToDictionary(
                 g => g.Key,
-                g => g.OrderByDescending(b => CollectionOwnership.IsOwned(b)).First(),
+                g => PickManagedDuplicate(g),
                 StringComparer.OrdinalIgnoreCase);
 
         var duplicateNames = groups
@@ -947,6 +1025,20 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             .ToList();
 
         return (existingBoxSets, existingByName, duplicateNames);
+    }
+
+    /// <summary>
+    /// Picks the collection the plugin manages among collections with the same name:
+    /// the one with the ownership marker, then the oldest, then by ID, so the choice
+    /// does not depend on the order Jellyfin returns them in.
+    /// </summary>
+    internal static BoxSet PickManagedDuplicate(IEnumerable<BoxSet> sameName)
+    {
+        return sameName
+            .OrderByDescending(b => CollectionOwnership.IsOwned(b))
+            .ThenBy(b => b.DateCreated)
+            .ThenBy(b => b.Id)
+            .First();
     }
 
     /// <summary>
@@ -1167,6 +1259,13 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         catch (ObjectDisposedException)
         {
         }
+
+        // Movies added or removed while the sync ran: run the automatic sync again.
+        if (Interlocked.Exchange(ref _resyncPending, 0) == 1)
+        {
+            _logger.LogInformation("Local Movie Sets: movies were added or removed during the sync; scheduling another sync");
+            ScheduleAutoSync();
+        }
     }
 
     /// <summary>
@@ -1238,8 +1337,12 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     /// </summary>
     private bool CheckMounts()
     {
+        // The sync reads movies from every library, so check every library that can
+        // hold movies: movie libraries and mixed ones (type "mixed" or no type).
         var movieLibraries = _libraryManager.GetVirtualFolders()
-            .Where(f => f.CollectionType == MediaBrowser.Model.Entities.CollectionTypeOptions.movies);
+            .Where(f => f.CollectionType is null
+                or MediaBrowser.Model.Entities.CollectionTypeOptions.movies
+                or MediaBrowser.Model.Entities.CollectionTypeOptions.mixed);
 
         foreach (var library in movieLibraries)
         {

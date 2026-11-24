@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 
@@ -153,7 +154,32 @@ public class MovieNfoParser
         // 1. {MovieFileName}.nfo — same name as the video file
         yield return Path.Combine(dir, $"{nameWithoutExt}.nfo");
 
-        // 2. movie.nfo — generic fallback name
+        // 2. For stacked files ("Alien-cd1.mkv") the NFO may be named without the part suffix
+        var stackBaseName = StripStackingSuffix(nameWithoutExt);
+        if (stackBaseName is not null)
+        {
+            yield return Path.Combine(dir, $"{stackBaseName}.nfo");
+        }
+
+        // 3. movie.nfo — generic fallback name
         yield return Path.Combine(dir, "movie.nfo");
+    }
+
+    // Part markers as Kodi and Jellyfin use them for stacked files:
+    // cd/dvd/part/pt/disc/disk, optional separator, then a number or a letter a-d.
+    // Unlike Kodi, a separator before the marker is required, so a name like
+    // "Abcd1" is not cut to "Ab".
+    private static readonly Regex StackingSuffix = new(
+        @"^(?<name>.*?\S)[ _.-]+(?:cd|dvd|part|pt|disc|disk)[ _.-]*(?:\d+|[a-d])$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Returns the file name without a trailing stacking part marker
+    /// ("Alien-cd1" → "Alien"), or <c>null</c> when there is none.
+    /// </summary>
+    internal static string? StripStackingSuffix(string nameWithoutExtension)
+    {
+        var match = StackingSuffix.Match(nameWithoutExtension);
+        return match.Success ? match.Groups["name"].Value.TrimEnd(' ', '_', '.', '-') : null;
     }
 }

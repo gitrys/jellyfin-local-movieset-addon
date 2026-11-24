@@ -91,6 +91,12 @@ public class SyncStatusInfo
     /// <summary>Gets or sets the number of NFO files that could not be parsed.</summary>
     public int NfoParseErrors { get; set; }
 
+    /// <summary>
+    /// Gets or sets the number of movies whose file or folder was not found (share
+    /// offline, mount point empty, file moved). They keep their current collection.
+    /// </summary>
+    public int MissingMovieFiles { get; set; }
+
     /// <summary>Gets or sets how many set movies were refreshed because their NFO was newer.</summary>
     public int MoviesRefreshedFromNfo { get; set; }
 

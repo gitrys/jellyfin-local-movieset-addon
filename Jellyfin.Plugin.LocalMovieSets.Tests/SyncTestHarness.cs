@@ -47,6 +47,9 @@ public sealed class SyncTestHarness : IDisposable
     {
         Root = Path.Combine(Path.GetTempPath(), "LocalMovieSets_Sync_" + Guid.NewGuid().ToString("N"));
         LibraryDir = Directory.CreateDirectory(Path.Combine(Root, "movies")).FullName;
+
+        // Mount Guard aborts on an empty library root; keep it non-empty unless a test wants otherwise.
+        File.WriteAllText(Path.Combine(LibraryDir, ".keep"), string.Empty);
         SetDataFolder = Directory.CreateDirectory(Path.Combine(Root, "sets")).FullName;
         var configDir = Directory.CreateDirectory(Path.Combine(Root, "config")).FullName;
         var pluginsDir = Directory.CreateDirectory(Path.Combine(Root, "plugins")).FullName;
@@ -73,9 +76,12 @@ public sealed class SyncTestHarness : IDisposable
             .Returns(ci => new QueryResult<BaseItem>(Query(ci.Arg<InternalItemsQuery>())));
         LibraryLocations.Add(LibraryDir);
         Library.GetVirtualFolders().Returns(_ =>
-        [
-            new VirtualFolderInfo { Name = "Movies", CollectionType = CollectionTypeOptions.movies, Locations = LibraryLocations.ToArray() }
-        ]);
+            new List<VirtualFolderInfo>
+            {
+                new() { Name = "Movies", CollectionType = CollectionTypeOptions.movies, Locations = LibraryLocations.ToArray() }
+            }
+            .Concat(ExtraLibraries)
+            .ToList());
         Library.When(l => l.DeleteItem(Arg.Any<BaseItem>(), Arg.Any<DeleteOptions>()))
             .Do(ci =>
             {
@@ -91,6 +97,7 @@ public sealed class SyncTestHarness : IDisposable
 
         Collections.CreateCollectionAsync(Arg.Any<CollectionCreationOptions>()).Returns(ci =>
         {
+            DuringSync?.Invoke();
             var options = ci.Arg<CollectionCreationOptions>();
             var boxSet = new BoxSet { Id = Guid.NewGuid(), Name = options.Name };
             BoxSets.Add(boxSet);
@@ -137,6 +144,12 @@ public sealed class SyncTestHarness : IDisposable
 
     /// <summary>Gets the paths of the movie library (Mount Guard checks them).</summary>
     public List<string> LibraryLocations { get; } = [];
+
+    /// <summary>Gets further libraries returned besides the movie library.</summary>
+    public List<VirtualFolderInfo> ExtraLibraries { get; } = [];
+
+    /// <summary>Gets or sets an action run while a sync creates a collection.</summary>
+    public Action? DuringSync { get; set; }
 
     public Plugin Plugin { get; }
 

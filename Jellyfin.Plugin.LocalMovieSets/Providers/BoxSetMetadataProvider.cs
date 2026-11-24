@@ -328,6 +328,11 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
                 var ext = Path.GetExtension(sourceThemeSong);
                 var targetPath = Path.Combine(collection.Path, $"theme{ext}");
 
+                // A copy with another extension is an older version of this theme
+                // (the set folder is the source). The collection folder belongs to
+                // Jellyfin and never holds media, so removing it is safe.
+                var removedOld = RemoveOtherThemeCopies(collection.Path, ext, setName);
+
                 var needCopy = true;
                 if (File.Exists(targetPath))
                 {
@@ -350,6 +355,8 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
                         setName);
                     return true;
                 }
+
+                return removedOld;
             }
         }
         catch (Exception ex)
@@ -358,6 +365,35 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Deletes <c>theme.*</c> copies with a supported extension other than <paramref name="keepExtension"/>.
+    /// </summary>
+    /// <returns><c>true</c> if a file was deleted.</returns>
+    private bool RemoveOtherThemeCopies(string collectionFolder, string keepExtension, string setName)
+    {
+        var removed = false;
+        foreach (var extension in SetNfoParser.ThemeSongExtensions)
+        {
+            if (string.Equals(extension, keepExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var oldCopy = Path.Combine(collectionFolder, "theme" + extension);
+            if (File.Exists(oldCopy))
+            {
+                File.Delete(oldCopy);
+                removed = true;
+                _logger.LogInformation(
+                    "Removed old theme copy '{File}' from collection folder for '{SetName}'",
+                    Path.GetFileName(oldCopy),
+                    setName);
+            }
+        }
+
+        return removed;
     }
 
     /// <summary>
