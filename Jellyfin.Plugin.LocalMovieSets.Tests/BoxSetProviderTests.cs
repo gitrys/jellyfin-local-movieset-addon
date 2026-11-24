@@ -10,12 +10,24 @@ public class BoxSetProviderTests
     [Theory]
     [InlineData("SortName", "SortName")]
     [InlineData("PremiereDate", "PremiereDate")]
-    [InlineData("Default", "")]
-    [InlineData("SortName Descending", "")] // legacy config value
-    [InlineData("", "")]
-    public void MapSortByToJellyfin_MapsOnlySupportedValues(string input, string expected)
+    [InlineData("Default", "PremiereDate")] // removed creation order
+    [InlineData("SortName Descending", "PremiereDate")] // legacy config value
+    [InlineData("", "PremiereDate")]
+    [InlineData(null, "PremiereDate")]
+    public void MapSortByToJellyfin_MapsToSupportedValues(string? input, string expected)
     {
         Assert.Equal(expected, BoxSetMetadataProvider.MapSortByToJellyfin(input));
+    }
+
+    [Theory]
+    [InlineData(true, "SortName", true)]       // new or first adopted collection
+    [InlineData(false, "", true)]              // old creation order
+    [InlineData(false, null, true)]
+    [InlineData(false, "SortName", false)]     // chosen in the metadata editor: keep
+    [InlineData(false, "PremiereDate", false)]
+    public void ShouldApplyDisplayOrder_OnlyForNewOrEmpty(bool newlyOwned, string? current, bool expected)
+    {
+        Assert.Equal(expected, BoxSetMetadataProvider.ShouldApplyDisplayOrder(newlyOwned, current));
     }
 
 

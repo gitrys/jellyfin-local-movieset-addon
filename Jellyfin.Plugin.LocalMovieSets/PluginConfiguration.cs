@@ -112,17 +112,20 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public bool EnableMovieFolderArtworkFallback { get; set; } = true;
 
-    /// <summary>
-    /// Gets or sets the display order for collections.
-    /// Supported values: "Default" (creation/link order), "PremiereDate", "SortName".
-    /// Legacy values from older versions are treated as "Default".
-    /// </summary>
-    public string CollectionSortBy { get; set; } = "Default";
+    private string _collectionSortBy = "PremiereDate";
 
     /// <summary>
-    /// Gets or sets the default sort direction for newly created collections.
+    /// Gets or sets the display order applied to new collections: "PremiereDate" or "SortName".
+    /// Any other stored value (the removed "Default" creation order, legacy values) becomes "PremiereDate".
+    /// Existing collections keep the order chosen for them in Jellyfin's metadata editor.
     /// </summary>
-    public string CollectionSortOrder { get; set; } = "Ascending";
+    public string CollectionSortBy
+    {
+        get => _collectionSortBy;
+        set => _collectionSortBy = string.Equals(value, "SortName", StringComparison.Ordinal)
+            ? "SortName"
+            : "PremiereDate";
+    }
 
     /// <summary>
     /// Gets or sets a value indicating whether to enable the Mount Guard.

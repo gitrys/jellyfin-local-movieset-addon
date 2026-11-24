@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Collection ownership marker:** Collections the plugin manages get the external ID *Local Movie Sets* (value: set name), shown in Edit Metadata. Existing plugin collections are marked on the first sync after the update.
 - **Orphan cleanup limit:** New setting (default 25 %). If one sync would delete more than this share of the plugin's collections (and at least 5), it deletes nothing and logs a warning to the sync history and activity log. The Preview shows when the limit would apply.
 - **Delete ALL Collections & Rebuild:** Separate button with the old Force Rebuild behavior (deletes every collection in Jellyfin).
+- **Apply to all plugin collections:** Button under *Default Collection Sort By* that sets the chosen order for every collection the plugin created.
 - **Confirmation for orphan deletion:** Turning on *Delete orphaned collections* asks for confirmation before it is saved.
 
 ### Changed
@@ -17,13 +18,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Duplicate collection names:** when several collections share a name, the one with the ownership marker is managed.
 - **Genres and studios without a readable set NFO are kept.** With aggregation off, they are only cleared when the set NFO exists and lists none. A missing or unreadable NFO, or an unreachable Movie Set Data Folder, no longer clears them. As a consequence, deleting a set NFO or turning aggregation off keeps the previous values.
 - **Movie Set Data Folder path saves when you leave the field**, not while typing, so a half-typed path is not used by a sync.
+- **Default Collection Sort By only applies to new collections.** An order you choose for a single collection in Edit Metadata is kept. The default is now *Release Date*; collections that used the removed *Creation Order* switch to the default order on the next sync.
 - **Movie NFO refresh on sync:** Sync and Force Rebuild re-read a set member's movie NFO through Jellyfin when that file is newer than the stored library item, so later edits (age rating, plot, year, cast, genres, rating) reach the collection. Set membership was already read on every run. Movie images are left in place.
 
 ### Removed
 - **"Also delete orphaned collections with provider IDs":** no longer needed, because orphan deletion now relies on the ownership marker instead of TMDB/IMDb IDs. A saved value of this option is ignored.
+- **"Creation Order (Release Date)" and "Default Collection Sort Order":** Creation order only matched release dates when a collection was created; movies added later were appended at the end. Collections now use Jellyfin's own *Release Date* or *Sort Name* order, which is always ascending. Saved values of the removed options are mapped to *Release Date* or ignored.
 - **Set-folder guess for managed collections:** a collection whose name only matched a set folder (without being a set in any movie NFO) is no longer treated as managed.
 
 ### Fixed
+- **Sort order per collection is no longer reset by every sync.** Before, each sync set every plugin collection back to the global sort setting, although the help text suggested changing it per collection.
 - **Failures are no longer reported as success.**
   - The scheduled task *Sync Local Movie Sets* (also used by **Sync Now**) now shows as failed when the sync fails or the Mount Guard aborts it, and as cancelled when it is cancelled. Before, it always showed "Completed".
   - If a sync is already running, the task waits for it and then runs its own sync instead of silently skipping.

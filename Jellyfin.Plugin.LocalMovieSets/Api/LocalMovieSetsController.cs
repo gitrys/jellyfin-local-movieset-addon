@@ -362,6 +362,32 @@ public class LocalMovieSetsController : ControllerBase
     }
 
     /// <summary>
+    /// Sets the display order of every collection this plugin owns.
+    /// Manual collections and collections from other sources are not changed.
+    /// </summary>
+    /// <param name="sortBy">"PremiereDate" or "SortName".</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The number of collections changed, 400 for an unknown value, or 409 while a sync runs.</returns>
+    [HttpPost("ApplySortOrder")]
+    public async Task<IActionResult> ApplySortOrder([FromQuery] string? sortBy, CancellationToken cancellationToken)
+    {
+        if (sortBy is not ("PremiereDate" or "SortName"))
+        {
+            return BadRequest(new { Success = false, Message = "sortBy must be 'PremiereDate' or 'SortName'." });
+        }
+
+        try
+        {
+            var updated = await _manager.ApplySortOrderToOwnedCollectionsAsync(sortBy, cancellationToken).ConfigureAwait(false);
+            return Ok(new { Success = true, Updated = updated });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { Success = false, Message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Validates whether a folder path exists and is readable by the Jellyfin process.
     /// Particularly helpful for Docker/NAS setups with volume mapping or permission issues.
     /// </summary>
@@ -464,7 +490,7 @@ public class LocalMovieSetsController : ControllerBase
             MaxWriters = config?.MaxWriters ?? 0,
             MaxGenres = config?.MaxGenres ?? 0,
             MaxStudios = config?.MaxStudios ?? 0,
-            CollectionSortBy = config?.CollectionSortBy ?? "Default",
+            CollectionSortBy = config?.CollectionSortBy ?? "PremiereDate",
             LastRunOutcome = status.LastRunOutcome,
             ScannedMoviesCount = status.MoviesScanned,
             MoviesInSetsCount = status.MoviesInSets,

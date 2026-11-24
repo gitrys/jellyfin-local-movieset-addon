@@ -72,12 +72,13 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
         // ownership marker. It is persisted by the refresh pipeline together
         // with the other changes; if the refresh fails, the collection stays
         // unmarked and is never deleted by the plugin.
-        var changed = _setManager.IsManagedSet(item.Name)
+        var newlyOwned = _setManager.IsManagedSet(item.Name)
             && CollectionOwnership.MarkOwned(item, item.Name);
+        var changed = newlyOwned;
 
         var movies = _setManager.GetBoxSetMovies(item);
 
-        changed |= ApplyDisplayOrder(item, config);
+        changed |= ApplyDisplayOrder(item, config, newlyOwned);
         changed |= ApplySetMetadata(item, item.Name, movies, config);
         changed |= ApplyThemeSong(item, item.Name, config);
 
@@ -86,8 +87,18 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
         return changed ? ItemUpdateType.MetadataEdit : ItemUpdateType.None;
     }
 
-    private static bool ApplyDisplayOrder(BoxSet collection, PluginConfiguration config)
+    /// <summary>
+    /// Applies the configured sort order only to collections that just became
+    /// plugin-owned (new or first adopted) or still have the removed creation
+    /// order (empty value). An order chosen in Jellyfin's metadata editor is kept.
+    /// </summary>
+    private static bool ApplyDisplayOrder(BoxSet collection, PluginConfiguration config, bool newlyOwned)
     {
+        if (!ShouldApplyDisplayOrder(newlyOwned, collection.DisplayOrder))
+        {
+            return false;
+        }
+
         var mapped = MapSortByToJellyfin(config.CollectionSortBy);
         if (!string.Equals(collection.DisplayOrder, mapped, StringComparison.Ordinal))
         {
@@ -99,18 +110,26 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
     }
 
     /// <summary>
-    /// Maps the configured sort mode to a Jellyfin BoxSet DisplayOrder value.
-    /// Jellyfin only honors "SortName" and "PremiereDate"; anything else
-    /// (including legacy config values) means default linked-children order.
+    /// Returns whether the plugin may set a collection's display order.
     /// </summary>
-    internal static string MapSortByToJellyfin(string sortBy)
+    /// <param name="newlyOwned"><c>true</c> when the collection got the ownership marker in this refresh.</param>
+    /// <param name="currentDisplayOrder">The collection's current display order.</param>
+    /// <returns><c>true</c> for new collections and for the old empty creation order.</returns>
+    internal static bool ShouldApplyDisplayOrder(bool newlyOwned, string? currentDisplayOrder)
     {
-        return sortBy switch
-        {
-            "SortName" => "SortName",
-            "PremiereDate" => "PremiereDate",
-            _ => string.Empty
-        };
+        return newlyOwned || string.IsNullOrWhiteSpace(currentDisplayOrder);
+    }
+
+    /// <summary>
+    /// Maps the configured sort mode to a Jellyfin BoxSet DisplayOrder value.
+    /// Jellyfin sorts collections by "SortName" or "PremiereDate"; everything
+    /// else (including the removed creation order) maps to "PremiereDate".
+    /// </summary>
+    internal static string MapSortByToJellyfin(string? sortBy)
+    {
+        return string.Equals(sortBy, "SortName", StringComparison.Ordinal)
+            ? "SortName"
+            : "PremiereDate";
     }
 
     /// <summary>

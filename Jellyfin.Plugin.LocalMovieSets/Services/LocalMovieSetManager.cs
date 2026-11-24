@@ -956,7 +956,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
             if (existingByName.TryGetValue(setName, out var boxSet))
             {
-                var sortedMovies = SortMovies(movies, config.CollectionSortBy, config.CollectionSortOrder);
+                var sortedMovies = SortMovies(movies);
                 var (toAdd, toRemove, existingMovieItems) = ComputeMembershipDiff(boxSet, sortedMovies);
 
                 if (toAdd.Length == 0 && toRemove.Length == 0)
@@ -1398,7 +1398,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
         try
         {
-            var sortedMovies = SortMovies(movies, config.CollectionSortBy, config.CollectionSortOrder);
+            var sortedMovies = SortMovies(movies);
 
             var collection = await _collectionManager.CreateCollectionAsync(new CollectionCreationOptions
             {
@@ -1454,7 +1454,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
         try
         {
-            var sortedMovies = SortMovies(movies, config.CollectionSortBy, config.CollectionSortOrder);
+            var sortedMovies = SortMovies(movies);
 
             var (newMovieIds, movieIdsToRemove, existingMovieItems) = ComputeMembershipDiff(boxSet, sortedMovies);
 
@@ -1525,22 +1525,71 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     }
 
     /// <summary>
-    /// Orders movies for the initial linked-children order of a collection.
-    /// "SortName" sorts by sort title; everything else (Default, PremiereDate and
-    /// legacy config values) sorts chronologically by premiere date.
-    /// The sort direction only matters for "Creation Order" (Default) display mode.
+    /// Orders movies chronologically (then by sort name) for a stable linking
+    /// and preview order. The order shown in Jellyfin comes from the collection's
+    /// display order (release date or sort name), not from this list.
     /// </summary>
-    private static List<Movie> SortMovies(List<Movie> movies, string sortBy, string sortOrder)
+    private static List<Movie> SortMovies(List<Movie> movies)
     {
-        var isDescending = string.Equals(sortOrder, "Descending", StringComparison.OrdinalIgnoreCase);
+        return movies
+            .OrderBy(m => m.PremiereDate ?? DateTime.MaxValue)
+            .ThenBy(m => m.SortName)
+            .ToList();
+    }
 
-        Func<Movie, object?> keySelector = string.Equals(sortBy, "SortName", StringComparison.OrdinalIgnoreCase)
-            ? m => m.SortName
-            : m => m.PremiereDate ?? DateTime.MaxValue;
+    /// <summary>
+    /// Sets the display order of every collection this plugin owns and saves it.
+    /// Used by the "Apply to all plugin collections" button; collections that are
+    /// not owned by the plugin are left unchanged.
+    /// </summary>
+    /// <param name="sortBy">"PremiereDate" or "SortName".</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The number of collections whose display order changed.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when a sync is running.</exception>
+    public async Task<int> ApplySortOrderToOwnedCollectionsAsync(string sortBy, CancellationToken cancellationToken)
+    {
+        if (!await _syncLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException("A sync is running. Try again when it has finished.");
+        }
 
-        return isDescending
-            ? movies.OrderByDescending(keySelector).ThenByDescending(m => m.SortName).ToList()
-            : movies.OrderBy(keySelector).ThenBy(m => m.SortName).ToList();
+        try
+        {
+            var displayOrder = BoxSetMetadataProvider.MapSortByToJellyfin(sortBy);
+            var owned = _libraryManager
+                .GetItemsResult(new InternalItemsQuery
+                {
+                    IncludeItemTypes = [BaseItemKind.BoxSet]
+                })
+                .Items
+                .OfType<BoxSet>()
+                .Where(b => CollectionOwnership.IsOwned(b))
+                .ToList();
+
+            var changed = 0;
+            foreach (var boxSet in owned)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (string.Equals(boxSet.DisplayOrder, displayOrder, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                boxSet.DisplayOrder = displayOrder;
+                await UpdateRepositoryWithRetryAsync(boxSet, ItemUpdateType.MetadataEdit, cancellationToken)
+                    .ConfigureAwait(false);
+                changed++;
+            }
+
+            LogMessage(
+                LogLevel.Information,
+                $"Applied display order '{displayOrder}' to {changed} of {owned.Count} plugin collection(s).");
+            return changed;
+        }
+        finally
+        {
+            ReleaseSyncLockSafe();
+        }
     }
 
     /// <summary>

@@ -473,27 +473,19 @@
                                 Default Collection Sort By
                             </label>
                             <select id="CollectionSortBy" is="emby-select" class="emby-select-withcolor emby-select">
-                                <option value="Default">Creation Order (Release Date)</option>
                                 <option value="PremiereDate">Release Date</option>
                                 <option value="SortName">Sort Name</option>
                             </select>
                             <div class="fieldDescription">
-                                How movies are ordered in the collection. &quot;Creation Order&quot; = plugin link order (by release when built). Override per collection in Edit Metadata.
+                                Order of movies in new collections. Change a single collection in Edit Metadata; the plugin keeps that choice.
                             </div>
-                        </div>
-
-                        <!-- ── Default Collection Sort Order ── -->
-                        <div class="inputContainer">
-                            <label class="inputLabel inputLabelUnfocused" for="CollectionSortOrder">
-                                Default Collection Sort Order
-                            </label>
-                            <select id="CollectionSortOrder" is="emby-select" class="emby-select-withcolor emby-select">
-                                <option value="Ascending">Ascending</option>
-                                <option value="Descending">Descending</option>
-                            </select>
-                            <div class="fieldDescription">
-                                Asc/Desc for Creation Order only. Jellyfin native sorts stay ascending.
-                            </div>
+                            <button is="emby-button"
+                                    id="BtnApplySortOrder"
+                                    type="button"
+                                    class="raised block emby-button"
+                                    style="margin: 0.6em 0 0 0; padding: 0.5em 1em; font-size: 0.9em;">
+                                <span>Apply to all plugin collections</span>
+                            </button>
                         </div>
 
                         <!-- ── Release Date Calculation ── -->
@@ -1398,12 +1390,9 @@
                     page.querySelector('#MaxWriters').value = config.MaxWriters !== undefined ? config.MaxWriters : 0;
                     page.querySelector('#MaxGenres').value = config.MaxGenres !== undefined ? config.MaxGenres : 0;
                     page.querySelector('#MaxStudios').value = config.MaxStudios !== undefined ? config.MaxStudios : 0;
-                    // Legacy configs may contain values that are no longer offered
-                    // (Name, CommunityRating, ...) — map those to Default.
-                    const sortBy = config.CollectionSortBy;
-                    const validSortBy = ['Default', 'PremiereDate', 'SortName'];
-                    page.querySelector('#CollectionSortBy').value = validSortBy.includes(sortBy) ? sortBy : 'Default';
-                    page.querySelector('#CollectionSortOrder').value = config.CollectionSortOrder || 'Ascending';
+                    // The server maps legacy values (including the removed "Default"
+                    // creation order) to PremiereDate; guard anyway.
+                    page.querySelector('#CollectionSortBy').value = config.CollectionSortBy === 'SortName' ? 'SortName' : 'PremiereDate';
                     page.querySelector('#CollectionReleaseDate').value = config.CollectionReleaseDate || 'DoNotCalculate';
 
                     validateSetDataFolderPath(page);
@@ -1457,7 +1446,6 @@
                     config.MaxGenres            = Math.max(0, parseInt(page.querySelector('#MaxGenres').value, 10) || 0);
                     config.MaxStudios           = Math.max(0, parseInt(page.querySelector('#MaxStudios').value, 10) || 0);
                     config.CollectionSortBy     = page.querySelector('#CollectionSortBy').value;
-                    config.CollectionSortOrder  = page.querySelector('#CollectionSortOrder').value;
                     config.CollectionReleaseDate = page.querySelector('#CollectionReleaseDate').value;
 
                     ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function () {
@@ -1547,6 +1535,34 @@
                         btnSync.innerHTML = origHtml;
                     }
                     showStatus('Could not query scheduled tasks.', true);
+                });
+            }
+
+            /* ── Apply the sort order to all plugin collections ── */
+            function applySortOrderToAll(page) {
+                const select = page.querySelector('#CollectionSortBy');
+                const sortBy = select && select.value === 'SortName' ? 'SortName' : 'PremiereDate';
+                const label = sortBy === 'SortName' ? 'Sort Name' : 'Release Date';
+                if (!confirm('Set the order of every collection created by this plugin to "' + label + '"?\n\n' +
+                        'This replaces orders you changed for single collections. Manual collections are not changed.')) {
+                    return;
+                }
+
+                const btn = page.querySelector('#BtnApplySortOrder');
+                if (btn) btn.disabled = true;
+
+                ApiClient.ajax({
+                    type: 'POST',
+                    url: ApiClient.getUrl('LocalMovieSets/ApplySortOrder', { sortBy: sortBy }),
+                    dataType: 'json'
+                }).then(function (result) {
+                    const updated = result && typeof result.Updated === 'number' ? result.Updated : 0;
+                    showStatus('Sort order applied to ' + updated + ' collection(s).', false);
+                }).catch(function (err) {
+                    console.error('Failed to apply sort order:', err);
+                    showStatus('Could not apply the sort order. If a sync is running, try again when it has finished.', true);
+                }).finally(function () {
+                    if (btn) btn.disabled = false;
                 });
             }
 
@@ -1767,7 +1783,7 @@
                         '- **Mount Guard:** ' + (info.MountGuardEnabled ? 'Enabled' : 'Disabled'),
                         '- **Movie Folder Fallback:** ' + (info.MovieFolderFallbackEnabled ? 'Enabled' : 'Disabled'),
                         '- **Delete Orphaned Sets:** ' + (info.DeleteOrphanedSets ? 'Enabled (limit: ' + (info.MaxOrphanDeletionPercent === 0 ? 'none' : info.MaxOrphanDeletionPercent + '%') + ')' : 'Disabled'),
-                        '- **Sort By:** ' + (info.CollectionSortBy || 'Default'),
+                        '- **Sort By (new collections):** ' + (info.CollectionSortBy || 'PremiereDate'),
                         '- **Aggregate Ratings:** ' + (info.AggregateRatings ? 'Enabled' : 'Disabled'),
                         '- **Aggregate Tags:** ' + (info.AggregateTags ? 'Enabled (Limit: ' + (info.MaxTags === 0 ? 'All' : info.MaxTags) + ')' : 'Disabled'),
                         '- **Aggregate Cast & Crew:** ' + (info.AggregatePeople ? 'Enabled (Actors: ' + (info.MaxActors === 0 ? 'All' : info.MaxActors) + ', Directors: ' + (info.MaxDirectors === 0 ? 'All' : info.MaxDirectors) + ', Writers: ' + (info.MaxWriters === 0 ? 'All' : info.MaxWriters) + ')' : 'Disabled'),
@@ -2412,6 +2428,13 @@
                     setDataFolderInput.removeEventListener('blur', setDataFolderInput._blurHandler);
                     setDataFolderInput._blurHandler = () => validateSetDataFolderPath(page);
                     setDataFolderInput.addEventListener('blur', setDataFolderInput._blurHandler);
+                }
+
+                const btnApplySort = page.querySelector('#BtnApplySortOrder');
+                if (btnApplySort) {
+                    btnApplySort.removeEventListener('click', btnApplySort._clickHandler);
+                    btnApplySort._clickHandler = () => applySortOrderToAll(page);
+                    btnApplySort.addEventListener('click', btnApplySort._clickHandler);
                 }
 
                 const btnDetect = page.querySelector('#BtnDetectNaming');

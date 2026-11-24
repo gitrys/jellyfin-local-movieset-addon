@@ -43,3 +43,15 @@ Affected flows:
 2. Same state → **Force Rebuild** → activity log shows "Local Movie Sets Force Rebuild Aborted … No collections were deleted"; no collection is deleted.
 3. While a sync is running (e.g. right after a library scan), press **Sync Now** → the task waits, then runs and shows *Completed*.
 4. Cancel the task in Scheduled Tasks while it runs → shown as cancelled.
+
+## 2026-11-24 – Collection sort order (#12)
+
+Feature: per-collection order is kept; Creation Order removed; "Apply to all plugin collections" button.
+
+Affected flows:
+
+1. Set one plugin collection to "Sort name" in Edit Metadata → **Sync Now** → it stays "Sort name".
+2. A collection that used Creation Order → after a sync it is sorted by release date; an older movie added later appears in the right place.
+3. Check the display order choices in Jellyfin's Edit Metadata for a collection (expected: only sort name and release date; an empty choice would contradict an assumption of this change).
+4. Settings: Default Collection Sort By = Sort Name → **Apply to all plugin collections** → confirmation, then a message with the number of changed collections; all plugin collections sorted by name; manual collections unchanged.
+5. Same button while a sync is running → error message "try again".

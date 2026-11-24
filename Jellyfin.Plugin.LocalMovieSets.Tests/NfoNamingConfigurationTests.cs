@@ -26,4 +26,23 @@ public class NfoNamingConfigurationTests
 
         Assert.Equal(NfoNamingConvention.CollectionNfo, config.NfoNaming);
     }
+
+    [Theory]
+    [InlineData("SortName", "SortName")]
+    [InlineData("PremiereDate", "PremiereDate")]
+    [InlineData("Default", "PremiereDate")] // removed creation order
+    [InlineData("Name", "PremiereDate")]    // legacy value
+    [InlineData("", "PremiereDate")]
+    public void CollectionSortBy_IsNormalized(string stored, string expected)
+    {
+        var config = new PluginConfiguration { CollectionSortBy = stored };
+
+        Assert.Equal(expected, config.CollectionSortBy);
+    }
+
+    [Fact]
+    public void CollectionSortBy_DefaultsToPremiereDate()
+    {
+        Assert.Equal("PremiereDate", new PluginConfiguration().CollectionSortBy);
+    }
 }
