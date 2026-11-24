@@ -18,12 +18,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Duplicate collection names:** when several collections share a name, the one with the ownership marker is managed.
 - **Genres and studios without a readable set NFO are kept.** With aggregation off, they are only cleared when the set NFO exists and lists none. A missing or unreadable NFO, or an unreachable Movie Set Data Folder, no longer clears them. As a consequence, deleting a set NFO or turning aggregation off keeps the previous values.
 - **Movie Set Data Folder path saves when you leave the field**, not while typing, so a half-typed path is not used by a sync.
-- **Default Collection Sort By only applies to new collections.** An order you choose for a single collection in Edit Metadata is kept. The default is now *Release Date*; collections that used the removed *Creation Order* switch to the default order on the next sync.
+- **Default Collection Sort By only applies to new collections.** An order you choose for a single collection in Edit Metadata is kept. The default is now *Release Date*; collections with an empty display order (written by the removed *Creation Order* setting) get the default order on the next sync.
 - **Movie NFO refresh on sync:** Sync and Force Rebuild re-read a set member's movie NFO through Jellyfin when that file is newer than the stored library item, so later edits (age rating, plot, year, cast, genres, rating) reach the collection. Set membership was already read on every run. Movie images are left in place.
 
 ### Removed
 - **"Also delete orphaned collections with provider IDs":** no longer needed, because orphan deletion now relies on the ownership marker instead of TMDB/IMDb IDs. A saved value of this option is ignored.
-- **"Creation Order (Release Date)" and "Default Collection Sort Order":** Creation order only matched release dates when a collection was created; movies added later were appended at the end. Collections now use Jellyfin's own *Release Date* or *Sort Name* order, which is always ascending. Saved values of the removed options are mapped to *Release Date* or ignored.
+- **"Creation Order (Release Date)" and "Default Collection Sort Order":** The option wrote an empty display order, which Jellyfin sorts by release date, so it never produced a creation order, and *Sort Order* (ascending/descending) had no visible effect. The plugin now only offers Jellyfin's *Release Date* and *Sort Name* orders (always ascending). Saved values of the removed options are mapped to *Release Date* or ignored. An unsorted collection in insertion order is still possible per collection in Edit Metadata (Jellyfin labels it "Date modified").
 - **Set-folder guess for managed collections:** a collection whose name only matched a set folder (without being a set in any movie NFO) is no longer treated as managed.
 
 ### Fixed

@@ -89,8 +89,11 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
 
     /// <summary>
     /// Applies the configured sort order only to collections that just became
-    /// plugin-owned (new or first adopted) or still have the removed creation
-    /// order (empty value). An order chosen in Jellyfin's metadata editor is kept.
+    /// plugin-owned (new or first adopted) or have an empty display order (written
+    /// by the removed "Creation Order" setting, or by the reset button in Jellyfin's
+    /// metadata editor; Jellyfin sorts an empty value by release date). Any order
+    /// chosen in the editor ("Default" shown as "Date modified", "SortName",
+    /// "PremiereDate") is kept.
     /// </summary>
     private static bool ApplyDisplayOrder(BoxSet collection, PluginConfiguration config, bool newlyOwned)
     {
@@ -114,7 +117,7 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
     /// </summary>
     /// <param name="newlyOwned"><c>true</c> when the collection got the ownership marker in this refresh.</param>
     /// <param name="currentDisplayOrder">The collection's current display order.</param>
-    /// <returns><c>true</c> for new collections and for the old empty creation order.</returns>
+    /// <returns><c>true</c> for new collections and for an empty display order.</returns>
     internal static bool ShouldApplyDisplayOrder(bool newlyOwned, string? currentDisplayOrder)
     {
         return newlyOwned || string.IsNullOrWhiteSpace(currentDisplayOrder);
@@ -122,8 +125,8 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
 
     /// <summary>
     /// Maps the configured sort mode to a Jellyfin BoxSet DisplayOrder value.
-    /// Jellyfin sorts collections by "SortName" or "PremiereDate"; everything
-    /// else (including the removed creation order) maps to "PremiereDate".
+    /// The plugin offers "SortName" and "PremiereDate"; everything else (including
+    /// the removed "Default" setting) maps to "PremiereDate".
     /// </summary>
     internal static string MapSortByToJellyfin(string? sortBy)
     {

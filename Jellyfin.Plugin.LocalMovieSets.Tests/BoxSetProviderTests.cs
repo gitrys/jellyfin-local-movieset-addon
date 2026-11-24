@@ -21,10 +21,11 @@ public class BoxSetProviderTests
 
     [Theory]
     [InlineData(true, "SortName", true)]       // new or first adopted collection
-    [InlineData(false, "", true)]              // old creation order
+    [InlineData(false, "", true)]              // empty: old "Creation Order" setting or editor reset
     [InlineData(false, null, true)]
     [InlineData(false, "SortName", false)]     // chosen in the metadata editor: keep
     [InlineData(false, "PremiereDate", false)]
+    [InlineData(false, "Default", false)]      // editor option "Date modified" (unsorted): keep
     public void ShouldApplyDisplayOrder_OnlyForNewOrEmpty(bool newlyOwned, string? current, bool expected)
     {
         Assert.Equal(expected, BoxSetMetadataProvider.ShouldApplyDisplayOrder(newlyOwned, current));
