@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+### Changed
+- **Bug report placeholders:** masked names now read `[Set n]` and `[Movie n]` (same name, same number across the whole report) instead of `[Collection #n]`; library folders read `[Library n]` and the set data folder `[Set Data Folder]`.
+
 ### Fixed
+- **Bug report masking left paths and titles visible.** Paths with spaces, non-ASCII characters or UNC form were not (or only partly) masked; validator messages and suggestions, the reason of protected collections and movie titles in log lines were never masked; title masking only caught ASCII names ending in "Collection", "Movie" or "Set". The finished report is now masked by the plugin on your Jellyfin server, using every library path, collection, set folder and movie name it knows. While masking runs, or if it fails, the unmasked report is neither shown nor copyable.
 - **A movie NFO that cannot be read no longer removes the movie from its collection.** Before, a file that was being written by the media manager during a sync dropped the movie from its collection until the next sync; a collection whose members all had unreadable NFOs could even count as orphaned. The movie now stays in its current plugin collection and the sync log names it. A *Force Rebuild* does not restore such a movie until its NFO is readable again.
 - **Collections with a set sort title are no longer saved on every sync.** The sort title from the set NFO was compared with Jellyfin's normalized sort name, so it always looked changed.
 - **Possible crash during server shutdown:** the automatic sync timer could throw on a background thread if it fired while the plugin was being disposed.

@@ -73,7 +73,7 @@ If you curate your media collection using media managers such as [tinyMediaManag
 - 🔤 **Custom Collection Sort Title (`<sorttitle>`):** Reads `<sorttitle>` from set NFOs for custom alphabetical ordering (`collection.SortName`).
 - 🎵 **Theme Music from the Set Folder:** Copies `theme.mp3` (also `.m4a`, `.flac`, `.ogg`, `.wav`) or prefixed names such as `Alien Collection-theme.mp3` into the Jellyfin collection folder. Enable **Theme songs** in Jellyfin display settings to hear them in the web client.
 - 🔔 **Jellyfin Activity Feed Logging:** Posts sync results and warnings to the server activity log.
-- 🔒 **Privacy-Safe Bug Report Export:** Interactive export dialog with optional path/title masking for GitHub issues.
+- 🔒 **Privacy-Safe Bug Report Export:** Interactive export dialog for GitHub issues. *Mask File Paths* (on by default) shortens every absolute path to its last part and replaces library folders and the set data folder with placeholders; *Mask Set & Movie Titles* replaces every collection, set, and movie name your server knows with `[Set n]` / `[Movie n]` (movie titles shorter than 3 characters stay). Your own Jellyfin server does the masking; nothing leaves your network.
 
 ---
 

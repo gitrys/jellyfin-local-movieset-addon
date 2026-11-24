@@ -1656,29 +1656,28 @@
                 let liveGrouping = null;
                 let collectError = null;
 
-                function sanitizePath(str) {
-                    if (!str) return '';
-                    if (!maskPaths) return str;
-                    let res = str.replace(/([a-zA-Z]:\\[^\s'"<>]+)/g, function (match) {
-                        const parts = match.split(/[\\/]/).filter(Boolean);
-                        return '.../' + (parts.length > 0 ? parts[parts.length - 1] : 'file');
-                    });
-                    res = res.replace(/((\/[a-zA-Z0-9_\.\-]+){2,})/g, function (match) {
-                        const parts = match.split('/').filter(Boolean);
-                        return '.../' + (parts.length > 0 ? parts[parts.length - 1] : 'file');
-                    });
-                    return res;
+                // The report is built unmasked here; the server masks the finished
+                // text (POST LocalMovieSets/MaskReport), because only the server knows
+                // every library path, collection and movie name.
+                function displayName(name) {
+                    return name || 'Unknown';
                 }
 
-                function sanitizeTitle(str) {
-                    if (!str) return '';
-                    if (!maskTitles) return str;
-                    return str.replace(/([A-Z0-9a-z\s\-_]+)( Collection| Movie| Set)/g, '[Collection]');
-                }
-
-                function maskName(name, idx) {
-                    if (!maskTitles) return name || 'Unknown';
-                    return '[Collection #' + ((idx || 0) + 1) + ']';
+                // Set names the page already has, sent along so they are masked even
+                // when no collection or set folder with that name exists yet.
+                function collectKnownNames() {
+                    const names = [];
+                    function add(n) { if (n) names.push(String(n)); }
+                    if (livePreview) {
+                        ['ToCreate', 'BelowMinimum', 'ToUpdate', 'UnchangedSets', 'ProtectedOrphans'].forEach(function (key) {
+                            (livePreview[key] || []).forEach(function (s) { add(s && s.Name); });
+                        });
+                        (livePreview.ToDelete || []).forEach(add);
+                    }
+                    if (liveValidation && liveValidation.Issues) {
+                        liveValidation.Issues.forEach(function (issue) { add(issue.CollectionName); });
+                    }
+                    return names;
                 }
 
                 function appendPreviewSection(mdLines) {
@@ -1698,10 +1697,7 @@
                         return;
                     }
                     if (livePreview.ErrorMessage) {
-                        let msg = livePreview.ErrorMessage;
-                        if (maskPaths) msg = sanitizePath(msg);
-                        if (maskTitles) msg = sanitizeTitle(msg);
-                        mdLines.push('- **Status:** error — `' + msg + '`');
+                        mdLines.push('- **Status:** error — `' + livePreview.ErrorMessage + '`');
                         return;
                     }
                     mdLines.push('- **Scanned:** ' + (livePreview.ScannedMoviesCount || 0) + ' movies in ' + (livePreview.ScannedLibrariesCount || 0) + ' libraries');
@@ -1713,19 +1709,19 @@
                     mdLines.push('- **Would delete:** ' + ((livePreview.ToDelete || []).length));
                     mdLines.push('- **Protected orphans:** ' + ((livePreview.ProtectedOrphans || []).length));
 
-                    (livePreview.ToCreate || []).slice(0, 25).forEach(function (s, i) {
-                        mdLines.push('  - create: **' + maskName(s.Name, i) + '** (' + (s.MovieCount || 0) + ' movies)');
+                    (livePreview.ToCreate || []).slice(0, 25).forEach(function (s) {
+                        mdLines.push('  - create: **' + displayName(s.Name) + '** (' + (s.MovieCount || 0) + ' movies)');
                     });
-                    (livePreview.ToUpdate || []).slice(0, 25).forEach(function (u, i) {
+                    (livePreview.ToUpdate || []).slice(0, 25).forEach(function (u) {
                         const added = u.MoviesToAdd || 0;
                         const removed = u.MoviesToRemove || 0;
-                        mdLines.push('  - update: **' + maskName(u.Name, i) + '** (+' + added + ' / -' + removed + ')');
+                        mdLines.push('  - update: **' + displayName(u.Name) + '** (+' + added + ' / -' + removed + ')');
                     });
-                    (livePreview.ToDelete || []).slice(0, 25).forEach(function (name, i) {
-                        mdLines.push('  - delete: **' + maskName(name, i) + '**');
+                    (livePreview.ToDelete || []).slice(0, 25).forEach(function (name) {
+                        mdLines.push('  - delete: **' + displayName(name) + '**');
                     });
-                    (livePreview.ProtectedOrphans || []).slice(0, 15).forEach(function (p, i) {
-                        mdLines.push('  - protected: **' + maskName(p.Name, i) + '** — ' + (p.Reason || 'kept'));
+                    (livePreview.ProtectedOrphans || []).slice(0, 15).forEach(function (p) {
+                        mdLines.push('  - protected: **' + displayName(p.Name) + '** — ' + (p.Reason || 'kept'));
                     });
                 }
 
@@ -1807,10 +1803,7 @@
                         mdLines.push('');
                         mdLines.push('### Diagnostics & Errors');
                         if (info.LastErrorMessage) {
-                            let errMsg = info.LastErrorMessage;
-                            if (maskPaths) errMsg = sanitizePath(errMsg);
-                            if (maskTitles) errMsg = sanitizeTitle(errMsg);
-                            mdLines.push('- **Last Sync Error:** `' + errMsg + '`');
+                            mdLines.push('- **Last Sync Error:** `' + info.LastErrorMessage + '`');
                         } else {
                             mdLines.push('- **Last Sync Error:** None');
                         }
@@ -1818,13 +1811,11 @@
                         if (liveValidation && liveValidation.Issues && liveValidation.Issues.length > 0) {
                             mdLines.push('');
                             mdLines.push('### Validator Diagnostics (live) (' + liveValidation.Issues.length + ' total: ' + (liveValidation.ErrorCount || 0) + ' errors, ' + (liveValidation.WarningCount || 0) + ' warnings, ' + (liveValidation.InfoCount || 0) + ' infos)');
-                            liveValidation.Issues.forEach(function (issue, idx) {
-                                let colName = issue.CollectionName || 'Unknown';
-                                let filePath = issue.FilePath || issue.FolderPath || '';
-                                let desc = issue.Message || issue.Issue || '';
-                                let sugg = issue.Suggestion || '';
-                                if (maskTitles) colName = '[Collection #' + (idx + 1) + ']';
-                                if (maskPaths) filePath = sanitizePath(filePath);
+                            liveValidation.Issues.forEach(function (issue) {
+                                const colName = displayName(issue.CollectionName);
+                                const filePath = issue.FilePath || issue.FolderPath || '';
+                                const desc = issue.Message || issue.Issue || '';
+                                const sugg = issue.Suggestion || '';
                                 let itemStr = '- [' + (issue.Severity || 'Issue') + '] **' + colName + '**: ' + desc;
                                 if (filePath) itemStr += ' (`' + filePath + '`)';
                                 if (sugg) itemStr += ' → *' + sugg + '*';
@@ -1845,10 +1836,7 @@
                             mdLines.push('### Recent Sync Execution Logs (' + info.RecentLogs.length + ' lines)');
                             mdLines.push('```');
                             info.RecentLogs.forEach(function (logLine) {
-                                let l = logLine;
-                                if (maskPaths) l = sanitizePath(l);
-                                if (maskTitles) l = sanitizeTitle(l);
-                                mdLines.push(l);
+                                mdLines.push(logLine);
                             });
                             mdLines.push('```');
                         }
@@ -1941,8 +1929,47 @@
                 body.appendChild(textarea);
                 modalContent.appendChild(body);
 
+                // Fail closed: while masking is pending or after it failed, neither the
+                // text area nor the copy button holds the unmasked report.
+                let maskRequestId = 0;
                 function updateText() {
-                    textarea.value = generateMarkdown();
+                    const requestId = ++maskRequestId;
+                    const raw = generateMarkdown();
+
+                    if (!info || (!maskPaths && !maskTitles)) {
+                        textarea.value = raw;
+                        btnCopy.disabled = !info;
+                        return;
+                    }
+
+                    textarea.value = 'Masking report…';
+                    btnCopy.disabled = true;
+
+                    ApiClient.ajax({
+                        type: 'POST',
+                        url: ApiClient.getUrl('LocalMovieSets/MaskReport'),
+                        data: JSON.stringify({
+                            Text: raw,
+                            MaskPaths: maskPaths,
+                            MaskTitles: maskTitles,
+                            Names: maskTitles ? collectKnownNames() : []
+                        }),
+                        contentType: 'application/json',
+                        dataType: 'json'
+                    }).then(function (res) {
+                        if (requestId !== maskRequestId) return;
+                        if (!res || typeof res.Text !== 'string') {
+                            throw new Error('empty response');
+                        }
+                        textarea.value = res.Text;
+                        btnCopy.disabled = false;
+                    }).catch(function (err) {
+                        if (requestId !== maskRequestId) return;
+                        console.error('Failed to mask the report:', err);
+                        textarea.value = 'Masking failed. The unmasked report is not shown.\n\n' +
+                            'Try again by toggling a mask option, or turn off masking to see the report as is.';
+                        btnCopy.disabled = true;
+                    });
                 }
 
                 const chkWrap = toolbar.querySelector('#LmsWordWrap');
@@ -2069,7 +2096,6 @@
                     } else {
                         statusLine.textContent = 'Live diagnostics ready (Preview + validation + health checks).';
                         statusLine.style.color = '#4CAF50';
-                        btnCopy.disabled = false;
                     }
                     updateText();
                 }).catch(function (err) {

@@ -456,10 +456,11 @@ public class LocalMovieSetsController : ControllerBase
     }
 
     /// <summary>
-    /// Returns sanitized, privacy-safe system diagnostic information for GitHub bug reports.
-    /// Strictly excludes any personal data, file paths, usernames, IP addresses, or movie titles.
+    /// Returns system diagnostic information for the bug report. The recent sync log
+    /// lines and the last error message can contain paths and set names; the settings
+    /// page masks the finished report through <see cref="MaskReport"/>.
     /// </summary>
-    /// <returns>Sanitized system diagnostic information.</returns>
+    /// <returns>System diagnostic information.</returns>
     [HttpGet("SystemInfo")]
     public ActionResult<SystemInfoDto> GetSystemInfo()
     {
@@ -505,14 +506,139 @@ public class LocalMovieSetsController : ControllerBase
             HasErrorMessage = !string.IsNullOrEmpty(status.LastErrorMessage)
         });
     }
+
+    /// <summary>Largest report text <see cref="MaskReport"/> accepts, in characters.</summary>
+    internal const int MaxMaskTextLength = 1_000_000;
+
+    /// <summary>Most names a client may send to <see cref="MaskReport"/>.</summary>
+    internal const int MaxMaskClientNames = 20_000;
+
+    /// <summary>
+    /// Masks file paths and set/movie names in the bug report text. The server adds
+    /// the names and paths it knows (library folders, Movie Set Data Folder, every
+    /// collection and movie name) to the names the page sends. The text is not logged.
+    /// </summary>
+    /// <param name="request">Report text, masking options and names known to the page.</param>
+    /// <returns>The masked text.</returns>
+    [HttpPost("MaskReport")]
+    public ActionResult<MaskReportResponse> MaskReport([FromBody] MaskReportRequest request)
+    {
+        if (request is null)
+        {
+            return BadRequest("Request body is missing.");
+        }
+
+        var text = request.Text ?? string.Empty;
+        if (text.Length > MaxMaskTextLength)
+        {
+            return BadRequest($"Report text is longer than {MaxMaskTextLength} characters.");
+        }
+
+        var clientNames = request.Names ?? [];
+        if (clientNames.Count > MaxMaskClientNames)
+        {
+            return BadRequest($"More than {MaxMaskClientNames} names were sent.");
+        }
+
+        var config = Plugin.Instance?.Configuration;
+        var setDataFolder = config?.SetDataFolder;
+
+        var libraryRoots = request.MaskPaths
+            ? _libraryManager.GetVirtualFolders()
+                .SelectMany(f => f.Locations ?? [])
+                .ToList()
+            : [];
+
+        var setNames = new List<string>();
+        var movieNames = new List<string>();
+        if (request.MaskTitles)
+        {
+            setNames.AddRange(clientNames);
+            setNames.AddRange(QueryItemNames(BaseItemKind.BoxSet));
+            setNames.AddRange(ListSetFolderNames(setDataFolder));
+            movieNames.AddRange(QueryItemNames(BaseItemKind.Movie));
+        }
+
+        var terms = new ReportMaskTerms(libraryRoots, setDataFolder, setNames, movieNames);
+
+        try
+        {
+            return Ok(new MaskReportResponse
+            {
+                Text = ReportMasker.Mask(text, request.MaskPaths, request.MaskTitles, terms)
+            });
+        }
+        catch (System.Text.RegularExpressions.RegexMatchTimeoutException ex)
+        {
+            _logger.LogWarning(ex, "Local Movie Sets: masking the bug report timed out");
+            return StatusCode(500, "Masking the report timed out.");
+        }
+    }
+
+    private List<string> QueryItemNames(BaseItemKind kind)
+    {
+        return _libraryManager
+            .GetItemsResult(new InternalItemsQuery { IncludeItemTypes = [kind] })
+            .Items
+            .Select(i => i.Name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .ToList();
+    }
+
+    private List<string> ListSetFolderNames(string? setDataFolder)
+    {
+        if (string.IsNullOrWhiteSpace(setDataFolder))
+        {
+            return [];
+        }
+
+        try
+        {
+            return Directory.Exists(setDataFolder)
+                ? Directory.EnumerateDirectories(setDataFolder).Select(Path.GetFileName).OfType<string>().ToList()
+                : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogDebug(ex, "Local Movie Sets: could not list set folders for report masking");
+            return [];
+        }
+    }
+}
+
+/// <summary>
+/// Request body of <see cref="LocalMovieSetsController.MaskReport"/>.
+/// </summary>
+public class MaskReportRequest
+{
+    /// <summary>Gets or sets the report text.</summary>
+    public string? Text { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether file paths are masked.</summary>
+    public bool MaskPaths { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether set and movie names are masked.</summary>
+    public bool MaskTitles { get; set; }
+
+    /// <summary>Gets or sets set and collection names the page knows (Preview, validation).</summary>
+    public List<string>? Names { get; set; }
+}
+
+/// <summary>
+/// Response of <see cref="LocalMovieSetsController.MaskReport"/>.
+/// </summary>
+public class MaskReportResponse
+{
+    /// <summary>Gets or sets the masked report text.</summary>
+    public string Text { get; set; } = string.Empty;
 }
 
 /// <summary>
 /// System diagnostic information for bug reporting. Nothing is sent anywhere; the
 /// settings page builds the report locally. Settings and counters contain no paths
 /// or titles, but <see cref="RecentLogs"/> and <see cref="LastErrorMessage"/> are
-/// sync log text and can contain file paths and set names. The settings page masks
-/// them before export.
+/// sync log text and can contain file paths and set names. With masking on, the
+/// settings page shows the report only after the server masked it (MaskReport).
 /// </summary>
 public class SystemInfoDto
 {

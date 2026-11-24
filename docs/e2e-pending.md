@@ -74,3 +74,15 @@ Affected flows:
 2. Expected: the movie is still in its collection; the activity/sync log shows "Kept 1 movie(s) in their current collection because their NFO could not be read: <title>".
 3. Repair the NFO and sync again: no "Kept" message, membership unchanged.
 4. A collection whose set NFO has a `<sorttitle>`: after a sync, Edit Metadata shows that sort title, and changing it in the set NFO plus **Sync Now** applies the new value. (The removed extra save on every sync is not visible in the UI.)
+
+## 2026-11-24 – Bug report masking on the server (#5)
+
+Feature: the System Info / bug report dialog sends the finished report to `POST LocalMovieSets/MaskReport`; paths and names are masked with what the server knows.
+
+Affected flows:
+
+1. Diagnostics & Tools → bug report, *Mask File Paths* on: no library path, set folder path or user name visible; library folders appear as `[Library n]`, the set folder as `[Set Data Folder]`, other paths as `…/<last part>`.
+2. Also turn on *Mask Set & Movie Titles*: collection names in the Preview list, validator lines and log lines appear as `[Set n]`, movie titles as `[Movie n]`; the same name has the same number everywhere.
+3. While toggling, the text area briefly shows "Masking report…" and *Copy to Clipboard* is disabled; afterwards copy works and copies the masked text.
+4. Both mask options off: the report appears unmasked right away, without the "Masking report…" step.
+5. Optional (fail closed): stop the server or block the request in the browser devtools, then toggle a mask option → "Masking failed. The unmasked report is not shown." and copy stays disabled.
