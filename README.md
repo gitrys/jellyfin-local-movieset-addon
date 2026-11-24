@@ -150,7 +150,7 @@ In the dedicated set data folder (e.g. `_sets/Alien Collection/poster.jpg`). Opt
 **Mount Guard** (on by default) checks every movie library root before sync. If a root is missing, empty, or unreadable, the sync aborts and leaves existing collections untouched. It does not check the Movie Set Data Folder. Deleting collections that no longer appear in any movie NFO is a separate option and is off by default. It only deletes collections the plugin created, and it deletes nothing when one sync would remove more than a set share of them (25 % by default, at least 5 collections).
 
 ### Does this plugin modify any of my media files?
-Your movie and set `.nfo`, video, and image files are only read. Theme audio is copied into Jellyfin's own collection folder. **Force Rebuild** and orphan deletion remove the plugin's Jellyfin collection folders, not your media files.
+Your movie and set `.nfo`, video, and image files are only read. Theme audio is copied into Jellyfin's own collection folder. If Jellyfin's own NFO saver is enabled for a library, Jellyfin still writes NFO files when you edit metadata in Jellyfin; a sync by this plugin does not trigger that. **Force Rebuild** and orphan deletion remove the plugin's Jellyfin collection folders, not your media files.
 
 ---
 

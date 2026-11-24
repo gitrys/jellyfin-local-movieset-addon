@@ -11,3 +11,13 @@ Affected flows:
 3. Turning on *Delete orphaned collections* asks for confirmation; cancelling leaves it off and unsaved. The Preview lists manual collections under "Orphaned Collections Kept" with "Not created by this plugin".
 4. Orphan limit: with more than 25 % of plugin collections orphaned (at least 5), the sync deletes nothing and the activity log shows the warning.
 5. *Force Rebuild* keeps manual collections. *Delete ALL Collections & Rebuild* removes them and rebuilds the plugin collections.
+
+## 2026-11-24 – No movie NFO writes on sync (#2)
+
+Feature: movies are saved with `MetadataImport` after membership changes, so Jellyfin's NFO saver does not run.
+
+Affected flow (library with Jellyfin's NFO saver enabled under Manage Library → Metadata savers):
+
+1. Note modification time and content of a set member's NFO (for example `<set><overview>` present).
+2. Remove the movie from its collection in Jellyfin, then run **Sync Now**.
+3. Expected: the movie is back in the collection, grouped under it in the Movies view, and its NFO has the same modification time and content.

@@ -53,6 +53,17 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     // don't re-trigger the debounce timer via ItemUpdated events.
     private volatile bool _isSyncing;
 
+    /// <summary>
+    /// Update type used when the plugin saves a movie after changing its collection
+    /// membership. Jellyfin runs its metadata savers on every save, and its movie NFO
+    /// saver writes the file for <see cref="ItemUpdateType.ImageUpdate"/> and above
+    /// (<see cref="ItemUpdateType.MetadataEdit"/> even when local saving is off but the
+    /// NFO exists). <see cref="ItemUpdateType.MetadataImport"/> stays below that, so the
+    /// user's NFO files are not rewritten; the save still updates the database and raises
+    /// ItemUpdated for clients.
+    /// </summary>
+    internal const ItemUpdateType MovieSaveUpdateType = ItemUpdateType.MetadataImport;
+
     // Snapshot of the most recent sync run.
     private SyncStatusInfo _lastStatus = new();
     private readonly object _historyLock = new();
@@ -1293,12 +1304,13 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 return false;
             }
 
-            // Force update on all movies in the new collection to refresh UI grouping cache
+            // Save the members so clients get an ItemUpdated notification and refresh their grouping.
+            // MovieSaveUpdateType keeps Jellyfin from rewriting the movie NFO files.
             foreach (var movie in sortedMovies)
             {
                 try
                 {
-                    await UpdateRepositoryWithRetryAsync(movie, ItemUpdateType.MetadataEdit, cancellationToken)
+                    await UpdateRepositoryWithRetryAsync(movie, MovieSaveUpdateType, cancellationToken)
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex)
@@ -1347,13 +1359,13 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 await AddToCollectionWithRetryAsync(boxSet.Id, newMovieIds, cancellationToken)
                     .ConfigureAwait(false);
 
-                // Force update on newly added movies to refresh UI grouping cache
+                // Save the new members so clients refresh their grouping (no NFO write, see MovieSaveUpdateType).
                 var newMovieItems = sortedMovies.Where(m => newMovieIds.Contains(m.Id)).ToList();
                 foreach (var movie in newMovieItems)
                 {
                     try
                     {
-                        await UpdateRepositoryWithRetryAsync(movie, ItemUpdateType.MetadataEdit, cancellationToken)
+                        await UpdateRepositoryWithRetryAsync(movie, MovieSaveUpdateType, cancellationToken)
                             .ConfigureAwait(false);
                     }
                     catch (Exception ex)
@@ -1372,13 +1384,13 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 await RemoveFromCollectionWithRetryAsync(boxSet.Id, movieIdsToRemove, cancellationToken)
                     .ConfigureAwait(false);
 
-                // Force update on removed movies to show them outside the collection
+                // Save the removed movies so clients show them outside the collection (no NFO write).
                 var removedMovieItems = existingMovieItems.Where(m => movieIdsToRemove.Contains(m.Id)).ToList();
                 foreach (var movie in removedMovieItems)
                 {
                     try
                     {
-                        await UpdateRepositoryWithRetryAsync(movie, ItemUpdateType.MetadataEdit, cancellationToken)
+                        await UpdateRepositoryWithRetryAsync(movie, MovieSaveUpdateType, cancellationToken)
                             .ConfigureAwait(false);
                     }
                     catch (Exception ex)
@@ -1498,7 +1510,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 movie.ForcedSortName = null;
                 try
                 {
-                    await UpdateRepositoryWithRetryAsync(movie, ItemUpdateType.MetadataEdit, cancellationToken)
+                    await UpdateRepositoryWithRetryAsync(movie, MovieSaveUpdateType, cancellationToken)
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex)

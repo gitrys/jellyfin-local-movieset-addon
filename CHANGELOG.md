@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **"Also delete orphaned collections with provider IDs":** no longer needed, because orphan deletion now relies on the ownership marker instead of TMDB/IMDb IDs. A saved value of this option is ignored.
 - **Set-folder guess for managed collections:** a collection whose name only matched a set folder (without being a set in any movie NFO) is no longer treated as managed.
 
+### Fixed
+- **Movie NFO files are no longer rewritten by a sync.** After adding a movie to a collection or removing it, the plugin saved the movie as a manual metadata edit. With Jellyfin's NFO saver enabled (and in some cases even without it), Jellyfin then rewrote the movie's NFO in its own format and dropped `<set><overview>`. The plugin now saves these movies as a metadata import, which does not run Jellyfin's metadata savers.
+
 ## [1.0.36.0] - 2026-10-01
 ### Added
 - **Settings autosave:** Settings-tab changes save after a short pause (about 250 ms for checkboxes and dropdowns, about 900 ms for text and number fields; leaving a field saves immediately). **Save Settings** still saves at once. Confirmation uses the floating toast so the page does not shift.
