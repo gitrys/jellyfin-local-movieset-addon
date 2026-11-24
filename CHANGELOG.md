@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.0.37.0] - 2026-11-24
 ### Added
 - **Collection ownership marker:** Collections the plugin manages get the external ID *Local Movie Sets* (value: set name), shown in Edit Metadata. Existing plugin collections are marked on the first sync after the update.
 - **Orphan cleanup limit:** New setting (default 25 %). If one sync would delete more than this share of the plugin's collections (and at least 5), it deletes nothing and logs a warning to the sync history and activity log. The Preview shows when the limit would apply.
