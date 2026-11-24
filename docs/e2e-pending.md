@@ -21,3 +21,14 @@ Affected flow (library with Jellyfin's NFO saver enabled under Manage Library â†
 1. Note modification time and content of a set member's NFO (for example `<set><overview>` present).
 2. Remove the movie from its collection in Jellyfin, then run **Sync Now**.
 3. Expected: the movie is back in the collection, grouped under it in the Movies view, and its NFO has the same modification time and content.
+
+## 2026-11-24 â€“ Unreachable set folder keeps collection data (#4)
+
+Feature: set metadata and artwork stay unchanged when the Movie Set Data Folder cannot be reached or a set NFO is missing or broken.
+
+Affected flows (genre/studio aggregation off):
+
+1. Set the Movie Set Data Folder to a path that does not exist, leave the field, run **Sync Now**.
+2. Expected: genres, studios, and images of the collections are unchanged; the activity log and the Preview show the "not reachable" warning; member changes still apply.
+3. Restore the path and sync again: no warning, everything as before.
+4. Typing in the path field does not save; leaving the field saves it (status line shows "Saved.").

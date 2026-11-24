@@ -375,7 +375,7 @@
                                         </label>
                                         <input id="MaxGenres" type="number" class="emby-input" min="0" max="50" value="0" />
                                         <div class="fieldDescription" style="font-size: 0.82em; margin-top: 0.25em;">
-                                            On &rarr; from movies. Off &rarr; set NFO, else clear. <code>0</code> = all.
+                                            On &rarr; from movies. Off &rarr; from set NFO; kept if there is no readable set NFO. <code>0</code> = all.
                                         </div>
                                     </div>
                                 </div>
@@ -394,7 +394,7 @@
                                         </label>
                                         <input id="MaxStudios" type="number" class="emby-input" min="0" max="50" value="0" />
                                         <div class="fieldDescription" style="font-size: 0.82em; margin-top: 0.25em;">
-                                            On &rarr; from movies. Off &rarr; set NFO, else clear. <code>0</code> = all.
+                                            On &rarr; from movies. Off &rarr; from set NFO; kept if there is no readable set NFO. <code>0</code> = all.
                                         </div>
                                     </div>
                                 </div>
@@ -783,7 +783,7 @@
                             <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">5. Genres &amp; Studios</h4>
                             <p style="margin: 0; color: #ccc;">
                                 With <em>Aggregate genres</em> / <em>Aggregate studios</em> on, values come from the member movies.
-                                With aggregation off, values come from the set NFO; if the set NFO has none, the collection field is cleared.
+                                With aggregation off, values come from the set NFO; if the NFO has none, the field is cleared. Without a readable set NFO (missing, unreadable, or the folder is offline) the current values are kept.
                             </p>
                         </div>
 
@@ -1118,6 +1118,12 @@
                     html += '</div>';
                 }
 
+                if (r.SetDataFolderUnavailable) {
+                    html += '<div style="padding: 0.75em 1em; background: rgba(255, 152, 0, 0.12); border: 1px solid rgba(255, 152, 0, 0.35); border-radius: 6px; color: #ffcc80; font-weight: 500; font-size: 0.92em; margin-bottom: 0.8em;">';
+                    html += '  📁 The Movie Set Data Folder is not reachable. A sync would still update collection members, but leave set metadata and artwork unchanged.';
+                    html += '</div>';
+                }
+
                 if (r.OrphanLimitBlocked) {
                     html += '<div style="padding: 0.75em 1em; background: rgba(255, 152, 0, 0.12); border: 1px solid rgba(255, 152, 0, 0.35); border-radius: 6px; color: #ffcc80; font-weight: 500; font-size: 0.92em; margin-bottom: 0.8em;">';
                     html += '  🛡️ The orphan cleanup would exceed the safety limit, so the next sync would delete nothing. Check that all movie NFOs are readable, or raise the limit in Settings.';
@@ -1344,6 +1350,8 @@
                     if (!isSettingsField(ev.target)) return;
                     // Orphan deletion needs a confirmation first; the change handler saves it.
                     if (ev.target.id === 'DeleteOrphanedSets') return;
+                    // Do not save a half-typed path; the folder is saved when the field is left.
+                    if (ev.target.id === 'SetDataFolder') return;
                     scheduleAutosave(page, autosaveDelayFor(ev.target));
                 });
                 form.addEventListener('change', function (ev) {

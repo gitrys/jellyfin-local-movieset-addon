@@ -131,6 +131,7 @@ public class MetadataRankingTests
             movieSources: movies,
             max: 0);
 
+        Assert.NotNull(result);
         Assert.Equal(3, result.Length);
         Assert.Equal("Sci-Fi", result[0]);
         Assert.DoesNotContain("Romance", result);
@@ -145,6 +146,7 @@ public class MetadataRankingTests
             movieSources: [new[] { "Horror" }],
             max: 0);
 
+        Assert.NotNull(result);
         Assert.Equal(["Action", "Sci-Fi"], result);
     }
 
@@ -157,18 +159,33 @@ public class MetadataRankingTests
             movieSources: [new[] { "Horror" }],
             max: 0);
 
+        Assert.NotNull(result);
         Assert.Empty(result);
     }
 
     [Fact]
-    public void ResolveCollectionStringList_AggregateOff_NullSetNfo_Clears()
+    public void ResolveCollectionStringList_AggregateOff_NullSetNfo_ReturnsNullToKeepValues()
     {
+        // No readable set NFO (folder offline, NFO missing or broken): keep the current values.
         var result = BoxSetMetadataProvider.ResolveCollectionStringList(
             aggregate: false,
             setNfoValues: null,
             movieSources: [new[] { "Horror" }],
             max: 0);
 
-        Assert.Empty(result);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ResolveCollectionStringList_AggregateOn_NullSetNfo_StillUsesMovies()
+    {
+        var result = BoxSetMetadataProvider.ResolveCollectionStringList(
+            aggregate: true,
+            setNfoValues: null,
+            movieSources: [new[] { "Horror" }],
+            max: 0);
+
+        Assert.NotNull(result);
+        Assert.Equal(["Horror"], result);
     }
 }

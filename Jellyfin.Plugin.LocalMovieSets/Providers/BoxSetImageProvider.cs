@@ -74,7 +74,9 @@ public class BoxSetImageProvider : IDynamicImageProvider
     /// <inheritdoc />
     public IEnumerable<ImageType> GetSupportedImages(BaseItem item)
     {
-        if (item is not BoxSet boxSet || !CollectionOwnership.IsManaged(boxSet, _setManager.IsManagedSet))
+        if (item is not BoxSet boxSet
+            || !CollectionOwnership.IsManaged(boxSet, _setManager.IsManagedSet)
+            || IsSetFolderUnavailable())
         {
             yield break;
         }
@@ -103,7 +105,9 @@ public class BoxSetImageProvider : IDynamicImageProvider
     {
         // Collections this plugin does not manage (manual, TMDB, other plugins)
         // get no artwork from here, so a member's set poster cannot leak into them.
-        if (item is not BoxSet boxSet || !CollectionOwnership.IsManaged(boxSet, _setManager.IsManagedSet))
+        if (item is not BoxSet boxSet
+            || !CollectionOwnership.IsManaged(boxSet, _setManager.IsManagedSet)
+            || IsSetFolderUnavailable())
         {
             return Task.FromResult(new DynamicImageResponse { HasImage = false });
         }
@@ -272,6 +276,16 @@ public class BoxSetImageProvider : IDynamicImageProvider
         }
 
         return list;
+    }
+
+    /// <summary>
+    /// A configured but unreachable set folder must not fall back to movie-folder
+    /// artwork: with "Overwrite existing artwork" (or for new collections) that would
+    /// replace the set's own images during a share outage.
+    /// </summary>
+    private static bool IsSetFolderUnavailable()
+    {
+        return SetNfoParser.IsFolderUnavailable(Plugin.Instance?.Configuration.SetDataFolder);
     }
 
     /// <summary>

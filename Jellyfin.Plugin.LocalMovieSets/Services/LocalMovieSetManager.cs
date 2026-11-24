@@ -312,6 +312,16 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             // fetcher in the collections library options, so make sure it is.
             EnsureImageFetcherEnabled();
 
+            // Membership comes from movie NFOs, so the sync continues. The providers
+            // leave set metadata and artwork unchanged while the folder is unreachable.
+            if (SetNfoParser.IsFolderUnavailable(config.SetDataFolder))
+            {
+                stats.SetDataFolderUnavailable = true;
+                LogMessage(
+                    LogLevel.Warning,
+                    $"Movie Set Data Folder is not reachable: {config.SetDataFolder}. Set metadata and artwork are left unchanged until it is back.");
+            }
+
             // ── Step 1: Query all movies ──────────────────────────────────────
             var allMovies = QueryAllMovies();
             stats.MoviesScanned = allMovies.Count;
@@ -478,6 +488,11 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     if (stats.OrphanDeletionBlocked)
                     {
                         overview += " Orphan cleanup was skipped because it would exceed the safety limit.";
+                        severity = LogLevel.Warning;
+                    }
+                    if (stats.SetDataFolderUnavailable)
+                    {
+                        overview += " The Movie Set Data Folder was not reachable; set metadata and artwork were left unchanged.";
                         severity = LogLevel.Warning;
                     }
                     break;
@@ -867,6 +882,8 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             result.MountGuardBlocked = true;
             return result;
         }
+
+        result.SetDataFolderUnavailable = SetNfoParser.IsFolderUnavailable(config.SetDataFolder);
 
         var allMovies = QueryAllMovies();
         var setGroups = BuildSetGroups(allMovies, cancellationToken);

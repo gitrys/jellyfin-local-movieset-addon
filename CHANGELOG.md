@@ -15,6 +15,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Force Rebuild only deletes the plugin's own collections.** Manual and TMDB collections stay. Use *Delete ALL Collections & Rebuild* for the old behavior.
 - **Set artwork only for the plugin's own collections.** The image provider no longer supplies set or movie-folder artwork to manual or TMDB collections.
 - **Duplicate collection names:** when several collections share a name, the one with the ownership marker is managed.
+- **Genres and studios without a readable set NFO are kept.** With aggregation off, they are only cleared when the set NFO exists and lists none. A missing or unreadable NFO, or an unreachable Movie Set Data Folder, no longer clears them. As a consequence, deleting a set NFO or turning aggregation off keeps the previous values.
+- **Movie Set Data Folder path saves when you leave the field**, not while typing, so a half-typed path is not used by a sync.
 - **Movie NFO refresh on sync:** Sync and Force Rebuild re-read a set member's movie NFO through Jellyfin when that file is newer than the stored library item, so later edits (age rating, plot, year, cast, genres, rating) reach the collection. Set membership was already read on every run. Movie images are left in place.
 
 ### Removed
@@ -22,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Set-folder guess for managed collections:** a collection whose name only matched a set folder (without being a set in any movie NFO) is no longer treated as managed.
 
 ### Fixed
+- **Unreachable Movie Set Data Folder no longer wipes collection data.** Before, a short share outage cleared genres and studios of every collection (with aggregation off), and the movie-folder artwork fallback could replace set artwork. Now set metadata and artwork are left unchanged; the sync still updates members and warns in the sync history, the activity log, and the Preview.
 - **Movie NFO files are no longer rewritten by a sync.** After adding a movie to a collection or removing it, the plugin saved the movie as a manual metadata edit. With Jellyfin's NFO saver enabled (and in some cases even without it), Jellyfin then rewrote the movie's NFO in its own format and dropped `<set><overview>`. The plugin now saves these movies as a metadata import, which does not run Jellyfin's metadata savers.
 
 ## [1.0.36.0] - 2026-10-01

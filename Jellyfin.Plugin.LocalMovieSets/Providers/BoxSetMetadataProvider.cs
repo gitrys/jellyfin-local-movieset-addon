@@ -161,58 +161,58 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
             }
         }
 
-        // 2. Parse dedicated set NFO metadata if folder is configured
-        SetNfoInfo? setInfo = null;
-        if (!string.IsNullOrWhiteSpace(config.SetDataFolder))
+        // 2. Read the dedicated set NFO. Only a successfully read NFO may change
+        // set-derived fields; an unreachable folder, a missing NFO, or an
+        // unreadable NFO leave the collection's current values alone.
+        var setInfo = _setNfoParser.ParseSet(config.SetDataFolder, setName, config.NfoNaming);
+        if (setInfo != null)
         {
-            setInfo = _setNfoParser.ParseSet(config.SetDataFolder, setName, config.NfoNaming);
-            if (setInfo != null)
+            if (!string.IsNullOrWhiteSpace(setInfo.Overview)
+                && !string.Equals(collection.Overview, setInfo.Overview, StringComparison.Ordinal))
             {
-                if (!string.IsNullOrWhiteSpace(setInfo.Overview)
-                    && !string.Equals(collection.Overview, setInfo.Overview, StringComparison.Ordinal))
-                {
-                    collection.Overview = setInfo.Overview;
-                    changed = true;
-                }
+                collection.Overview = setInfo.Overview;
+                changed = true;
+            }
 
-                if (!string.IsNullOrWhiteSpace(setInfo.OriginalTitle)
-                    && !string.Equals(collection.OriginalTitle, setInfo.OriginalTitle, StringComparison.Ordinal))
-                {
-                    collection.OriginalTitle = setInfo.OriginalTitle;
-                    changed = true;
-                }
+            if (!string.IsNullOrWhiteSpace(setInfo.OriginalTitle)
+                && !string.Equals(collection.OriginalTitle, setInfo.OriginalTitle, StringComparison.Ordinal))
+            {
+                collection.OriginalTitle = setInfo.OriginalTitle;
+                changed = true;
+            }
 
-                if (!string.IsNullOrWhiteSpace(setInfo.SortTitle)
-                    && !string.Equals(collection.SortName, setInfo.SortTitle, StringComparison.Ordinal))
-                {
-                    collection.SortName = setInfo.SortTitle;
-                    collection.ForcedSortName = setInfo.SortTitle;
-                    changed = true;
-                }
+            if (!string.IsNullOrWhiteSpace(setInfo.SortTitle)
+                && !string.Equals(collection.SortName, setInfo.SortTitle, StringComparison.Ordinal))
+            {
+                collection.SortName = setInfo.SortTitle;
+                collection.ForcedSortName = setInfo.SortTitle;
+                changed = true;
+            }
 
-                if (!string.IsNullOrEmpty(setInfo.TmdbId)
-                    && !string.Equals(collection.GetProviderId(MetadataProvider.Tmdb), setInfo.TmdbId, StringComparison.Ordinal))
-                {
-                    collection.SetProviderId(MetadataProvider.Tmdb, setInfo.TmdbId);
-                    changed = true;
-                }
+            if (!string.IsNullOrEmpty(setInfo.TmdbId)
+                && !string.Equals(collection.GetProviderId(MetadataProvider.Tmdb), setInfo.TmdbId, StringComparison.Ordinal))
+            {
+                collection.SetProviderId(MetadataProvider.Tmdb, setInfo.TmdbId);
+                changed = true;
+            }
 
-                if (!string.IsNullOrEmpty(setInfo.ImdbId)
-                    && !string.Equals(collection.GetProviderId(MetadataProvider.Imdb), setInfo.ImdbId, StringComparison.Ordinal))
-                {
-                    collection.SetProviderId(MetadataProvider.Imdb, setInfo.ImdbId);
-                    changed = true;
-                }
+            if (!string.IsNullOrEmpty(setInfo.ImdbId)
+                && !string.Equals(collection.GetProviderId(MetadataProvider.Imdb), setInfo.ImdbId, StringComparison.Ordinal))
+            {
+                collection.SetProviderId(MetadataProvider.Imdb, setInfo.ImdbId);
+                changed = true;
             }
         }
 
-        // Genres: aggregation from movies wins when enabled; otherwise set NFO, else clear.
+        // Genres: aggregation from movies wins when enabled; otherwise the set NFO.
+        // Without a readable set NFO (null) the current genres are kept.
         var genresArray = ResolveCollectionStringList(
             config.AggregateGenres,
             setInfo?.Genres,
             movies.Select(m => m.Genres),
             config.MaxGenres);
-        if (collection.Genres is null || !collection.Genres.SequenceEqual(genresArray, StringComparer.OrdinalIgnoreCase))
+        if (genresArray is not null
+            && (collection.Genres is null || !collection.Genres.SequenceEqual(genresArray, StringComparer.OrdinalIgnoreCase)))
         {
             collection.Genres = genresArray;
             changed = true;
@@ -224,7 +224,8 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
             setInfo?.Studios,
             movies.Select(m => m.Studios),
             config.MaxStudios);
-        if (collection.Studios is null || !collection.Studios.SequenceEqual(studiosArray, StringComparer.OrdinalIgnoreCase))
+        if (studiosArray is not null
+            && (collection.Studios is null || !collection.Studios.SequenceEqual(studiosArray, StringComparer.OrdinalIgnoreCase)))
         {
             collection.Studios = studiosArray;
             changed = true;
@@ -324,9 +325,16 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
     /// <summary>
     /// Resolves genres or studios for a collection.
     /// When <paramref name="aggregate"/> is true, values come from member movies.
-    /// Otherwise values come from the set NFO when present; an empty result clears the field.
+    /// Otherwise values come from the set NFO: a read NFO without values clears the field,
+    /// and no readable NFO (<paramref name="setNfoValues"/> is <c>null</c>) returns <c>null</c>,
+    /// meaning the current values are kept.
     /// </summary>
-    public static string[] ResolveCollectionStringList(
+    /// <param name="aggregate">Whether to aggregate from member movies.</param>
+    /// <param name="setNfoValues">Values from a successfully read set NFO, or <c>null</c> when there is none.</param>
+    /// <param name="movieSources">Values per member movie.</param>
+    /// <param name="max">Maximum number of values (0 = all).</param>
+    /// <returns>The new values, or <c>null</c> to leave the field unchanged.</returns>
+    public static string[]? ResolveCollectionStringList(
         bool aggregate,
         IReadOnlyList<string>? setNfoValues,
         IEnumerable<IEnumerable<string>?> movieSources,
@@ -337,14 +345,14 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
             return RankStringsByFrequency(movieSources, max).ToArray();
         }
 
-        if (setNfoValues is { Count: > 0 })
+        if (setNfoValues is null)
         {
-            return max > 0
-                ? setNfoValues.Take(max).ToArray()
-                : setNfoValues.ToArray();
+            return null;
         }
 
-        return [];
+        return max > 0
+            ? setNfoValues.Take(max).ToArray()
+            : setNfoValues.ToArray();
     }
 
     /// <summary>

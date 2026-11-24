@@ -73,6 +73,9 @@ public class SyncStatusInfo
     /// <summary>Gets or sets a value indicating whether the orphan cleanup was skipped by the safety limit.</summary>
     public bool OrphanDeletionBlocked { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether the configured Movie Set Data Folder was not reachable.</summary>
+    public bool SetDataFolderUnavailable { get; set; }
+
     /// <summary>Gets or sets the collection names that occur more than once in Jellyfin.</summary>
     public IReadOnlyList<string> DuplicateCollectionNames { get; set; } = Array.Empty<string>();
 
@@ -232,6 +235,9 @@ public class SyncPreviewResult
 
     /// <summary>Gets or sets a value indicating whether the safety limit would block the orphan cleanup.</summary>
     public bool OrphanLimitBlocked { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether the configured Movie Set Data Folder is not reachable.</summary>
+    public bool SetDataFolderUnavailable { get; set; }
 
     /// <summary>Gets or sets the orphaned collections that would be kept, with reasons.</summary>
     public List<PreviewProtectedInfo> ProtectedOrphans { get; set; } = [];

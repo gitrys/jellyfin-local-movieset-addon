@@ -28,6 +28,33 @@ public record SetNfoInfo(
     string? ImdbId,
     string? SortTitle = null);
 
+/// <summary>
+/// Outcome of reading a set NFO.
+/// </summary>
+public enum SetNfoReadStatus
+{
+    /// <summary>No Movie Set Data Folder is configured.</summary>
+    NotConfigured,
+
+    /// <summary>The configured Movie Set Data Folder does not exist or cannot be reached.</summary>
+    FolderUnavailable,
+
+    /// <summary>The folder is reachable, but there is no NFO for this set.</summary>
+    NotFound,
+
+    /// <summary>An NFO exists but could not be read or parsed.</summary>
+    Unreadable,
+
+    /// <summary>The NFO was read.</summary>
+    Ok
+}
+
+/// <summary>
+/// Result of <see cref="SetNfoParser.ReadSet"/>.
+/// </summary>
+/// <param name="Status">What happened.</param>
+/// <param name="Info">The parsed data when <paramref name="Status"/> is <see cref="SetNfoReadStatus.Ok"/>.</param>
+public record SetNfoReadResult(SetNfoReadStatus Status, SetNfoInfo? Info = null);
 
 /// <summary>
 /// Parses a tinyMediaManager dedicated set .nfo file from the configured
@@ -56,13 +83,37 @@ public class SetNfoParser
     /// <returns>Parsed <see cref="SetNfoInfo"/>, or <c>null</c> if not found or invalid.</returns>
     public SetNfoInfo? ParseSet(string setDataFolder, string setName, NfoNamingConvention naming)
     {
+        return ReadSet(setDataFolder, setName, naming).Info;
+    }
+
+    /// <summary>
+    /// Returns whether a Movie Set Data Folder is configured but cannot be reached.
+    /// </summary>
+    /// <param name="setDataFolder">Configured folder (may be empty).</param>
+    /// <returns><c>true</c> when the path is set and the directory does not exist.</returns>
+    public static bool IsFolderUnavailable(string? setDataFolder)
+    {
+        return !string.IsNullOrWhiteSpace(setDataFolder) && !Directory.Exists(setDataFolder);
+    }
+
+    /// <summary>
+    /// Reads the dedicated NFO for a set and reports why no data was returned,
+    /// so callers can tell "folder unreachable" or "NFO unreadable" apart from
+    /// "the NFO has no values".
+    /// </summary>
+    /// <param name="setDataFolder">Path to the Movie Set Data Folder.</param>
+    /// <param name="setName">Name of the movie set.</param>
+    /// <param name="naming">NFO file naming convention configured in plugin settings.</param>
+    /// <returns>The status and, when <see cref="SetNfoReadStatus.Ok"/>, the parsed data.</returns>
+    public SetNfoReadResult ReadSet(string setDataFolder, string setName, NfoNamingConvention naming)
+    {
         if (string.IsNullOrWhiteSpace(setDataFolder))
-            return null;
+            return new SetNfoReadResult(SetNfoReadStatus.NotConfigured);
 
         if (!Directory.Exists(setDataFolder))
         {
             _logger.LogWarning("Set data folder does not exist: {Folder}", setDataFolder);
-            return null;
+            return new SetNfoReadResult(SetNfoReadStatus.FolderUnavailable);
         }
 
         var nfoPath = ResolveNfoPath(setDataFolder, setName, naming);
@@ -73,7 +124,7 @@ public class SetNfoParser
                 "No set NFO found for '{SetName}' in {Folder} (tried all folder name variants)",
                 setName,
                 setDataFolder);
-            return null;
+            return new SetNfoReadResult(SetNfoReadStatus.NotFound);
         }
 
         _logger.LogDebug("Parsing set NFO: {NfoPath}", nfoPath);
@@ -83,7 +134,7 @@ public class SetNfoParser
             var doc = NfoXmlLoader.Load(nfoPath);
             var root = doc.Root;
             if (root is null)
-                return null;
+                return new SetNfoReadResult(SetNfoReadStatus.Unreadable);
 
             var title = root.Element("title")?.Value?.Trim();
             var originalTitle = root.Element("originaltitle")?.Value?.Trim();
@@ -128,7 +179,7 @@ public class SetNfoParser
             if (string.IsNullOrWhiteSpace(title))
                 title = setName;
 
-            return new SetNfoInfo(
+            var info = new SetNfoInfo(
                 title,
                 string.IsNullOrEmpty(originalTitle) ? null : originalTitle,
                 string.IsNullOrEmpty(overview) ? null : overview,
@@ -137,11 +188,12 @@ public class SetNfoParser
                 string.IsNullOrEmpty(tmdbId) ? null : tmdbId,
                 string.IsNullOrEmpty(imdbId) ? null : imdbId,
                 string.IsNullOrEmpty(sortTitle) ? null : sortTitle);
+            return new SetNfoReadResult(SetNfoReadStatus.Ok, info);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to parse set NFO at {NfoPath}", nfoPath);
-            return null;
+            return new SetNfoReadResult(SetNfoReadStatus.Unreadable);
         }
     }
 
