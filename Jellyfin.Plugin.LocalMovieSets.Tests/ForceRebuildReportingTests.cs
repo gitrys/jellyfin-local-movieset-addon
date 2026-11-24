@@ -65,6 +65,22 @@ public class ForceRebuildReportingTests
     }
 
     [Fact]
+    public async Task Sync_NfoReRead_ReportsReReadAndChangedCounts()
+    {
+        var (manager, activity) = CreateManager();
+
+        await manager.LogServerActivityAsync(new SyncStatusInfo
+        {
+            LastRunOutcome = SyncOutcomes.Success,
+            MoviesRefreshedFromNfo = 3,
+            MoviesUpdatedFromNfo = 1
+        });
+
+        var entry = Assert.Single(activity.CreatedEntries);
+        Assert.Contains("Re-read 3 newer movie NFO(s), 1 with changes.", entry.Overview);
+    }
+
+    [Fact]
     public async Task ForceRebuild_FailedAfterDeletes_PointsToSyncNow()
     {
         var (manager, activity) = CreateManager();

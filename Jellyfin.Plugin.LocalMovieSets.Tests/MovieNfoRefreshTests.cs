@@ -70,14 +70,64 @@ public class MovieNfoRefreshTests : IDisposable
     }
 
     [Fact]
-    public void LibrarySavedUtc_PrefersDateLastSaved()
+    public void LibrarySavedUtc_PrefersDateLastSaved_OverModified()
     {
         var saved = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
         var modified = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        var result = MovieNfoRefresh.LibrarySavedUtc(saved, modified);
+        var result = MovieNfoRefresh.LibrarySavedUtc(saved, DateTime.MinValue, modified);
 
         Assert.Equal(saved, result);
+    }
+
+    [Fact]
+    public void LibrarySavedUtc_UsesLaterRefresh()
+    {
+        var saved = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+        var refreshed = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var result = MovieNfoRefresh.LibrarySavedUtc(saved, refreshed, DateTime.MinValue);
+
+        Assert.Equal(refreshed, result);
+    }
+
+    [Fact]
+    public void LibrarySavedUtc_UsesLaterSave()
+    {
+        var saved = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        var refreshed = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var result = MovieNfoRefresh.LibrarySavedUtc(saved, refreshed, DateTime.MinValue);
+
+        Assert.Equal(saved, result);
+    }
+
+    [Fact]
+    public void LibrarySavedUtc_NeitherSet_UsesModified()
+    {
+        var modified = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var result = MovieNfoRefresh.LibrarySavedUtc(DateTime.MinValue, DateTime.MinValue, modified);
+
+        Assert.Equal(modified, result);
+    }
+
+    [Fact]
+    public void ShouldRefresh_TouchedNfoAlreadyReRead_ReturnsFalse()
+    {
+        // Seen on a server: the NFO was written 20 s after Jellyfin saved the movie,
+        // without new content. A refresh re-read it (DateLastRefreshed moved) but
+        // Jellyfin did not save, so DateLastSaved stayed. It must not be re-read again.
+        var saved = new DateTime(2026, 10, 1, 10, 5, 0, DateTimeKind.Utc);
+        var nfoPath = Path.Combine(_tempDirectory, "movie.nfo");
+        File.WriteAllText(nfoPath, "<movie><title>Sample</title></movie>");
+        File.SetLastWriteTimeUtc(nfoPath, saved.AddSeconds(20));
+        var refreshed = new DateTime(2026, 11, 24, 11, 34, 8, DateTimeKind.Utc);
+
+        var compareTo = MovieNfoRefresh.LibrarySavedUtc(saved, refreshed, DateTime.MinValue);
+
+        Assert.True(MovieNfoRefresh.ShouldRefresh(nfoPath, saved));
+        Assert.False(MovieNfoRefresh.ShouldRefresh(nfoPath, compareTo));
     }
 
     [Fact]

@@ -94,6 +94,9 @@ public class SyncStatusInfo
     /// <summary>Gets or sets how many set movies were refreshed because their NFO was newer.</summary>
     public int MoviesRefreshedFromNfo { get; set; }
 
+    /// <summary>Gets or sets how many of the re-read movie NFOs brought changes that Jellyfin saved.</summary>
+    public int MoviesUpdatedFromNfo { get; set; }
+
     /// <summary>Gets or sets a value indicating whether the orphan cleanup was skipped by the safety limit.</summary>
     public bool OrphanDeletionBlocked { get; set; }
 

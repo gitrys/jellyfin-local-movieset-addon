@@ -361,13 +361,13 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 $"Discovered {stats.SetsFound} distinct sets across {stats.MoviesInSets} movies ({stats.NfoParseErrors} NFO errors).");
             progress?.Report(15);
 
-            stats.MoviesRefreshedFromNfo = await RefreshMoviesFromNewerNfosAsync(setGroups, cancellationToken)
+            (stats.MoviesRefreshedFromNfo, stats.MoviesUpdatedFromNfo) = await RefreshMoviesFromNewerNfosAsync(setGroups, cancellationToken)
                 .ConfigureAwait(false);
             if (stats.MoviesRefreshedFromNfo > 0)
             {
                 LogMessage(
                     LogLevel.Information,
-                    $"Refreshed {stats.MoviesRefreshedFromNfo} movie(s) from a newer NFO.");
+                    $"Re-read {stats.MoviesRefreshedFromNfo} newer movie NFO(s), {stats.MoviesUpdatedFromNfo} with changes.");
             }
 
             // ── Step 3: Load existing BoxSet collections ───────────────────────
@@ -520,7 +520,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                         : $"Synced {stats.SetsFound} collections (+{stats.CollectionsCreated} / ~{stats.CollectionsUpdated} / -{stats.CollectionsDeleted}) from {stats.MoviesScanned} movies in {duration}.";
                     if (stats.MoviesRefreshedFromNfo > 0)
                     {
-                        overview += $" Refreshed {stats.MoviesRefreshedFromNfo} movie(s) from a newer NFO.";
+                        overview += $" Re-read {stats.MoviesRefreshedFromNfo} newer movie NFO(s), {stats.MoviesUpdatedFromNfo} with changes.";
                     }
                     severity = LogLevel.Information;
                     if (stats.RebuildDeleteFailures > 0)
@@ -714,13 +714,18 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     /// refresh mode leaves remote metadata providers out unless Jellyfin itself
     /// already considers the movie file changed.
     /// </summary>
-    /// <returns>How many movies were refreshed.</returns>
-    private async Task<int> RefreshMoviesFromNewerNfosAsync(
+    /// <returns>
+    /// How many movie NFOs were re-read, and how many of those changed the stored
+    /// movie (Jellyfin saves the movie, which moves <c>DateLastSaved</c>, only when
+    /// the NFO brought new values).
+    /// </returns>
+    private async Task<(int Reread, int Updated)> RefreshMoviesFromNewerNfosAsync(
         Dictionary<string, List<Movie>> setGroups,
         CancellationToken cancellationToken)
     {
         var seen = new HashSet<Guid>();
         var refreshed = 0;
+        var updated = 0;
         var directoryService = new DirectoryService(_fileSystem);
 
         foreach (var movies in setGroups.Values)
@@ -735,7 +740,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 }
 
                 var nfoPath = MovieNfoParser.FindExistingNfoPath(movie.Path);
-                var librarySaved = MovieNfoRefresh.LibrarySavedUtc(movie.DateLastSaved, movie.DateModified);
+                var librarySaved = MovieNfoRefresh.LibrarySavedUtc(movie.DateLastSaved, movie.DateLastRefreshed, movie.DateModified);
                 if (!MovieNfoRefresh.ShouldRefresh(nfoPath, librarySaved))
                 {
                     continue;
@@ -756,8 +761,13 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                         IsAutomated = true
                     };
 
+                    var savedBefore = movie.DateLastSaved;
                     await _providerManager.RefreshFullItem(movie, options, cancellationToken).ConfigureAwait(false);
                     refreshed++;
+                    if (movie.DateLastSaved != savedBefore)
+                    {
+                        updated++;
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -770,7 +780,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             }
         }
 
-        return refreshed;
+        return (refreshed, updated);
     }
 
     /// <summary>

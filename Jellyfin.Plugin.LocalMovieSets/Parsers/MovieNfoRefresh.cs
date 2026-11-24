@@ -65,17 +65,24 @@ public static class MovieNfoRefresh
     }
 
     /// <summary>
-    /// Picks the library timestamp to compare against. The last metadata save wins.
-    /// When that was never set, the item's modified time is used.
+    /// Picks the library timestamp to compare against: the later of the last
+    /// metadata save and the last refresh. A refresh that re-reads an NFO without
+    /// finding changes does not update <c>DateLastSaved</c>, so comparing with the
+    /// save time alone would re-read a merely touched NFO on every sync.
+    /// When neither was set, the item's modified time is used.
     /// </summary>
     /// <param name="dateLastSaved">Jellyfin <c>DateLastSaved</c>.</param>
+    /// <param name="dateLastRefreshed">Jellyfin <c>DateLastRefreshed</c>.</param>
     /// <param name="dateModified">Jellyfin <c>DateModified</c>.</param>
     /// <returns>The timestamp that represents the stored movie.</returns>
-    public static DateTime LibrarySavedUtc(DateTime dateLastSaved, DateTime dateModified)
+    public static DateTime LibrarySavedUtc(DateTime dateLastSaved, DateTime dateLastRefreshed, DateTime dateModified)
     {
-        if (dateLastSaved > DateTime.MinValue)
+        var saved = AsUtc(dateLastSaved);
+        var refreshed = AsUtc(dateLastRefreshed);
+        var latest = saved > refreshed ? saved : refreshed;
+        if (latest > DateTime.MinValue)
         {
-            return dateLastSaved;
+            return latest;
         }
 
         return dateModified;
