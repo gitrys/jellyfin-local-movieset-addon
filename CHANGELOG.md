@@ -4,8 +4,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+### Added
+- **Collection ownership marker:** Collections the plugin manages get the external ID *Local Movie Sets* (value: set name), shown in Edit Metadata. Existing plugin collections are marked on the first sync after the update.
+- **Orphan cleanup limit:** New setting (default 25 %). If one sync would delete more than this share of the plugin's collections (and at least 5), it deletes nothing and logs a warning to the sync history and activity log. The Preview shows when the limit would apply.
+- **Delete ALL Collections & Rebuild:** Separate button with the old Force Rebuild behavior (deletes every collection in Jellyfin).
+- **Confirmation for orphan deletion:** Turning on *Delete orphaned collections* asks for confirmation before it is saved.
+
 ### Changed
+- **Orphan deletion only removes the plugin's own collections.** Before, it deleted every collection without a TMDB/IMDb ID whose name was not in a movie NFO, including manual collections, while the plugin's own collections were kept because they carry the set NFO's TMDB ID. Collections that were already orphaned before this update have no marker and are never deleted automatically.
+- **Force Rebuild only deletes the plugin's own collections.** Manual and TMDB collections stay. Use *Delete ALL Collections & Rebuild* for the old behavior.
+- **Set artwork only for the plugin's own collections.** The image provider no longer supplies set or movie-folder artwork to manual or TMDB collections.
+- **Duplicate collection names:** when several collections share a name, the one with the ownership marker is managed.
 - **Movie NFO refresh on sync:** Sync and Force Rebuild re-read a set member's movie NFO through Jellyfin when that file is newer than the stored library item, so later edits (age rating, plot, year, cast, genres, rating) reach the collection. Set membership was already read on every run. Movie images are left in place.
+
+### Removed
+- **"Also delete orphaned collections with provider IDs":** no longer needed, because orphan deletion now relies on the ownership marker instead of TMDB/IMDb IDs. A saved value of this option is ignored.
+- **Set-folder guess for managed collections:** a collection whose name only matched a set folder (without being a set in any movie NFO) is no longer treated as managed.
 
 ## [1.0.36.0] - 2026-10-01
 ### Added

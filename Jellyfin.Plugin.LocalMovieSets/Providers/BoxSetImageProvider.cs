@@ -74,7 +74,7 @@ public class BoxSetImageProvider : IDynamicImageProvider
     /// <inheritdoc />
     public IEnumerable<ImageType> GetSupportedImages(BaseItem item)
     {
-        if (item is not BoxSet boxSet)
+        if (item is not BoxSet boxSet || !CollectionOwnership.IsManaged(boxSet, _setManager.IsManagedSet))
         {
             yield break;
         }
@@ -101,7 +101,9 @@ public class BoxSetImageProvider : IDynamicImageProvider
     /// <inheritdoc />
     public Task<DynamicImageResponse> GetImage(BaseItem item, ImageType type, CancellationToken cancellationToken)
     {
-        if (item is not BoxSet boxSet)
+        // Collections this plugin does not manage (manual, TMDB, other plugins)
+        // get no artwork from here, so a member's set poster cannot leak into them.
+        if (item is not BoxSet boxSet || !CollectionOwnership.IsManaged(boxSet, _setManager.IsManagedSet))
         {
             return Task.FromResult(new DynamicImageResponse { HasImage = false });
         }

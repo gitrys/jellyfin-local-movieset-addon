@@ -86,17 +86,19 @@ public class PluginConfiguration : BasePluginConfiguration
     public int MinimumMovies { get; set; } = 1;
 
     /// <summary>
-    /// Gets or sets a value indicating whether to delete Jellyfin collections
-    /// that no longer have any movies with a matching &lt;set&gt; tag in their NFO.
+    /// Gets or sets a value indicating whether to delete collections this plugin
+    /// created whose set no longer appears in any movie NFO. Collections the
+    /// plugin did not create are never deleted.
     /// </summary>
     public bool DeleteOrphanedSets { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets a value indicating whether orphan deletion should also
-    /// remove collections that have a TMDB or IMDb provider ID.
-    /// When false (default), collections with a provider ID are kept as a safety guard.
+    /// Gets or sets the largest share (in percent) of the plugin's collections that
+    /// one orphan cleanup may delete. If a sync would delete more (and at least
+    /// <see cref="Services.OrphanPlanner.MinimumDeletionsForLimit"/>), it deletes nothing
+    /// and logs a warning. 0 disables the limit.
     /// </summary>
-    public bool DeleteSetsWithProviderId { get; set; } = false;
+    public int MaxOrphanDeletionPercent { get; set; } = 25;
 
     /// <summary>
     /// Gets or sets a value indicating whether to overwrite existing collection

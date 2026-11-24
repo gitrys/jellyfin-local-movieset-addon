@@ -330,13 +330,15 @@ public class LocalMovieSetsController : ControllerBase
     }
 
     /// <summary>
-    /// Deletes all BoxSet collections and triggers a fresh scan/sync.
+    /// Deletes the plugin's collections (or every collection with <paramref name="all"/>)
+    /// and triggers a fresh scan/sync.
     /// The rebuild runs in the background; this endpoint returns immediately
     /// so the request cannot time out on large libraries.
     /// </summary>
+    /// <param name="all"><c>true</c> to delete every collection in Jellyfin, including manual ones.</param>
     /// <returns>A response indicating whether the rebuild was started.</returns>
     [HttpPost("ForceRebuild")]
-    public IActionResult ForceRebuild()
+    public IActionResult ForceRebuild([FromQuery] bool all = false)
     {
         if (_manager.IsSyncRunning)
         {
@@ -347,7 +349,7 @@ public class LocalMovieSetsController : ControllerBase
         {
             try
             {
-                await _manager.ForceRebuildAsync(CancellationToken.None).ConfigureAwait(false);
+                await _manager.ForceRebuildAsync(all, CancellationToken.None).ConfigureAwait(false);
                 _logger.LogInformation("Force rebuild finished");
             }
             catch (Exception ex)
@@ -450,6 +452,7 @@ public class LocalMovieSetsController : ControllerBase
             MountGuardEnabled = config?.EnableMountGuard ?? true,
             MovieFolderFallbackEnabled = config?.EnableMovieFolderArtworkFallback ?? true,
             DeleteOrphanedSets = config?.DeleteOrphanedSets ?? false,
+            MaxOrphanDeletionPercent = config?.MaxOrphanDeletionPercent ?? 25,
             AggregateRatings = config?.AggregateRatings ?? false,
             AggregateTags = config?.AggregateTags ?? false,
             AggregatePeople = config?.AggregatePeople ?? false,
@@ -513,6 +516,9 @@ public class SystemInfoDto
 
     /// <summary>Gets or sets a value indicating whether orphaned sets deletion is enabled.</summary>
     public bool DeleteOrphanedSets { get; set; }
+
+    /// <summary>Gets or sets the orphan cleanup safety limit in percent (0 = no limit).</summary>
+    public int MaxOrphanDeletionPercent { get; set; }
 
     /// <summary>Gets or sets a value indicating whether community ratings aggregation is enabled.</summary>
     public bool AggregateRatings { get; set; }

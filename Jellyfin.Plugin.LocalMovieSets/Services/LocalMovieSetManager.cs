@@ -391,7 +391,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             // ── Step 5: Optionally remove orphaned collections ─────────────────
             if (config.DeleteOrphanedSets)
             {
-                stats.CollectionsDeleted = await DeleteOrphanedSetsAsync(existingBoxSets, setGroups, config.DeleteSetsWithProviderId, cancellationToken)
+                stats.CollectionsDeleted = await DeleteOrphanedSetsAsync(existingBoxSets, setGroups, config.MaxOrphanDeletionPercent, stats, cancellationToken)
                     .ConfigureAwait(false);
                 if (stats.CollectionsDeleted > 0)
                 {
@@ -464,6 +464,11 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                         overview += $" Refreshed {stats.MoviesRefreshedFromNfo} movie(s) from a newer NFO.";
                     }
                     severity = LogLevel.Information;
+                    if (stats.OrphanDeletionBlocked)
+                    {
+                        overview += " Orphan cleanup was skipped because it would exceed the safety limit.";
+                        severity = LogLevel.Warning;
+                    }
                     break;
 
                 case SyncOutcomes.MountGuardAborted:
@@ -735,7 +740,8 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     /// <summary>
     /// Loads all BoxSet collections and builds a name lookup. Jellyfin can contain
     /// multiple collections with the same name (e.g. leftovers from other plugins);
-    /// only the first of each name is managed, and duplicates are reported.
+    /// only one of each name is managed (the one carrying this plugin's ownership
+    /// marker, if any), and duplicates are reported.
     /// </summary>
     private (List<BoxSet> All, Dictionary<string, BoxSet> ByName, List<string> DuplicateNames) LoadExistingBoxSets()
     {
@@ -753,7 +759,10 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             .ToList();
 
         var existingByName = groups
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(b => CollectionOwnership.IsOwned(b)).First(),
+                StringComparer.OrdinalIgnoreCase);
 
         var duplicateNames = groups
             .Where(g => g.Count() > 1)
@@ -917,13 +926,26 @@ public class LocalMovieSetManager : IHostedService, IDisposable
 
         result.UnchangedSets.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
 
-        foreach (var boxSet in existingBoxSets)
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var orphanPlan = OrphanPlanner.Plan(
+            existingBoxSets,
+            b => b.Name,
+            b => CollectionOwnership.IsOwned(b),
+            setGroups.Keys,
+            config.MaxOrphanDeletionPercent);
+
+        foreach (var boxSet in orphanPlan.Unowned)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            result.ProtectedOrphans.Add(new PreviewProtectedInfo
+            {
+                Name = boxSet.Name,
+                Reason = "Not created by this plugin"
+            });
+        }
 
-            if (setGroups.ContainsKey(boxSet.Name))
-                continue;
-
+        foreach (var boxSet in orphanPlan.ToDelete)
+        {
             if (!config.DeleteOrphanedSets)
             {
                 result.ProtectedOrphans.Add(new PreviewProtectedInfo
@@ -931,28 +953,22 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                     Name = boxSet.Name,
                     Reason = "Orphan deletion is disabled"
                 });
-                continue;
             }
-
-            if (!config.DeleteSetsWithProviderId)
+            else if (orphanPlan.LimitBlocked)
             {
-                var hasProviderId =
-                    !string.IsNullOrEmpty(boxSet.GetProviderId(MetadataProvider.Tmdb))
-                    || !string.IsNullOrEmpty(boxSet.GetProviderId(MetadataProvider.Imdb));
-
-                if (hasProviderId)
+                result.ProtectedOrphans.Add(new PreviewProtectedInfo
                 {
-                    result.ProtectedOrphans.Add(new PreviewProtectedInfo
-                    {
-                        Name = boxSet.Name,
-                        Reason = "Has a TMDB/IMDb provider ID"
-                    });
-                    continue;
-                }
+                    Name = boxSet.Name,
+                    Reason = $"Safety limit: more than {config.MaxOrphanDeletionPercent}% of plugin collections"
+                });
             }
-
-            result.ToDelete.Add(boxSet.Name);
+            else
+            {
+                result.ToDelete.Add(boxSet.Name);
+            }
         }
+
+        result.OrphanLimitBlocked = config.DeleteOrphanedSets && orphanPlan.LimitBlocked;
 
         return result;
     }
@@ -1077,13 +1093,18 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     }
 
     /// <summary>
-    /// Deletes ALL BoxSet collections in Jellyfin and triggers a clean scan and sync.
+    /// Deletes the collections this plugin owns (or, with <paramref name="deleteAll"/>,
+    /// every BoxSet collection in Jellyfin) and triggers a clean scan and sync.
     /// The sync lock is held across both phases so no other sync can interleave.
     /// </summary>
+    /// <param name="deleteAll">
+    /// <c>true</c> to delete every collection, including manual ones and those from other sources.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <exception cref="InvalidOperationException">
     /// Thrown when a sync is already running or the mount guard blocks the rebuild.
     /// </exception>
-    public async Task ForceRebuildAsync(CancellationToken cancellationToken)
+    public async Task ForceRebuildAsync(bool deleteAll, CancellationToken cancellationToken)
     {
         if (!await _syncLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
         {
@@ -1094,7 +1115,9 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         {
             _isSyncing = true;
 
-            _logger.LogInformation("Local Movie Sets: starting Force Rebuild");
+            _logger.LogInformation(
+                "Local Movie Sets: starting Force Rebuild ({Scope})",
+                deleteAll ? "all collections" : "plugin collections only");
 
             var config = Plugin.Instance?.Configuration;
             if (config != null && config.EnableMountGuard)
@@ -1112,6 +1135,7 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 })
                 .Items
                 .OfType<BoxSet>()
+                .Where(b => deleteAll || CollectionOwnership.IsOwned(b))
                 .ToList();
 
             _logger.LogInformation("Local Movie Sets: deleting {Count} existing collection(s)", existingBoxSets.Count);
@@ -1400,43 +1424,39 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     }
 
     /// <summary>
-    /// Deletes BoxSet collections that have no corresponding active set group.
-    /// By default, only removes collections without a TMDB/IMDb provider ID.
-    /// When <paramref name="includeWithProviderId"/> is true, all orphaned collections are deleted.
+    /// Deletes collections this plugin owns whose set no longer appears in any
+    /// movie NFO. Collections without the ownership marker are never deleted.
+    /// Nothing is deleted when the deletion would exceed the configured limit.
     /// </summary>
     /// <returns>The number of collections deleted.</returns>
     private Task<int> DeleteOrphanedSetsAsync(
         List<BoxSet> existingBoxSets,
         Dictionary<string, List<Movie>> activeSetGroups,
-        bool includeWithProviderId,
+        int maxPercent,
+        SyncStatusInfo stats,
         CancellationToken cancellationToken)
     {
+        var plan = OrphanPlanner.Plan(
+            existingBoxSets,
+            b => b.Name,
+            b => CollectionOwnership.IsOwned(b),
+            activeSetGroups.Keys,
+            maxPercent);
+
+        if (plan.LimitBlocked)
+        {
+            stats.OrphanDeletionBlocked = true;
+            LogMessage(
+                LogLevel.Warning,
+                $"Orphan cleanup skipped: it would delete {plan.ToDelete.Count} of {plan.OwnedCount} plugin collections, more than the {maxPercent}% limit. Check that all movie NFOs are readable, or raise the limit.");
+            return Task.FromResult(0);
+        }
+
         var deletedCount = 0;
 
-        foreach (var boxSet in existingBoxSets)
+        foreach (var boxSet in plan.ToDelete)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            if (activeSetGroups.ContainsKey(boxSet.Name))
-                continue;
-
-            // Safety guard: skip collections with a remote provider ID
-            // unless the user has explicitly opted in to deleting those too.
-            if (!includeWithProviderId)
-            {
-                var hasTmdbId = !string.IsNullOrEmpty(
-                    boxSet.GetProviderId(MetadataProvider.Tmdb));
-                var hasImdbId = !string.IsNullOrEmpty(
-                    boxSet.GetProviderId(MetadataProvider.Imdb));
-
-                if (hasTmdbId || hasImdbId)
-                {
-                    _logger.LogDebug(
-                        "Skipping deletion of collection '{SetName}' — it has a remote provider ID",
-                        boxSet.Name);
-                    continue;
-                }
-            }
 
             _logger.LogInformation("Deleting orphaned collection '{SetName}'", boxSet.Name);
 

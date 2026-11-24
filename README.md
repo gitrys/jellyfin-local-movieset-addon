@@ -64,6 +64,7 @@ If you curate your media collection using media managers such as [tinyMediaManag
 - ⚡ **100% Local & Offline:** Never makes outbound calls to TMDB, TVDb, or external servers. Your media collection stays private and works during internet outages.
 - 🩺 **Settings, Diagnostics & Setup Guide:** Instant sync, dry-run preview with movie-level diffs and KPI badges, NFO/artwork validation, path checks, Force Rebuild, and an in-plugin setup guide. Settings save automatically after a short pause; **Save Settings** still saves immediately.
 - 🛡️ **Mount Guard Protection:** Aborts sync (no create/delete) if a movie library path is missing, empty, or unreadable.
+- 🏷️ **Only Touches Its Own Collections:** Every collection the plugin manages carries the external ID *Local Movie Sets* (visible in Edit Metadata). Orphan deletion, Force Rebuild, and set artwork only apply to these; manual and TMDB collections are left alone.
 - 📚 **All Movie Libraries:** Scans every movie library; there is no per-library filter in the UI.
 - 🔄 **Automatic Background Sync:** Hooks into Jellyfin library events to resync after library scans (with debounce).
 - 🕒 **Optional Collection Release Year:** Can date each box set from its oldest or newest member movie — off by default (`Do not calculate`).
@@ -140,16 +141,16 @@ Each set needs its own folder. The NFO file lives inside that folder. Match the 
 ## FAQ & Troubleshooting
 
 ### Why do I see duplicate collections?
-You likely have Jellyfin's native **"Automatically add to collection"** option enabled on one or more libraries. This causes TMDB to generate online box sets alongside your local ones. Disable this option in your library settings and run **⚠️ Force Rebuild** in the plugin's Diagnostics tab.
+You likely have Jellyfin's native **"Automatically add to collection"** option enabled on one or more libraries. This causes TMDB to generate online box sets alongside your local ones. Disable this option in your library settings, then delete the TMDB duplicates in Jellyfin. **⚠️ Force Rebuild** only rebuilds the plugin's own collections; **⛔ Delete ALL Collections & Rebuild** removes every collection, including manual ones, and rebuilds from your NFOs.
 
 ### Where should I store my collection artwork?
 In the dedicated set data folder (e.g. `_sets/Alien Collection/poster.jpg`). Optionally enable **Search movie folders for set artwork** and place `movieset-poster.jpg` / `movieset-fanart.jpg` in member movie folders. Theme music belongs only in the set folder (`theme.mp3` or a prefixed name).
 
 ### Will my collections disappear if my network drive unmounts?
-**Mount Guard** (on by default) checks every movie library root before sync. If a root is missing, empty, or unreadable, the sync aborts and leaves existing collections untouched. It does not check the Movie Set Data Folder. Deleting collections that no longer appear in any movie NFO is a separate option and is off by default.
+**Mount Guard** (on by default) checks every movie library root before sync. If a root is missing, empty, or unreadable, the sync aborts and leaves existing collections untouched. It does not check the Movie Set Data Folder. Deleting collections that no longer appear in any movie NFO is a separate option and is off by default. It only deletes collections the plugin created, and it deletes nothing when one sync would remove more than a set share of them (25 % by default, at least 5 collections).
 
 ### Does this plugin modify any of my media files?
-Your movie and set `.nfo`, video, and image files are only read. Theme audio is copied into Jellyfin's own collection folder. **Force Rebuild** and orphan deletion remove those Jellyfin collection folders, not your media files.
+Your movie and set `.nfo`, video, and image files are only read. Theme audio is copied into Jellyfin's own collection folder. **Force Rebuild** and orphan deletion remove the plugin's Jellyfin collection folders, not your media files.
 
 ---
 

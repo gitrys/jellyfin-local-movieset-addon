@@ -63,45 +63,27 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
 
         // Only touch collections this plugin manages. Unmanaged user
         // collections (created manually or by other plugins) are skipped.
-        if (!IsManagedCollection(item.Name, config))
+        if (!CollectionOwnership.IsManaged(item, _setManager.IsManagedSet))
         {
             return ItemUpdateType.None;
         }
 
+        // A collection whose name is a set of the current sync gets the
+        // ownership marker. It is persisted by the refresh pipeline together
+        // with the other changes; if the refresh fails, the collection stays
+        // unmarked and is never deleted by the plugin.
+        var changed = _setManager.IsManagedSet(item.Name)
+            && CollectionOwnership.MarkOwned(item, item.Name);
+
         var movies = _setManager.GetBoxSetMovies(item);
 
-        var changed = ApplyDisplayOrder(item, config);
+        changed |= ApplyDisplayOrder(item, config);
         changed |= ApplySetMetadata(item, item.Name, movies, config);
         changed |= ApplyThemeSong(item, item.Name, config);
 
         await UpdatePeopleAsync(item, item.Name, movies, config, cancellationToken).ConfigureAwait(false);
 
         return changed ? ItemUpdateType.MetadataEdit : ItemUpdateType.None;
-    }
-
-    /// <summary>
-    /// A collection counts as managed when the manager saw its name as a set
-    /// group in the last sync, or (after a server restart, before the first
-    /// sync) when a dedicated set NFO or artwork folder exists for the name.
-    /// </summary>
-    private bool IsManagedCollection(string collectionName, PluginConfiguration config)
-    {
-        if (_setManager.IsManagedSet(collectionName))
-        {
-            return true;
-        }
-
-        if (string.IsNullOrWhiteSpace(config.SetDataFolder))
-        {
-            return false;
-        }
-
-        if (SetNfoParser.ResolveNfoPath(config.SetDataFolder, collectionName, config.NfoNaming) is not null)
-        {
-            return true;
-        }
-
-        return SetNfoParser.ResolveArtworkFolder(config.SetDataFolder, collectionName, config.NfoNaming) is not null;
     }
 
     private static bool ApplyDisplayOrder(BoxSet collection, PluginConfiguration config)
