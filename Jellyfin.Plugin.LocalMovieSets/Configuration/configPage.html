@@ -176,6 +176,90 @@
             margin-top: 0.75em;
             margin-bottom: 1.2em;
         }
+
+        /* ── Setup Guide tab ── */
+        .lms-guide {
+            background: rgba(0, 164, 220, 0.08);
+            border: 1px solid rgba(0, 164, 220, 0.4);
+            border-radius: 8px;
+            padding: 1.5em;
+            margin-bottom: 2em;
+            font-size: 0.95em;
+            line-height: 1.6;
+            color: #ccc;
+        }
+        .lms-guide-title {
+            margin: 0 0 1em 0;
+            color: #00a4dc;
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
+            font-size: 1.2em;
+        }
+        .lms-guide h4 {
+            margin: 0 0 0.5em 0;
+            color: #fff;
+            font-size: 1.05em;
+        }
+        .lms-guide p {
+            margin: 0 0 0.6em 0;
+        }
+        .lms-guide ul,
+        .lms-guide ol {
+            margin: 0 0 0.6em 0;
+            padding-left: 1.3em;
+            color: #bbb;
+        }
+        .lms-guide li {
+            margin-bottom: 0.35em;
+        }
+        .lms-guide a {
+            color: #00a4dc;
+            text-decoration: underline;
+            font-weight: bold;
+        }
+        .lms-guide-quick {
+            margin-bottom: 1em;
+        }
+        .lms-guide-section {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.6em 0;
+        }
+        .lms-guide-section > summary {
+            cursor: pointer;
+            color: #fff;
+            font-weight: 600;
+            font-size: 1.05em;
+            padding: 0.2em 0;
+            user-select: none;
+        }
+        .lms-guide-section > summary:hover {
+            color: #00a4dc;
+        }
+        .lms-guide-section > summary:focus-visible {
+            outline: 2px solid #00a4dc;
+            outline-offset: 2px;
+            border-radius: 3px;
+        }
+        .lms-guide-section[open] > summary {
+            margin-bottom: 0.6em;
+        }
+        .lms-guide-legend {
+            margin-top: 0.6em;
+            padding: 0.9em 1em;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            font-size: 0.92em;
+            line-height: 1.55;
+        }
+        .lms-guide-warn {
+            color: #f44336;
+            font-size: 1.15em;
+            margin-left: 0.25em;
+            cursor: help;
+            vertical-align: middle;
+        }
     </style>
 
     <div data-role="content">
@@ -676,140 +760,145 @@
                      ════════════════════════════════════════════════════════════════ -->
                 <div id="TabGuide" class="lms-tab-pane" role="tabpanel">
 
-                    <div style="background: rgba(0, 164, 220, 0.08); border: 1px solid rgba(0, 164, 220, 0.4); border-radius: 8px; padding: 1.5em; margin-bottom: 2em; font-size: 0.95em; line-height: 1.6;">
-                        <h3 style="margin-top: 0; margin-bottom: 1em; color: #00a4dc; display: flex; align-items: center; gap: 0.5em; font-size: 1.2em;">
-                            <span>💡</span> Setup Guide &amp; Best Practices
-                        </h3>
+                    <div class="lms-guide">
+                        <h3 class="lms-guide-title"><span aria-hidden="true">💡</span> Setup Guide</h3>
 
-                        <div style="margin-bottom: 1.5em;">
-                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">1. Before Syncing (Avoid Metadata Conflicts)</h4>
-                            <p style="margin: 0 0 0.6em 0; color: #ccc;">
-                                Turn off <em>"Automatically add to collection"</em> for every movie library
-                                (under
-                                <a href="#/dashboard/libraries" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Dashboard &rarr; Libraries</a>,
-                                then open the library &rarr; Metadata settings).
-                                Otherwise TMDB can create collections next to the ones this plugin builds from your NFOs.
-                            </p>
-                            <p style="margin: 0; color: #ccc;">
-                                For the Collections library, enable only <strong>Local Movie Sets</strong> as a BoxSet image fetcher
-                                and leave BoxSet metadata downloaders unchecked
-                                (under
-                                <a href="#/dashboard/libraries" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Dashboard &rarr; Libraries</a>,
-                                then Collections &rarr; Manage Library).
-                                Online fetchers can overwrite local artwork and text.
-                            </p>
-                        </div>
-
-                        <div style="margin-bottom: 1.5em;">
-                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">2. Display Settings (Group Movies into Collections)</h4>
-                            <p style="margin: 0; color: #ccc;">
-                                To nest movies under their collection poster in the <strong>Movies</strong> tab, enable
-                                <em>"Group movies into collections"</em> under
-                                <a href="#/dashboard/libraries/display" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Dashboard &rarr; Libraries &rarr; Display</a>.
-                                The Collections library and the Collections tab list your sets either way.
-                            </p>
-                        </div>
-
-                        <div style="margin-bottom: 1.5em;">
-                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">3. How Sync Works</h4>
-                            <p style="margin: 0 0 0.5em 0; color: #ccc;">
-                                Sync reads <strong>all</strong> movie libraries. Collection names come from the
-                                <code>&lt;set&gt;</code> tag in each movie NFO. The Movie Set Data Folder only supplies artwork, overview, theme music, and theme video.
-                                A set folder with no matching movie never creates a collection.
-                            </p>
-                            <ul style="margin: 0; padding-left: 1.2em; color: #bbb;">
-                                <li><strong>Sync Now:</strong> create or update collections from the current NFOs.</li>
-                                <li><strong>Plugin collections:</strong> every collection the plugin manages carries the external ID <em>Local Movie Sets</em> (visible in Edit Metadata). Only these are ever deleted by the plugin.</li>
-                                <li><strong>Force Rebuild:</strong> delete the plugin's collections, then recreate them from the NFOs. Manual and TMDB collections stay.</li>
-                                <li><strong>Delete ALL Collections &amp; Rebuild:</strong> delete every collection in Jellyfin, including manual and TMDB ones, then recreate from the NFOs.</li>
-                                <li><strong>Minimum Movies:</strong> a new collection is only created when at least this many movies in the library share that set name. Existing collections below the minimum stay and are still updated.</li>
-                                <li><strong>Mount Guard:</strong> if a movie library path is missing, empty, or unreadable, sync does nothing (no create, no delete).</li>
-                            </ul>
-                        </div>
-
-                        <div style="margin-bottom: 1.5em;">
-                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">4. Folder Structure &amp; Naming</h4>
-                            <p style="margin: 0 0 0.5em 0; color: #ccc;">
-                                Each set needs its own folder inside the Movie Set Data Folder. The NFO lives in that folder.
-                            </p>
-                            <ul style="margin: 0; padding-left: 1.2em; color: #bbb;">
-                                <li><strong>Set Subfolder:</strong> <code>.../_sets/Avatar Collection/Avatar Collection.nfo</code></li>
-                                <li><strong>collection.nfo:</strong> <code>.../_sets/Avatar Collection/collection.nfo</code></li>
-                                <li><strong>Artwork / theme:</strong> see the file-name legend below.</li>
+                        <!-- ── Quick start (always open) ── -->
+                        <section class="lms-guide-quick" aria-labelledby="GuideQuickStartTitle">
+                            <h4 id="GuideQuickStartTitle">Quick start</h4>
+                            <ol>
                                 <li>
-                                    To hear theme music in the web client, enable
-                                    <em>Theme songs</em> under
-                                    <a id="ThemeSongPrefsLink" href="#/mypreferencesmenu" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Settings &rarr; Display</a>.
-                                    <span id="ThemeSongSettingWarning"
-                                          style="display: none; color: #f44336; font-size: 1.15em; margin-left: 0.25em; cursor: help; vertical-align: middle;"
+                                    <strong>Settings:</strong> enter the <em>Movie Set Data Folder</em> (one subfolder per set, e.g. tinyMediaManager's movie set data folder)
+                                    and choose the <em>NFO File Naming Convention</em>, or let <strong>Auto-Detect</strong> pick it.
+                                </li>
+                                <li>
+                                    <strong>Jellyfin library settings:</strong> turn off <em>Automatically add to collection</em> for every movie library
+                                    (<a href="#/dashboard/libraries">Dashboard &rarr; Libraries</a> &rarr; library &rarr; Metadata settings),
+                                    otherwise TMDB creates collections next to yours. For the Collections library, enable only <strong>Local Movie Sets</strong>
+                                    as BoxSet image fetcher and leave the metadata downloaders unchecked. A red warning at the top of this page appears while one of these settings conflicts.
+                                </li>
+                                <li>
+                                    <strong>Optional:</strong> enable <em>Group movies into collections</em> under
+                                    <a href="#/dashboard/libraries/display">Dashboard &rarr; Libraries &rarr; Display</a>,
+                                    so set members appear under their collection poster in the Movies tab.
+                                </li>
+                                <li>
+                                    <strong>Diagnostics &amp; Tools:</strong> <strong>Preview Changes</strong> shows what a sync would create, update or delete, without changing anything.
+                                    Then run <strong>Sync Now</strong>. After that, syncs run automatically after library scans and once a day.
+                                </li>
+                            </ol>
+                        </section>
+
+                        <!-- ── How sync works ── -->
+                        <details class="lms-guide-section">
+                            <summary>How sync works</summary>
+                            <p>
+                                Collection membership comes only from the <code>&lt;set&gt;</code> tag in each movie NFO
+                                (<code>&lt;set&gt;&lt;name&gt;Alien Collection&lt;/name&gt;&lt;/set&gt;</code>), across <strong>all</strong> libraries.
+                                The Movie Set Data Folder adds text, artwork and theme media. A set folder without a matching movie creates nothing.
+                            </p>
+                            <ul>
+                                <li><strong>When:</strong> about 30 seconds after movies are added, changed or removed (setting <em>Automatically sync after library scans and updates</em>), every 24 hours as the scheduled task <em>Sync Local Movie Sets</em>, and with <strong>Sync Now</strong>. Movies added or removed while a sync runs trigger another sync right after it.</li>
+                                <li><strong>Minimum Movies:</strong> a new collection is only created when at least this many movies share the set name (default 1). Existing collections below the minimum stay and are still updated.</li>
+                                <li><strong>Plugin collections:</strong> every collection the plugin manages carries the external ID <em>Local Movie Sets</em> (visible in Edit Metadata). A collection whose name matches a set is adopted and gets this ID. Only collections with this ID are ever deleted by the plugin.</li>
+                                <li><strong>Changed movie NFOs:</strong> when a set member's NFO is newer than Jellyfin's stored item, the sync asks Jellyfin to re-read it (no online lookups, movie images are kept).</li>
+                                <li><strong>Collection text and artwork</strong> are applied in Jellyfin's metadata refresh of each collection, which the sync queues; they can show up a few seconds after the sync has finished.</li>
+                            </ul>
+                        </details>
+
+                        <!-- ── Set folder & file names ── -->
+                        <details class="lms-guide-section">
+                            <summary>Set folder &amp; file names</summary>
+                            <p>Each set needs its own folder directly inside the Movie Set Data Folder; the set NFO lives in that folder. Nested set folders and NFOs in the root are not read.</p>
+                            <ul>
+                                <li><strong>Set Subfolder</strong> (tinyMediaManager): <code>.../_sets/Avatar Collection/Avatar Collection.nfo</code></li>
+                                <li><strong>collection.nfo</strong> (MediaElch / Kodi): <code>.../_sets/Avatar Collection/collection.nfo</code></li>
+                                <li>The folder name is the set name; characters that are invalid in file names may be replaced by <code>_</code>, a space, or left out.</li>
+                            </ul>
+                            <div class="lms-guide-legend">
+                                <p><strong>In the set folder</strong> (exact names):</p>
+                                <ul>
+                                    <li><strong>Poster:</strong> <code>poster.jpg/.png</code>, <code>folder.jpg/.png</code></li>
+                                    <li><strong>Fanart:</strong> <code>fanart.jpg/.png</code>, <code>backdrop.jpg/.png</code></li>
+                                    <li><strong>Logo:</strong> <code>logo.png/.jpg</code>, <code>clearlogo.png</code></li>
+                                    <li><strong>Thumb:</strong> <code>landscape.jpg/.png</code>, <code>thumb.jpg/.png</code></li>
+                                    <li><strong>Clearart / banner / disc / box / menu:</strong> <code>clearart.*</code>, <code>banner.*</code>, <code>disc.*</code> / <code>discart.*</code>, <code>box.*</code>, <code>boxrear.*</code> / <code>back.*</code>, <code>menu.*</code></li>
+                                    <li><strong>Theme music:</strong> <code>theme.mp3</code> (also <code>.m4a</code>, <code>.flac</code>, <code>.ogg</code>, <code>.wav</code>), or <code>{Folder}-theme.ext</code> / <code>{Folder}.theme.ext</code></li>
+                                    <li><strong>Theme video:</strong> <code>theme.mp4</code> (also <code>.mkv</code>, <code>.webm</code>, <code>.m4v</code>, <code>.mov</code>), or <code>{Folder}-theme.ext</code> / <code>{Folder}.theme.ext</code></li>
+                                </ul>
+                                <p><strong>In member movie folders</strong> (only with <em>Search movie folders for set artwork</em>, on by default; artwork only, never theme media):</p>
+                                <ul>
+                                    <li><code>movieset-poster</code> / <code>movieset-folder</code>, <code>movieset-fanart</code> / <code>movieset-backdrop</code>, <code>movieset-logo</code>, <code>movieset-thumb</code> and similar <code>movieset-*</code> names (<code>.jpg</code>, <code>.png</code>, <code>.webp</code>, …)</li>
+                                    <li>The same names with the set name instead of <code>movieset</code>, e.g. <code>Alien Collection-poster.jpg</code></li>
+                                    <li>Used only for image types the set folder does not have.</li>
+                                </ul>
+                            </div>
+                        </details>
+
+                        <!-- ── Collection metadata ── -->
+                        <details class="lms-guide-section">
+                            <summary>Collection metadata</summary>
+                            <ul>
+                                <li><strong>Name:</strong> the set name from the movie NFOs.</li>
+                                <li><strong>From the set NFO:</strong> overview (<code>&lt;plot&gt;</code> or <code>&lt;overview&gt;</code>), original title, <code>&lt;sorttitle&gt;</code>, TMDB and IMDb IDs.</li>
+                                <li><strong>Genres &amp; studios:</strong> with <em>Aggregate genres</em> / <em>Aggregate studios</em> on, they come from the member movies. With aggregation off, they come from the set NFO; if the NFO lists none, the field is cleared. Without a readable set NFO (missing, unreadable, folder offline) the current values are kept.</li>
+                                <li><strong>Aggregation</strong> (off by default): community rating as the average of the members; tags, cast and crew ranked by how many members share them, each with a limit (<code>0</code> = all).</li>
+                                <li><strong>Collection Release Date:</strong> <em>Do not calculate</em> (default), <em>Always overwrite</em>, or <em>Set only if empty</em>, taken from the oldest member movie.</li>
+                                <li><strong>Sort order:</strong> <em>Default Collection Sort By</em> (Release Date or Sort Name) is set when the plugin takes over a collection. An order you choose for one collection in Edit Metadata is kept. <strong>Apply to all plugin collections</strong> sets the default on all of them.</li>
+                                <li><strong>Artwork:</strong> missing images are always filled in from the set folder. Existing images are only replaced with <em>Overwrite existing collection artwork</em>.</li>
+                                <li><strong>Never cleared:</strong> overview, original title, sort title, IDs, and aggregated rating, tags and people stay when the source has no value or aggregation is turned off. Clear them in Edit Metadata if needed.</li>
+                            </ul>
+                        </details>
+
+                        <!-- ── Theme music & video ── -->
+                        <details class="lms-guide-section">
+                            <summary>Theme music &amp; video</summary>
+                            <ul>
+                                <li>
+                                    Theme music plays in the web client when <em>Theme songs</em> is enabled under
+                                    <a id="ThemeSongPrefsLink" href="#/mypreferencesmenu">Settings &rarr; Display</a>.
+                                    <span id="ThemeSongSettingWarning" class="lms-guide-warn" style="display: none;"
                                           title="Theme songs are off for this browser. Enable Settings → Display → Theme songs, or copied theme files will not play here."
                                           aria-label="Theme songs are disabled in your display settings">⚠</span>
                                 </li>
                                 <li>
                                     A theme video plays as the collection backdrop (instead of the theme song) when
                                     <em>Theme videos</em> is enabled under
-                                    <a id="ThemeVideoPrefsLink" href="#/mypreferencesmenu" style="color: #00a4dc; text-decoration: underline; font-weight: bold;">Settings &rarr; Display</a>.
-                                    <span id="ThemeVideoSettingWarning"
-                                          style="display: none; color: #f44336; font-size: 1.15em; margin-left: 0.25em; cursor: help; vertical-align: middle;"
+                                    <a id="ThemeVideoPrefsLink" href="#/mypreferencesmenu">Settings &rarr; Display</a>.
+                                    <span id="ThemeVideoSettingWarning" class="lms-guide-warn" style="display: none;"
                                           title="Theme videos are off for this browser. Enable Settings → Display → Theme videos, or copied theme videos will not play here."
                                           aria-label="Theme videos are disabled in your display settings">⚠</span>
                                 </li>
+                                <li>The plugin copies them into Jellyfin's own collection folder: the song as <code>theme.&lt;ext&gt;</code>, the video into its <code>backdrops</code> subfolder. Videos also take space in Jellyfin's data folder.</li>
+                                <li>When a theme is removed from the set folder, its copy is removed on the next sync. While the Movie Set Data Folder is unreachable, copies are kept.</li>
+                                <li>These display settings are stored per browser; set them on every device you use.</li>
                             </ul>
-                            <details style="margin-top: 0.9em; color: #ccc;">
-                                <summary style="cursor: pointer; color: #00a4dc; font-weight: 600; user-select: none;">
-                                    File-name legend (what the plugin looks for)
-                                </summary>
-                                <div style="margin-top: 0.75em; padding: 0.9em 1em; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; font-size: 0.9em; line-height: 1.55;">
-                                    <p style="margin: 0 0 0.6em 0;"><strong>In the set folder</strong> (preferred):</p>
-                                    <ul style="margin: 0 0 0.8em 0; padding-left: 1.2em; color: #bbb;">
-                                        <li><strong>Poster:</strong> <code>poster.jpg/.png</code>, <code>folder.jpg/.png</code></li>
-                                        <li><strong>Fanart:</strong> <code>fanart.jpg/.png</code>, <code>backdrop.jpg/.png</code></li>
-                                        <li><strong>Logo:</strong> <code>logo.png/.jpg</code>, <code>clearlogo.png</code></li>
-                                        <li><strong>Thumb:</strong> <code>landscape.jpg/.png</code>, <code>thumb.jpg/.png</code></li>
-                                        <li><strong>Clearart / banner / disc / box / menu:</strong> <code>clearart.*</code>, <code>banner.*</code>, <code>disc.*</code> / <code>discart.*</code>, <code>box.*</code>, <code>boxrear.*</code> / <code>back.*</code>, <code>menu.*</code></li>
-                                        <li><strong>Theme music:</strong> <code>theme.mp3</code> (also <code>.m4a</code>, <code>.flac</code>, <code>.ogg</code>, <code>.wav</code>), or <code>{Folder}-theme.ext</code> / <code>{Folder}.theme.ext</code></li>
-                                        <li><strong>Theme video:</strong> <code>theme.mp4</code> (also <code>.mkv</code>, <code>.webm</code>, <code>.m4v</code>, <code>.mov</code>), or <code>{Folder}-theme.ext</code> / <code>{Folder}.theme.ext</code> — copied into the collection's <code>backdrops</code> folder, so it also takes space in Jellyfin's data folder</li>
-                                    </ul>
-                                    <p style="margin: 0 0 0.6em 0;"><strong>In movie folders</strong> (only if fallback is on; artwork only — not theme):</p>
-                                    <ul style="margin: 0; padding-left: 1.2em; color: #bbb;">
-                                        <li><code>movieset-poster</code> / <code>movieset-folder</code> (+ <code>.jpg/.png</code>)</li>
-                                        <li><code>movieset-fanart</code> / <code>movieset-backdrop</code></li>
-                                        <li><code>movieset-logo</code> / <code>movieset-clearlogo</code>, <code>movieset-thumb</code> / <code>movieset-landscape</code>, and similar <code>movieset-*</code> names for clearart, banner, disc</li>
-                                        <li>Also <code>{SetName}-poster.jpg</code> style prefixes matching the set name</li>
-                                    </ul>
-                                </div>
-                            </details>
-                        </div>
+                        </details>
 
-                        <div style="margin-bottom: 1.5em;">
-                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">5. Genres &amp; Studios</h4>
-                            <p style="margin: 0; color: #ccc;">
-                                With <em>Aggregate genres</em> / <em>Aggregate studios</em> on, values come from the member movies.
-                                With aggregation off, values come from the set NFO; if the NFO has none, the field is cleared. Without a readable set NFO (missing, unreadable, or the folder is offline) the current values are kept.
-                            </p>
-                        </div>
+                        <!-- ── Safety ── -->
+                        <details class="lms-guide-section">
+                            <summary>Safety: offline drives, deletions, rebuilds</summary>
+                            <ul>
+                                <li><strong>Mount Guard</strong> (on by default): if the root of a movie or mixed library is missing, empty or unreadable, the sync does nothing — no create, no update, no delete.</li>
+                                <li><strong>Unreadable NFO or missing movie file</strong> (media manager writing the file, share offline): the movie stays in its current collection, and the sync log names it.</li>
+                                <li><strong>Movie Set Data Folder offline:</strong> members are still updated; collection text, artwork and theme copies stay unchanged, and the sync log shows a warning.</li>
+                                <li><strong>Delete orphaned collections</strong> (off by default, asks for confirmation): deletes plugin collections whose set no longer appears in any movie NFO. If one sync would delete more than the set share of plugin collections (default 25 %, at least 5 collections), it deletes nothing and logs a warning; <code>0</code> turns the limit off.</li>
+                                <li><strong>Force Rebuild</strong> deletes the plugin's collections and recreates them from the NFOs; manual and TMDB collections stay. <strong>Delete ALL Collections &amp; Rebuild</strong> deletes every collection in Jellyfin first. With Mount Guard on, both check the library roots before deleting anything.</li>
+                            </ul>
+                        </details>
 
-                        <div style="margin-bottom: 1.5em;">
-                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">6. Delete Orphaned Collections</h4>
-                            <p style="margin: 0 0 0.5em 0; color: #ccc;">
-                                When enabled, sync removes collections whose name no longer appears as a <code>&lt;set&gt;</code> in any movie NFO.
-                                Collections with a TMDB or IMDb ID are kept unless the second option is on.
-                            </p>
-                            <p style="margin: 0; color: #ccc;">
-                                Turn <em>Also delete orphaned collections with provider IDs</em> on if this plugin is your only source of collections.
-                                Set NFOs with a <code>&lt;tmdbid&gt;</code> give their collection a provider ID too, so without that option such a set would survive after you rename or remove it.
-                                Leave it off if you keep manual or TMDB collections next to your local sets.
-                            </p>
-                        </div>
-
-                        <div>
-                            <h4 style="margin: 0 0 0.4em 0; color: #fff; font-size: 1.05em;">7. Movie Folder Artwork Fallback</h4>
-                            <p style="margin: 0; color: #ccc;">
-                                Optional. If a set has no artwork in the Set Data Folder, the plugin can look in member movie folders for
-                                <code>movieset-poster.jpg</code>, <code>movieset-fanart.jpg</code>, and similar names.
-                                Theme music and theme videos are <strong>not</strong> taken from movie folders — only from the set folder.
-                            </p>
-                        </div>
+                        <!-- ── Troubleshooting ── -->
+                        <details class="lms-guide-section">
+                            <summary>Troubleshooting</summary>
+                            <ul>
+                                <li><strong>Duplicate collections:</strong> usually TMDB's <em>Automatically add to collection</em>. Turn it off and delete the TMDB duplicates in Jellyfin; <em>Force Rebuild</em> leaves them alone, <em>Delete ALL Collections &amp; Rebuild</em> removes them.</li>
+                                <li><strong>A set has no collection:</strong> check <strong>Preview Changes</strong> — the set may be below <em>Minimum Movies</em>, or the movie NFOs use different <code>&lt;set&gt;</code> names.</li>
+                                <li><strong>Missing or wrong artwork:</strong> <strong>System Info &amp; Bug Report</strong> runs an NFO and artwork check of the Movie Set Data Folder and lists files the plugin does not use. Existing images are only replaced with <em>Overwrite existing collection artwork</em>.</li>
+                                <li><strong>Theme does not play:</strong> check the display settings above in the browser you use; if the copy was just made, Jellyfin may pick it up on the next sync.</li>
+                                <li><strong>Report a bug:</strong> open <strong>System Info &amp; Bug Report</strong>, keep <em>Mask File Paths</em> on (and <em>Mask Set &amp; Movie Titles</em> if you like), copy the text, and add it to a
+                                    <a href="https://github.com/gitrys/jellyfin-local-movieset-addon/issues" target="_blank" rel="noopener noreferrer">GitHub issue</a>.</li>
+                            </ul>
+                        </details>
                     </div>
 
                 </div>
