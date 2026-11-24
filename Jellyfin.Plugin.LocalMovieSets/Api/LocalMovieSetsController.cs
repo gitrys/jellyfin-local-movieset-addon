@@ -508,8 +508,11 @@ public class LocalMovieSetsController : ControllerBase
 }
 
 /// <summary>
-/// Sanitized, privacy-safe system diagnostic information for bug reporting.
-/// Contains strictly zero telemetry, zero paths, zero usernames, and zero item titles.
+/// System diagnostic information for bug reporting. Nothing is sent anywhere; the
+/// settings page builds the report locally. Settings and counters contain no paths
+/// or titles, but <see cref="RecentLogs"/> and <see cref="LastErrorMessage"/> are
+/// sync log text and can contain file paths and set names. The settings page masks
+/// them before export.
 /// </summary>
 public class SystemInfoDto
 {

@@ -67,7 +67,7 @@ If you curate your media collection using media managers such as [tinyMediaManag
 - 🏷️ **Only Touches Its Own Collections:** Every collection the plugin manages carries the external ID *Local Movie Sets* (visible in Edit Metadata). Orphan deletion, Force Rebuild, and set artwork only apply to these; manual and TMDB collections are left alone.
 - 📚 **All Movie Libraries:** Scans every movie library; there is no per-library filter in the UI.
 - 🔄 **Automatic Background Sync:** Hooks into Jellyfin library events to resync after library scans (with debounce).
-- 🕒 **Optional Collection Release Year:** Can date each box set from its oldest or newest member movie — off by default (`Do not calculate`).
+- 🕒 **Optional Collection Release Year:** Can date each box set from its oldest member movie, either always (`Always overwrite`) or only when the collection has no date yet (`Set only if empty`) — off by default (`Do not calculate`).
 - 🎯 **Optional Frequency-Ranked Metadata:** When aggregation is enabled, ranks tags, cast, and crew across member movies with configurable limits (`0` = unlimited). Aggregation is off by default.
 - 🏷️ **Genres & Studios:** With aggregation on, values come from member movies. With aggregation off, values come from the set NFO; if the NFO has none, the fields are cleared. Without a readable set NFO (missing, unreadable, or the folder is offline) the current values are kept.
 - 🔤 **Custom Collection Sort Title (`<sorttitle>`):** Reads `<sorttitle>` from set NFOs for custom alphabetical ordering (`collection.SortName`).

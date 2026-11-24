@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+### Fixed
+- **Console error when leaving the settings page:** the page called a status poll function that no longer exists.
+- **Documentation:** the README now describes the collection release year correctly (oldest member movie only).
+
 ## [1.0.37.0] - 2026-11-24
 ### Added
 - **Collection ownership marker:** Collections the plugin manages get the external ID *Local Movie Sets* (value: set name), shown in Edit Metadata. Existing plugin collections are marked on the first sync after the update.

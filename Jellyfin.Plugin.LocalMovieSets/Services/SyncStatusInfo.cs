@@ -45,7 +45,7 @@ public static class SyncRunKinds
 
 /// <summary>
 /// Statistics and outcome of the most recent sync run.
-/// Held in memory only — resets when the server restarts.
+/// Kept in the sync history, which is saved to disk and reloaded when the server starts.
 /// </summary>
 public class SyncStatusInfo
 {
