@@ -63,3 +63,14 @@ Affected flows:
 
 1. Change the plot of one set member in tinyMediaManager → **Sync Now** → activity log: "Re-read 1 newer movie NFO(s), 1 with changes"; new plot visible in Jellyfin.
 2. **Sync Now** again → no "Re-read" text in the activity log entry.
+
+## 2026-11-24 – Unreadable movie NFO keeps the movie in its collection
+
+Feature: a movie whose NFO cannot be parsed stays in its current plugin collection; collections with a set `<sorttitle>` are not saved again on every sync.
+
+Affected flows:
+
+1. Break the XML of one set member's NFO (for example delete the closing `</movie>`), then run **Sync Now**.
+2. Expected: the movie is still in its collection; the activity/sync log shows "Kept 1 movie(s) in their current collection because their NFO could not be read: <title>".
+3. Repair the NFO and sync again: no "Kept" message, membership unchanged.
+4. A collection whose set NFO has a `<sorttitle>`: after a sync, Edit Metadata shows that sort title, and changing it in the set NFO plus **Sync Now** applies the new value. (The removed extra save on every sync is not visible in the UI.)

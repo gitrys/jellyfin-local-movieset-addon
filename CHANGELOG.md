@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 ### Fixed
+- **A movie NFO that cannot be read no longer removes the movie from its collection.** Before, a file that was being written by the media manager during a sync dropped the movie from its collection until the next sync; a collection whose members all had unreadable NFOs could even count as orphaned. The movie now stays in its current plugin collection and the sync log names it. A *Force Rebuild* does not restore such a movie until its NFO is readable again.
+- **Collections with a set sort title are no longer saved on every sync.** The sort title from the set NFO was compared with Jellyfin's normalized sort name, so it always looked changed.
+- **Possible crash during server shutdown:** the automatic sync timer could throw on a background thread if it fired while the plugin was being disposed.
 - **Console error when leaving the settings page:** the page called a status poll function that no longer exists.
 - **Documentation:** the README now describes the collection release year correctly (oldest member movie only).
 

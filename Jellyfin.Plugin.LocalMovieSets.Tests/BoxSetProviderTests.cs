@@ -33,6 +33,38 @@ public class BoxSetProviderTests
 
 
     [Fact]
+    public void ApplySortTitle_UnchangedRawTitle_IsNotAChange()
+    {
+        // SortName would return Jellyfin's normalized form; the raw stored
+        // value is ForcedSortName, so an unchanged title must not count as changed.
+        var collection = new MediaBrowser.Controller.Entities.Movies.BoxSet { ForcedSortName = "Alien 1" };
+
+        Assert.False(BoxSetMetadataProvider.ApplySortTitle(collection, "Alien 1"));
+        Assert.Equal("Alien 1", collection.ForcedSortName);
+    }
+
+    [Fact]
+    public void ApplySortTitle_NewTitle_IsApplied()
+    {
+        var collection = new MediaBrowser.Controller.Entities.Movies.BoxSet { ForcedSortName = "Alien 1" };
+
+        Assert.True(BoxSetMetadataProvider.ApplySortTitle(collection, "Alien Saga"));
+        Assert.Equal("Alien Saga", collection.ForcedSortName);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ApplySortTitle_EmptyTitle_KeepsCurrentValue(string? sortTitle)
+    {
+        var collection = new MediaBrowser.Controller.Entities.Movies.BoxSet { ForcedSortName = "Alien 1" };
+
+        Assert.False(BoxSetMetadataProvider.ApplySortTitle(collection, sortTitle));
+        Assert.Equal("Alien 1", collection.ForcedSortName);
+    }
+
+    [Fact]
     public void ArtworkMappings_CoverAllExpectedImageTypes()
     {
         var types = BoxSetImageProvider.ArtworkMappings.Select(m => m.ImageType).ToList();

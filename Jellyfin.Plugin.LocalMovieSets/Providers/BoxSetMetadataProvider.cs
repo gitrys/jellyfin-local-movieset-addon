@@ -128,6 +128,25 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
     /// The plugin offers "SortName" and "PremiereDate"; everything else (including
     /// the removed "Default" setting) maps to "PremiereDate".
     /// </summary>
+    /// <summary>
+    /// Applies the set NFO's sort title. Compares against <see cref="BaseItem.ForcedSortName"/>,
+    /// which holds the stored value; <see cref="BaseItem.SortName"/> returns Jellyfin's
+    /// normalized form (lower case, padded numbers) and would never match the raw title.
+    /// </summary>
+    /// <returns><c>true</c> if the sort title was changed.</returns>
+    internal static bool ApplySortTitle(BoxSet collection, string? sortTitle)
+    {
+        if (string.IsNullOrWhiteSpace(sortTitle)
+            || string.Equals(collection.ForcedSortName, sortTitle, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        collection.SortName = sortTitle;
+        collection.ForcedSortName = sortTitle;
+        return true;
+    }
+
     internal static string MapSortByToJellyfin(string? sortBy)
     {
         return string.Equals(sortBy, "SortName", StringComparison.Ordinal)
@@ -203,11 +222,8 @@ public class BoxSetMetadataProvider : ICustomMetadataProvider<BoxSet>
                 changed = true;
             }
 
-            if (!string.IsNullOrWhiteSpace(setInfo.SortTitle)
-                && !string.Equals(collection.SortName, setInfo.SortTitle, StringComparison.Ordinal))
+            if (ApplySortTitle(collection, setInfo.SortTitle))
             {
-                collection.SortName = setInfo.SortTitle;
-                collection.ForcedSortName = setInfo.SortTitle;
                 changed = true;
             }
 

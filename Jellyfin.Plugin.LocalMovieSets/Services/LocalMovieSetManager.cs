@@ -134,9 +134,14 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         _logger = logger;
         _activityManager = activityManager;
 
+        // Read the token once: reading _shutdownCts.Token inside the callback would
+        // throw ObjectDisposedException on the timer thread if the timer fires after
+        // Dispose. The token stays usable and is cancelled before the source is disposed.
+        var shutdownToken = _shutdownCts.Token;
+
         // Timer starts stopped (Timeout.Infinite = never fire)
         _debounceTimer = new Timer(
-            _ => _ = ScanAndSyncAsync(_shutdownCts.Token),
+            _ => _ = ScanAndSyncAsync(shutdownToken),
             null,
             Timeout.Infinite,
             Timeout.Infinite);
@@ -348,7 +353,8 @@ public class LocalMovieSetManager : IHostedService, IDisposable
             progress?.Report(5);
 
             // ── Step 2: Parse NFOs — group movies by set name ─────────────────
-            var setGroups = BuildSetGroups(allMovies, cancellationToken, stats);
+            var unreadableMovieIds = new HashSet<Guid>();
+            var setGroups = BuildSetGroups(allMovies, cancellationToken, stats, unreadableMovieIds);
             stats.SetsFound = setGroups.Count;
             stats.MoviesInSets = setGroups.Values.Sum(g => g.Count);
             stats.Insights = ComputeInsights(setGroups);
@@ -379,6 +385,17 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 LogMessage(
                     LogLevel.Warning,
                     $"Duplicate collections share the same name in Jellyfin: {string.Join(", ", duplicateNames)}");
+            }
+
+            // Movies with an unreadable NFO stay where they are. Done after the NFO
+            // refresh so Jellyfin does not re-read a file that is being written.
+            var keptMovies = KeepUnreadableMembers(setGroups, existingByName, unreadableMovieIds);
+            if (keptMovies.Count > 0)
+            {
+                _managedSetNames = new HashSet<string>(setGroups.Keys, StringComparer.OrdinalIgnoreCase);
+                LogMessage(
+                    LogLevel.Warning,
+                    $"Kept {keptMovies.Count} movie(s) in their current collection because their NFO could not be read: {string.Join(", ", keptMovies.Select(m => m.Name))}");
             }
 
             // ── Step 4: Create or update collections ───────────────────────────
@@ -789,10 +806,12 @@ public class LocalMovieSetManager : IHostedService, IDisposable
     /// <param name="allMovies">Movies to scan.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="stats">Optional stats object; NFO parse errors are counted on it.</param>
+    /// <param name="unreadableMovieIds">Optional set that receives the IDs of movies whose NFO could not be read.</param>
     private Dictionary<string, List<Movie>> BuildSetGroups(
         List<Movie> allMovies,
         CancellationToken cancellationToken,
-        SyncStatusInfo? stats = null)
+        SyncStatusInfo? stats = null,
+        ISet<Guid>? unreadableMovieIds = null)
     {
         var setGroups = new Dictionary<string, List<Movie>>(StringComparer.OrdinalIgnoreCase);
 
@@ -804,9 +823,14 @@ public class LocalMovieSetManager : IHostedService, IDisposable
                 continue;
 
             var outcome = _movieNfoParser.ParseNfo(movie.Path);
-            if (outcome.HadError && stats != null)
+            if (outcome.HadError)
             {
-                stats.NfoParseErrors++;
+                if (stats != null)
+                {
+                    stats.NfoParseErrors++;
+                }
+
+                unreadableMovieIds?.Add(movie.Id);
             }
 
             if (outcome.Membership is null)
@@ -822,6 +846,72 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         }
 
         return setGroups;
+    }
+
+    /// <summary>
+    /// Keeps movies whose NFO could not be read (for example while a media manager
+    /// is writing it) in the managed collection they currently belong to, so a
+    /// temporary read error neither removes them nor makes their collection look
+    /// orphaned. Managed means owned by the plugin or named like a set of this run.
+    /// </summary>
+    /// <returns>The movies that were kept, for logging.</returns>
+    private List<Movie> KeepUnreadableMembers(
+        Dictionary<string, List<Movie>> setGroups,
+        Dictionary<string, BoxSet> existingByName,
+        ISet<Guid> unreadableMovieIds)
+    {
+        if (unreadableMovieIds.Count == 0)
+        {
+            return [];
+        }
+
+        var managedCollections = existingByName.Values
+            .Where(b => CollectionOwnership.IsOwned(b) || setGroups.ContainsKey(b.Name))
+            .Select(b => (b.Name, (IReadOnlyList<Movie>)GetBoxSetMovies(b)))
+            .ToList();
+
+        return MergeUnreadableMembers(setGroups, managedCollections, unreadableMovieIds);
+    }
+
+    /// <summary>
+    /// Adds each current member of a managed collection whose NFO could not be read
+    /// to that collection's set group, unless it is already there.
+    /// </summary>
+    /// <param name="setGroups">Set groups built from readable NFOs; changed in place.</param>
+    /// <param name="managedCollections">Managed collections with their current member movies.</param>
+    /// <param name="unreadableMovieIds">IDs of movies whose NFO could not be read.</param>
+    /// <returns>The movies that were added.</returns>
+    internal static List<Movie> MergeUnreadableMembers(
+        Dictionary<string, List<Movie>> setGroups,
+        IEnumerable<(string Name, IReadOnlyList<Movie> Members)> managedCollections,
+        ISet<Guid> unreadableMovieIds)
+    {
+        var kept = new List<Movie>();
+
+        foreach (var (name, members) in managedCollections)
+        {
+            foreach (var movie in members)
+            {
+                if (!unreadableMovieIds.Contains(movie.Id))
+                {
+                    continue;
+                }
+
+                if (!setGroups.TryGetValue(name, out var group))
+                {
+                    group = [];
+                    setGroups[name] = group;
+                }
+
+                if (group.All(m => m.Id != movie.Id))
+                {
+                    group.Add(movie);
+                    kept.Add(movie);
+                }
+            }
+        }
+
+        return kept;
     }
 
     /// <summary>
@@ -947,8 +1037,10 @@ public class LocalMovieSetManager : IHostedService, IDisposable
         result.SetDataFolderUnavailable = SetNfoParser.IsFolderUnavailable(config.SetDataFolder);
 
         var allMovies = QueryAllMovies();
-        var setGroups = BuildSetGroups(allMovies, cancellationToken);
+        var unreadableMovieIds = new HashSet<Guid>();
+        var setGroups = BuildSetGroups(allMovies, cancellationToken, unreadableMovieIds: unreadableMovieIds);
         var (existingBoxSets, existingByName, _) = LoadExistingBoxSets();
+        KeepUnreadableMembers(setGroups, existingByName, unreadableMovieIds);
         var minimumMovies = Math.Max(1, config.MinimumMovies);
 
         result.ScannedMoviesCount = allMovies.Count;
